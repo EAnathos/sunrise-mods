@@ -17,8 +17,10 @@ It is not live yet; the current registry and the instructions below are unchange
    characters from `0-9`, `A-Z` and `a-z`. That ID is permanent; the project appears in Discover after
    its first release is approved. Or open a
    [Register a repository](https://github.com/sunrise-org/sunrise-mods/issues/new?template=register.yml)
-   issue with the link to your repository, and a maintainer opens that pull request. A form at
-   [Submit a mod](https://playsunrise.net/mods/submit) that opens it for you is coming.
+   issue with the link to your repository: the registry checks it and opens that pull request for you,
+   answering on the issue. An issue can register only a repository of the personal account that opens
+   it; for an organisation's repository, an admin of it uses the form at
+   [Submit a mod](https://playsunrise.net/mods/submit), which does the same after a GitHub sign-in.
 3. **Release from your package folder.** After registration merges, run `cargo sunrise-mod release <version>`.
    The command updates the caller workflow and bumps the manifest version, then tags and pushes.
    The shared workflow publishes a signed `.smod` and a separate signed page bundle. A native mod
