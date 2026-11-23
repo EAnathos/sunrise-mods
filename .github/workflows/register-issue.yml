@@ -27,7 +27,7 @@ jobs:
       ISSUE: ${{ github.event.issue.number }}
       GH_TOKEN: ${{ github.token }}
       # The service's route, and the audience it requires of the token.
-      REGISTRY: https://playsunrise.net/api/mods/register/issue
+      REGISTRY: https://playsunrise.net/api/mods/issue-registration
       FORM: https://playsunrise.net/mods/submit
     steps:
       - name: Ask the registry
@@ -38,9 +38,9 @@ jobs:
             --get --data-urlencode "audience=$REGISTRY" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -er .value)
           echo "::add-mask::$token"
           # One call per event, never retried: the service answers a repeat with the same pull request.
-          status=$(curl -sS --max-time 180 -o answer.json -w '%{http_code}' -X POST \
-            -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
-            --data "{\"issue\": $ISSUE}" "$REGISTRY") || status=000
+          status=$(jq -n --argjson issue "$ISSUE" --arg token "$token" '{issue: $issue, token: $token}' |
+            curl -sS --max-time 180 -o answer.json -w '%{http_code}' -X POST \
+              -H 'Content-Type: application/json' --data @- "$REGISTRY") || status=000
           echo "The registry answered $status"
           jq -rn --arg status "$status" --arg form "$FORM" --arg repo "$GITHUB_REPOSITORY" \
             --slurpfile answer <(jq -c 'objects' answer.json 2>/dev/null || true) '
