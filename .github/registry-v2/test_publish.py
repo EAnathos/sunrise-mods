@@ -95,7 +95,7 @@ class Publish(unittest.TestCase):
 
     def test_a_commit_publishes_unless_it_left_main_or_is_older_than_the_deployed_one(self):
         workflow = (REPO / ".github/workflows/publish.yml").read_text()
-        for job in ("sign", "deploy"):
+        for job in ("sign", "stage"):
             self.assertIn('live.py --publishable "$GITHUB_SHA"', workflow.split(f"\n  {job}:\n", 1)[1].split("\n\n", 1)[0])
         env, api = self.deployed_api()
         deployed, merged, tip = "c" * 40, "a" * 40, "b" * 40
