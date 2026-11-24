@@ -4,6 +4,7 @@ tag = "v4.4.13"
 published = "2026-11-24T17:07:52Z"
 sunrise = "dev-2026-11-24-3d34bbe"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1465148586
 
 [file]
 url = "https://github.com/arismoko/IronFurnaces-Sunrise/releases/download/v4.4.13/ironfurnaces-4.4.13.smod"

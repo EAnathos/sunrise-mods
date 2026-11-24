@@ -4,6 +4,7 @@ tag = "rightclickharvest/v0.5.1"
 published = "2026-11-24T03:52:42Z"
 sunrise = "dev-2026-11-23-ebd2d22"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
 dependencies = []
 
 [file]

@@ -4,6 +4,7 @@ tag = "universalbonemeal/v0.5.1"
 published = "2026-11-24T11:58:04Z"
 sunrise = "dev-2026-11-24-3d34bbe"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
 dependencies = []
 
 [file]

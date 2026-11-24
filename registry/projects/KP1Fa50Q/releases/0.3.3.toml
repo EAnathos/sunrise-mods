@@ -4,6 +4,7 @@ tag = "v0.3.3"
 published = "2026-11-24T00:22:19Z"
 sunrise = "dev-2026-11-23-ebd2d22"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300471
 dependencies = []
 
 [file]

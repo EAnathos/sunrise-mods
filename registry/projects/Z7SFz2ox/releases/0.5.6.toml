@@ -4,6 +4,7 @@ tag = "v0.5.6"
 published = "2026-11-24T08:24:51Z"
 sunrise = "dev-2026-11-24-f8aa80e"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1460980278
 
 [file]
 url = "https://github.com/Joeypc6/JEI-Sunrise/releases/download/v0.5.6/jei-0.5.6.smod"

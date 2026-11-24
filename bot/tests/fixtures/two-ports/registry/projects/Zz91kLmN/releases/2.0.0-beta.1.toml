@@ -4,6 +4,7 @@ tag = "wayfinder/v2.0.0-beta.1"
 published = "2026-11-23T15:00:00Z"
 sunrise = "nightly-2026-11-23-abcdef0"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 987654321
 
 [file]
 url = "https://github.com/other/port-collection/releases/download/wayfinder%2Fv2.0.0-beta.1/wayfinder-2.0.0-beta.1.smod"

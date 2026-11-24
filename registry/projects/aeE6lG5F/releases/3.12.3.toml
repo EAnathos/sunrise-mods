@@ -4,6 +4,7 @@ tag = "v3.12.3"
 published = "2026-11-24T08:35:36Z"
 sunrise = "dev-2026-11-24-f8aa80e"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1469846339
 
 [file]
 url = "https://github.com/Joeypc6/TinkersConstruct-Sunrise/releases/download/v3.12.3/tconstruct-3.12.3.smod"

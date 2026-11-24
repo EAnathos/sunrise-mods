@@ -4,6 +4,7 @@ tag = "deepbore_quarry/v0.4.2"
 published = "2026-11-24T14:28:04Z"
 sunrise = "dev-2026-11-24-3d34bbe"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300649
 dependencies = []
 
 [file]
