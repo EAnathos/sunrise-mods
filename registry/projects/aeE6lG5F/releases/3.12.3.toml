@@ -1,0 +1,33 @@
+version = "3.12.3"
+kind = "native-mod"
+tag = "v3.12.3"
+published = "2026-11-24T08:35:36Z"
+sunrise = "dev-2026-11-24-f8aa80e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+
+[file]
+url = "https://github.com/Joeypc6/TinkersConstruct-Sunrise/releases/download/v3.12.3/tconstruct-3.12.3.smod"
+size = 25780546
+sha256 = "bc8ce026883d68de6cc9edb6da2073164b28d3bc250abcdc165f884f3e2a6318"
+attestation = "https://github.com/Joeypc6/TinkersConstruct-Sunrise/releases/download/v3.12.3/tconstruct-3.12.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Joeypc6/TinkersConstruct-Sunrise/releases/download/v3.12.3/tconstruct-3.12.3.page.tar"
+size = 4791808
+sha256 = "cff6dfeac1046727da6cb93bc8bc7955fe93a36baa0f3c798ecc9ef9169234dc"
+attestation = "https://github.com/Joeypc6/TinkersConstruct-Sunrise/releases/download/v3.12.3/tconstruct-3.12.3.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "guideme"
+version = "^0.1"
+required = false
+
+[[dependencies]]
+mod = "jade"
+version = "^26"
+required = false
+
+[[dependencies]]
+mod = "jei"
+version = "^0.5"
+required = false
