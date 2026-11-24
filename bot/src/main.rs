@@ -120,15 +120,15 @@ fn main() -> ExitCode {
             } else {
                 eprintln!("{}", escape(&error));
             }
-            failure(&error)
+            failure()
         }
     }
 }
 
-/// A run that could not finish because a download stayed unavailable exits apart from one
-/// that reached a refusal.
-fn failure(error: &str) -> ExitCode {
-    if error.contains(github::UNAVAILABLE) {
+/// A failed run during which GitHub was unavailable exits apart from one that only reached
+/// a refusal: what it refused may be the fault of the failed lookup.
+fn failure() -> ExitCode {
+    if github::was_unavailable() {
         ExitCode::from(github::UNAVAILABLE_EXIT)
     } else {
         ExitCode::FAILURE
@@ -201,7 +201,7 @@ fn finished(result: Result<(), String>) -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("{}", watch::diagnostic(&error));
-            failure(&error)
+            failure()
         }
     }
 }
