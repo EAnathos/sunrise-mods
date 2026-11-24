@@ -1,8 +1,0 @@
-id = "advplus"
-name = "Advancements+"
-summary = "A clearer Advancements screen with a full tree, search and filters, plus on-screen plaques in place of the stock toasts."
-repo = "Zekrenlight/advancements-plus"
-repo_id = 1464968300
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/advplus.png"

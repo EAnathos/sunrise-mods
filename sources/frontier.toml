@@ -1,8 +1,0 @@
-id = "frontier"
-name = "Frontier"
-summary = "A minimap and saved world map with layered cave views, waypoints, and an entity radar for nearby players, mobs, and dropped items."
-repo = "Zekrenlight/frontier"
-repo_id = 1465013078
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/frontier.png"

@@ -1,8 +1,0 @@
-id = "butterflies"
-name = "Butterflies"
-summary = "Butterflies by day and moths by night, in many colours and patterns; catch them in a jar."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/butterflies/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/butterflies.png"

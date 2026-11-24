@@ -1,8 +1,0 @@
-id = "vulture"
-name = "Vulture"
-summary = "A desert vulture you tame with raw chicken, saddle and fly like a plane, with two chests and talons to carry a creature."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/vulture/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/vulture.png"

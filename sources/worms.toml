@@ -1,8 +1,0 @@
-id = "worms"
-name = "Worms"
-summary = "Earthworms that come up in the rain; settle them in your garden and they help your crops grow."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/worms/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/worms.png"

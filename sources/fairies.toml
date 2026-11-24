@@ -1,8 +1,0 @@
-id = "fairies"
-name = "Fairies"
-summary = "Shy glowing fairies you befriend with glow berries: they circle your head, lighten your step and leave you fairy dust."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/fairies/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/fairies.png"

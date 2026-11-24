@@ -1,8 +1,0 @@
-id = "ported_farmersdelight"
-name = "Farmer's Delight (Sunrise port)"
-summary = "Farmer's Delight for Sunrise: cooking pot, stove, skillet, cutting board and knives, new crops, feasts, meals and drinks."
-repo = "play-go/farmersdelight-sunrise"
-repo_id = 1459541440
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/ported_farmersdelight.png"

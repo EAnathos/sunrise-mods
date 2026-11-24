@@ -1,8 +1,0 @@
-id = "shulker_tooltip"
-name = "Shulker Tooltip"
-summary = "Hold Ctrl over a shulker box to see its contents as a colour-matched 9x3 grid in the tooltip."
-repo = "Flo-bot-png/shulker-tooltip"
-repo_id = 1465931024
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/shulker_tooltip.png"

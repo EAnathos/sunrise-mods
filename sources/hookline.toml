@@ -1,8 +1,0 @@
-id = "hookline"
-name = "Hookline"
-summary = "Client-side AFK fishing helper: reel on your own bobber splash, recast, keep or toss catch, deposit into a chest, and eat."
-repo = "Zekrenlight/hookline"
-repo_id = 1464968076
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/hookline.png"

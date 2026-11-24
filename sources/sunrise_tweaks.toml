@@ -1,8 +1,0 @@
-id = "sunrise_tweaks"
-name = "Sunrise Tweaks"
-summary = "A click menu of small client tweaks: Auto Tool, Autoclicker, Auto Eat, Fullbright, Light Overlay, Free Look, Easy Bridge and more."
-repo = "Flo-bot-png/sunrise-tweaks"
-repo_id = 1465959272
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/sunrise_tweaks.png"

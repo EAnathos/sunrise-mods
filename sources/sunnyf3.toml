@@ -1,8 +1,0 @@
-id = "sunnyf3"
-name = "SunnyF3"
-summary = "A cleaner F3 screen with titled, coloured sections you can move or hide, plus 1% lows, the in-game clock and readable names."
-repo = "Zekrenlight/sunnyf3"
-repo_id = 1464968518
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/sunnyf3.png"

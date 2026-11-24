@@ -1,8 +1,0 @@
-id = "ported_corn_delight"
-name = "Corn Delight (Sunrise port)"
-summary = "Corn Delight for Sunrise: two-tall corn, wild corn, corn dishes, nachos and popcorn feasts and the cob pipe. Needs Farmer's Delight."
-repo = "play-go/corndelight-sunrise"
-repo_id = 1460344010
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/ported_corn_delight.png"

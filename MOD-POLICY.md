@@ -7,18 +7,10 @@ says who answers for them and when one is taken down.
 
 ## Who answers for a project
 
-A project belongs to its authors, and its entry's `owners` answer for it. Each project is under the licence its
-entry names, and the registry accepts non-commercial licences (such as CC-BY-NC-SA-4.0), because listing and
-installing are free. Sunrise reviews each entry before listing it, but listing is not an endorsement, and the review is
-no guarantee. Source listings are reviewed only as listings (see [Source mods](#source-mods)).
-
-## Source mods
-
-A listing in the Nightly source list (`sources/`) is checked when it is added or changed: its format, that the
-repository is public and named as GitHub names it, and that the mod's manifest is where the listing says. Its code
-is not reviewed, at that commit or later ones. Players build it from source on their own computers, after the
-launcher tells them so and asks for their consent. The owner of the listed repository answers for the code, and
-the promises below apply to it as to any file listed here. A listing that breaks them is removed from `sources/`.
+A project belongs to its authors, and the owner of its registered repository answers for it. Each project is under the licence its
+manifest names, and the registry accepts non-commercial licences (such as CC-BY-NC-SA-4.0), because listing and
+installing are free. Sunrise reviews each release before listing it, but listing is not an endorsement, and the review is
+no guarantee.
 
 ## What an author promises
 
@@ -32,11 +24,11 @@ When you submit a project, you promise that:
 - it contains nothing that breaks the
   [Minecraft EULA](https://www.minecraft.net/eula) or [Usage Guidelines](https://www.minecraft.net/usage-guidelines);
 - it contains nothing illegal, hateful or sexual;
-- you will keep the entry accurate, and sign every version if you set a key.
+- you will keep its page accurate.
 
 ## Takedowns
 
-A file or a whole project is taken down by adding it to [`revoked.toml`](revoked.toml), with the reason. The
+A file or a whole project is taken down by adding it to [`registry/revoked.toml`](registry/revoked.toml), with the reason. The
 launcher then refuses to install it, and turns off copies already installed, showing the reason. Sunrise takes a
 project down when it breaks this policy, when there is a valid legal request, or when its owners ask.
 

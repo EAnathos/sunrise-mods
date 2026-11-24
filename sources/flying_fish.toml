@@ -1,8 +1,0 @@
-id = "flying_fish"
-name = "Flying Fish"
-summary = "Shoals of flying fish in warm seas that burst out of the water and glide over the waves; catch them in a bucket, fish them or cook them."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/flying_fish/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/flying_fish.png"

@@ -1,8 +1,0 @@
-id = "scorpions"
-name = "Scorpions"
-summary = "Real-size scorpions in deserts, badlands and caves: they rear up when you come close and sting when hit. Their stinger makes a dagger you throw."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/scorpions/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/scorpions.png"

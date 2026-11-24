@@ -1,8 +1,0 @@
-id = "sporelins"
-name = "Sporelins"
-summary = "Shy mushroom sprites that hide as mushrooms and plant them; befriend one with a mushroom and it tends a patch, makes you stew and glows at night."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/sporelins/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/sporelins.png"

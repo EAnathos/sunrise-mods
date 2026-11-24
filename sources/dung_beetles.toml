@@ -1,8 +1,0 @@
-id = "dung_beetles"
-name = "Dung Beetles"
-summary = "Dung beetles that follow the herds, roll their balls in straight lines under the stars and bury them, turning worn pastures green again."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/dung_beetles/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/dung_beetles.png"

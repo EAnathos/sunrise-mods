@@ -7,4 +7,4 @@
 - Keep permissions minimal per job. Never run author code with a write token, `id-token` access or secrets.
 - Pin actions by full commit SHA with a version comment. Use `persist-credentials: false` on checkout.
 - Escape `::`, `##[` and newlines in untrusted log and summary text.
-- See [docs/registry-v2.md](docs/registry-v2.md) for the v2 reference. Leave the live registry unchanged.
+- See [docs/registry-v2.md](docs/registry-v2.md) for the v2 reference.

@@ -1,8 +1,0 @@
-id = "fireflies"
-name = "Fireflies"
-summary = "Fireflies that light up warm nights; kept in a glass jar, they make a soft lantern."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/fireflies/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/fireflies.png"
