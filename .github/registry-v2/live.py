@@ -207,20 +207,8 @@ def read_deployed(root, key, bot):
             return None  # Confirmed legacy-only, not a missing v2 artifact.
         tree_sha = entry["sha"]
 
-    # A deploy-only retry can reuse an earlier assembly. Resolve that attempt
-    # from the jobs, not from which snapshots happen to be retained today.
-    assembly = None
-    for page in itertools.count(1):
-        jobs = gh_api(f"actions/runs/{run_id}/jobs?filter=all&per_page=100&page={page}")["jobs"]
-        for job in jobs:
-            if (job["name"] == "assemble" and job["run_attempt"] <= deploy_attempt
-                    and (assembly is None or job["run_attempt"] > assembly["run_attempt"])):
-                assembly = job
-        if len(jobs) < 100:
-            break
-    if assembly is None or assembly["conclusion"] != "success":
-        raise ValueError("cannot identify the assembly job for the last v2 deployment")
-    name = f"v2-snapshot-{assembly['run_attempt']}"
+    # The deploy job stages the snapshot it deploys, so the snapshot carries that job's attempt.
+    name = f"v2-snapshot-{deploy_attempt}"
     subprocess.run(["gh", "run", "download", run_id, "--repo", os.environ["GITHUB_REPOSITORY"],
                     "--name", name, "--dir", str(root)], check=True, capture_output=True)
     index = verify(root, key, bot)

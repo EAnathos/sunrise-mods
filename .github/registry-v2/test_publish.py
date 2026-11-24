@@ -97,7 +97,7 @@ class Publish(unittest.TestCase):
         workflow = (REPO / ".github/workflows/publish.yml").read_text()
         for job in ("sign", "deploy"):
             self.assertIn('live.py --publishable "$GITHUB_SHA"', workflow.split(f"\n  {job}:\n", 1)[1].split("\n\n", 1)[0])
-        env, api = self.deployed_api(assembly_attempts=())
+        env, api = self.deployed_api()
         deployed, merged, tip = "c" * 40, "a" * 40, "b" * 40
 
         def publishable(sha, to_main, from_deployed):
@@ -179,7 +179,7 @@ class Publish(unittest.TestCase):
             live.guard_deploy(self.site / "v2", KEY, self.verifier, carried=True)
         self.assert_site("newer")
 
-    def deployed_api(self, *, assembly_attempts, keyed=True):
+    def deployed_api(self, *, keyed=True):
         env = {"GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "example/mods"}
         sha = "c" * 40
         log_url = f"{env['GITHUB_SERVER_URL']}/{env['GITHUB_REPOSITORY']}/actions/runs/70/job/80"
@@ -195,23 +195,19 @@ class Publish(unittest.TestCase):
             f"git/trees/{'e' * 40}": {"truncated": False, "tree": (
                 [{"path": "index-key.pub", "sha": "f" * 40}] if keyed else []
             )},
-            "actions/runs/70/jobs?filter=all&per_page=100&page=1": {"jobs": [
-                {"name": "assemble", "run_attempt": attempt, "conclusion": "success"}
-                for attempt in assembly_attempts
-            ]},
         }
         return env, api
 
     def test_live_read_failure_uses_last_successful_deploy_run_artifact(self):
         published = self.snapshot(self.root / "previous", "older")
-        # Attempt 2 retried only deploy; the later assembly in attempt 3 did not deploy.
-        env, api = self.deployed_api(assembly_attempts=(3, 1))
+        # Attempt 2 deployed, so its snapshot is the deployed one.
+        env, api = self.deployed_api()
         run = subprocess.run
         downloads = []
 
         def run_with_artifact(command, **kwargs):
             if command[:3] == ["gh", "run", "download"]:
-                self.assertEqual(command[3:-1], ["70", "--repo", "example/mods", "--name", "v2-snapshot-1", "--dir"])
+                self.assertEqual(command[3:-1], ["70", "--repo", "example/mods", "--name", "v2-snapshot-2", "--dir"])
                 shutil.copytree(published, command[-1])
                 downloads.append(command[3])
                 return subprocess.CompletedProcess(command, 0)
@@ -227,7 +223,7 @@ class Publish(unittest.TestCase):
 
     def test_deploy_retry_refuses_stale_pages_when_the_deployed_snapshot_is_unavailable(self):
         stale = self.snapshot(self.root / "stale", "older")
-        env, api = self.deployed_api(assembly_attempts=(3, 2, 1))
+        env, api = self.deployed_api()
         run = subprocess.run
         downloads = []
 
@@ -264,7 +260,7 @@ class Publish(unittest.TestCase):
     def test_matching_live_site_stands_in_for_an_unavailable_deployment_snapshot(self):
         published = self.snapshot(self.root / "published", "older")
         newer = self.snapshot(self.root / "newer", "newer")
-        env, api = self.deployed_api(assembly_attempts=(2,))
+        env, api = self.deployed_api()
         run = subprocess.run
 
         def run_without_artifacts(command, **kwargs):
@@ -290,7 +286,7 @@ class Publish(unittest.TestCase):
 
     def test_first_keyed_deploy_can_follow_a_deploy_without_a_key(self):
         candidate = self.snapshot(self.root / "candidate", "older")
-        env, api = self.deployed_api(assembly_attempts=(), keyed=False)
+        env, api = self.deployed_api(keyed=False)
         with (patch.dict(os.environ, env), patch.object(live, "gh_api", side_effect=api.__getitem__) as request,
               self.live_from(self.root / "not-published")):
             live.guard_deploy(candidate, KEY, self.verifier, carried=False)
