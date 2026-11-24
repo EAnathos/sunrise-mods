@@ -166,8 +166,8 @@ def verify(out):
     cells = json.loads((out / "fit.json").read_text(encoding="utf-8"))
     fit = "; ".join(f"{label} {', '.join(builds)}" for label, builds in
                     (("fits", cells["fits"]), ("does not fit", cells["does_not_fit"])) if builds) or "none is offered"
-    # Each release goes to the later jobs as one archive. As an artifact of loose files, a release of tens of
-    # thousands of files cannot be downloaded on Windows.
+    # Each release goes to the later jobs as one archive: an artifact of tens of thousands of loose files is slow
+    # to upload and download.
     for release in ("source", "previous"):
         if (out / release).is_dir():
             (out / "upload" / release).mkdir(parents=True)

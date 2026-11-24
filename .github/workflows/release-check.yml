@@ -83,25 +83,18 @@ jobs:
           if-no-files-found: error
 
   build:
-    name: Build / ${{ matrix.host }}
+    name: Build / Linux
     # The release's dependencies run code here (build scripts, proc macros), so wait for this
     # attempt's scanner: it fails on a dependency known to be malware and passes ordinary flags.
     needs: [verify, scanner]
     if: needs.verify.outputs.attempt == github.run_attempt && needs.verify.outputs.source != '' && needs.scanner.result == 'success' && needs.scanner.outputs.attempt == github.run_attempt
-    runs-on: ${{ matrix.runner }}
+    # The macOS and Windows compile checks are switched off: waiting for a macOS runner took
+    # several times longer than every other step together. A release is built on Linux only.
+    runs-on: ubuntu-latest
     # Package build scripts and proc macros get no repository cache access.
     cache-mode: none
     permissions:
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - host: Linux
-            runner: ubuntu-latest
-            operation: build
-          # The macOS and Windows compile checks are switched off: waiting for a macOS runner
-          # took several times longer than every other step together. A release is built on Linux only.
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -113,23 +106,17 @@ jobs:
           path: ${{ runner.temp }}/registry-release-archive/
           digest-mismatch: error
       - name: Unpack the verified source
-        shell: bash
         working-directory: ${{ runner.temp }}
         run: |
           mkdir registry-release-source
           tar -xf registry-release-archive/release.tar -C registry-release-source
-      # The patch library of a mod with `[[native.mixin]]` rows links the game, which links udev and ALSA on Linux.
-      - name: Install the system libraries the game links on Linux
-        if: runner.os == 'Linux'
-        shell: bash
+      # The patch library of a mod with `[[native.mixin]]` rows links the game, which links udev and ALSA.
+      - name: Install the system libraries the game links
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev
       - name: Use the signed mod tool against the package's pinned SDK
-        shell: bash
-        env:
-          OPERATION: ${{ matrix.operation }}
-        run: python -I bot/ci/build_release.py "$RUNNER_TEMP/registry-release-source" "$OPERATION"
+        run: python3 -I bot/ci/build_release.py "$RUNNER_TEMP/registry-release-source" build
 
   scanner:
     name: Scanner
