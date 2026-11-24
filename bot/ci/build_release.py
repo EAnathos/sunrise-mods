@@ -1,9 +1,8 @@
-"""Build the verified source on Linux; compile-check it on the other SDK hosts."""
+"""Build the verified source with the signed mod tool, on a hosted Linux runner."""
 import base64
 import hashlib
 import json
 import os
-import platform
 import re
 import shutil
 import subprocess
@@ -13,11 +12,6 @@ import tempfile
 import tomllib
 from pathlib import Path
 
-PLATFORMS = {
-    ("linux", "x86_64"): "x86_64-unknown-linux-gnu",
-    ("darwin", "arm64"): "aarch64-apple-darwin",
-    ("win32", "amd64"): "x86_64-pc-windows-gnu",
-}
 # Public Ed25519 release key, as pinned by Sunrise's mod-tool install guide and release workflow.
 KEY = "r53xb3cuafGxZSicLz06KC+xXp9NJdPH8snNmXo5pAc="
 SDK = Path(".sunrise/sdk")
@@ -31,21 +25,12 @@ def require_release_contract(meta):
 
 
 def install_tool(work):
-    host = (sys.platform, platform.machine().lower())
-    if host not in PLATFORMS:
-        raise ValueError("runner is not a Sunrise SDK host")
-    platform_asset = f"tool-{PLATFORMS[host]}.tar.xz"
+    # Every job that runs this is on a hosted Linux x86_64 runner.
+    platform_asset = "tool-x86_64-unknown-linux-gnu.tar.xz"
     sha_file, sig_file, info = "SHA256SUMS", "SHA256SUMS.sig", "tool.json"
     for name in (platform_asset, sha_file, sig_file, info):
         subprocess.run(["curl", "--disable", "--proto", "=https", "--proto-redir", "=https", "-fsSL", "-o", work / name,
                         f"https://github.com/sunrise-org/sunrise/releases/download/mod-tool/{name}"], check=True)
-    if sys.platform == "win32":
-        openssl = Path(os.environ["ProgramFiles"]) / "Git/usr/bin/openssl.exe"
-    elif sys.platform == "darwin":
-        prefix = subprocess.check_output(["brew", "--prefix", "openssl@3"], text=True).strip()
-        openssl = Path(prefix) / "bin/openssl"
-    else:
-        openssl = "openssl"
     sums = (work / sha_file).read_bytes()
     message, key, signature = (work / name for name in ("message", "key.der", "signature"))
     message.write_bytes(b"horizon release mod-tool\n" + sums)
@@ -54,7 +39,7 @@ def install_tool(work):
         if not row:
             continue
         signature.write_bytes(base64.b64decode(row, validate=True))
-        verified = subprocess.run([openssl, "pkeyutl", "-verify", "-rawin", "-pubin", "-keyform", "DER", "-inkey", key,
+        verified = subprocess.run(["openssl", "pkeyutl", "-verify", "-rawin", "-pubin", "-keyform", "DER", "-inkey", key,
                                    "-in", message, "-sigfile", signature], capture_output=True)
         if verified.returncode == 0:
             break
@@ -69,7 +54,7 @@ def install_tool(work):
     if meta["schema"] != 1 or meta["tag"] != "mod-tool" or not re.fullmatch(r"[0-9a-f]{40}", meta["commit"]):
         raise ValueError("invalid signed mod tool descriptor")
     require_release_contract(meta)
-    executable = "cargo-sunrise-mod.exe" if sys.platform == "win32" else "cargo-sunrise-mod"
+    executable = "cargo-sunrise-mod"
     binary = work / executable
     with tarfile.open(work / platform_asset, "r:xz") as archive:
         members = [entry for entry in archive if entry.name.removeprefix("./") == executable]
@@ -110,7 +95,7 @@ def prepare_sdk(source):
         shutil.move(template / SDK, destination)
 
 
-def run(source, operation):
+def build(source):
     # Compilation may execute build scripts or proc macros. This is the final step of a
     # disposable hosted runner with only contents:read, no persisted credentials or secrets.
     # The child gets no workflow file-command paths or tokens, nor a repository checkout as cwd.
@@ -118,21 +103,21 @@ def run(source, operation):
            if not k.startswith(("GITHUB_", "ACTIONS_", "RUNNER_", "GH_"))}
     with tempfile.TemporaryDirectory() as folder:
         tool = install_tool(Path(folder))
-        with subprocess.Popen([tool, "sunrise-mod", operation], cwd=source, env=env,
+        with subprocess.Popen([tool, "sunrise-mod", "build"], cwd=source, env=env,
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
             for line in process.stdout:
                 line = line.rstrip(b"\r\n").decode("utf-8", errors="backslashreplace")
                 line = "".join(c if c.isprintable() else f"\\u{ord(c):04x}" for c in line)
                 print("mod build | " + line.replace("::", "%3A%3A").replace("##[", "%23%23%5B"), flush=True)
             if process.wait():
-                raise ValueError(f"cargo sunrise-mod {operation} failed")
+                raise ValueError("cargo sunrise-mod build failed")
 
 
 if __name__ == "__main__":
     try:
         match sys.argv[1:]:
-            case [source, "build" | "check" as operation]:
-                run(Path(source), operation)
+            case [source, "build"]:
+                build(Path(source))
             case [source, "prepare-sdk"]:
                 prepare_sdk(Path(source))
             case [source, "template-fixture", pin]:
