@@ -1,0 +1,9 @@
+id = "lw4j9EQ2"
+slug = "cloudglass"
+mod = "cloudglass"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468944948
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
