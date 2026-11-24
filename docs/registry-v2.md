@@ -1,9 +1,7 @@
 # Sunrise mod registry v2
 
-**V2 is built and checked before it goes live. Publishing starts when the registry signing key is configured. The current registry and its published files are unchanged.**
-
-V2 uses `registry/` for its source files. The launcher and site read the single file
-`v2/index.signed` on the existing registry site, not the TOML files. The author tool reads
+The registry keeps its source files in `registry/`. The launcher and site read the single file
+`v2/index.signed` on the registry site, not the TOML files. The author tool reads
 its repository's file under `repositories/`, `categories.toml`, and `release-workflow.toml` from raw `main`.
 
 ## Repository layout
@@ -284,10 +282,10 @@ what that deployment recorded: after each keyed deploy, the workflow writes both
 `registry-v2/deployed` commit status that names the run. Assembly verifies the index and images and
 checks that the Pages archive will include them. If the new catalogue fails, the workflow uses the
 last complete signed snapshot, from Pages first or from the last successful deployment's retained
-artifact. It deploys the legacy site and reports the v2 failure. If neither source can be
+artifact. It deploys that snapshot again and reports the failure. If neither source can be
 recovered it reports `NO_AUTHENTICATED_V2_SNAPSHOT`, and if the deployed serial cannot be
 established it reports `V2_DEPLOYED_SERIAL_UNKNOWN`; either way the entire site is left unchanged. Without a committed public key, the publish does not contact
-the v2 services and deploys only the legacy site. A separate
+the v2 services and publishes no index. A separate
 workflow, started every ten minutes by `timer.yml`, detects new offered builds and requests a publish on `main` without
 committing generated files.
 
@@ -383,5 +381,5 @@ with `not a release` for PRs that change no files under `registry/projects/*/rel
 `registry/projects/*/page/`. Only the dispatched check can pass a PR that changes those paths.
 GitHub starts no pull request workflow for a PR the bot opens, so the watcher asks that same
 workflow by number to look at its own maintenance PRs, such as a repository rename.
-A maintainer must approve the ordinary `check` and `dco` workflow runs for PRs the bot opens with
+A maintainer must approve the ordinary `dco` workflow runs for PRs the bot opens with
 `GITHUB_TOKEN`.
