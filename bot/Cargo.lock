@@ -1183,6 +1183,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sunrise-dependency-rule",
  "sunrise-mod-package",
  "sunrise-mod-surface",
  "sunrise-native-build",
@@ -1436,6 +1437,14 @@ dependencies = [
  "serde_json",
  "stacker",
  "unicode_names2",
+]
+
+[[package]]
+name = "sunrise-dependency-rule"
+version = "0.1.0"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=13ac93b2768719f1667e4362d09d4485a2ca1f0f#13ac93b2768719f1667e4362d09d4485a2ca1f0f"
+dependencies = [
+ "semver",
 ]
 
 [[package]]

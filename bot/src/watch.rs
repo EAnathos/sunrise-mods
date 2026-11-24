@@ -9,6 +9,7 @@ use sunrise_mod_package::{
 use time::OffsetDateTime;
 
 use crate::{
+    dependency,
     game_build::Builds,
     github::{self, Attestation, GitHub, Observation, Repo},
     registry::{self, ProjectEntry, Registry},
@@ -219,27 +220,21 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
 /// The first required dependency no other project on main can supply: the build would only fail
 /// on it later, with a compiler log instead of a reason.
 fn unsupplied(registry: &Registry, id: &ProjectId, row: &Release) -> Option<String> {
-    let revoked = |project: &ProjectId, release: &Release| {
-        registry.revoked.iter().any(|r| {
-            r.project == *project
-                && r.sha256
-                    .as_ref()
-                    .is_none_or(|hash| *hash == release.file.sha256)
-        })
-    };
+    let revoked = dependency::revocations(&registry.revoked);
     row.dependencies
         .iter()
         .filter(|dependency| dependency.required)
         .find(|dependency| {
             !registry.projects.iter().any(|(provider, entry)| {
                 provider != id
-                    && entry.project.mod_id == dependency.mod_id
-                    && dependency
-                        .project
-                        .as_ref()
-                        .is_none_or(|pinned| pinned == provider)
-                    && entry.releases.iter().any(|(version, release)| {
-                        dependency.version.matches(version) && !revoked(provider, release)
+                    && entry.releases.values().any(|release| {
+                        dependency::satisfied_by(
+                            dependency,
+                            provider,
+                            &entry.project.mod_id,
+                            release,
+                            &revoked,
+                        )
                     })
             })
         })
