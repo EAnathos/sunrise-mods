@@ -4,6 +4,7 @@ mod game_build;
 mod github;
 mod index;
 mod index_signature;
+mod moved;
 mod registry;
 mod release_payload;
 mod schema;
@@ -24,6 +25,7 @@ const USAGE: &str = "usage: registry-bot check <checkout>
        registry-bot watch <checkout> <registry-owner/repo> <out>
        registry-bot collection-author <base checkout> <head checkout> <PR author login>
        registry-bot stay-listed <base checkout> <head checkout>
+       registry-bot moved <base checkout> <head checkout> <registry-owner/repo>
        registry-bot verify-release <checkout> <registry-owner/repo> <project> <release.toml> <out>
        registry-bot builds --out <file>
        registry-bot fit <checkout> [--builds <file written by builds>]
@@ -36,6 +38,12 @@ fn main() -> ExitCode {
         [command, checkout, repo, out] if command == "watch" => {
             return finished(with_github(repo, |gh| {
                 watch::run(Path::new(checkout), Path::new(out), gh)
+            }));
+        }
+        [command, base, head, repo] if command == "moved" => {
+            return finished(with_github(repo, |gh| {
+                print!("{}", moved::report(Path::new(base), Path::new(head), gh)?);
+                Ok(())
             }));
         }
         [command, checkout, repo, id, row, out] if command == "verify-release" => {

@@ -63,6 +63,16 @@ jobs:
         if: github.event_name == 'pull_request'
         working-directory: .
         run: target/release/registry-bot stay-listed base .
+      - name: Say whether a moved project keeps its owner
+        if: github.event_name == 'pull_request'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          target/release/registry-bot moved base . "$GITHUB_REPOSITORY" > "$RUNNER_TEMP/moved.md"
+          if [ -s "$RUNNER_TEMP/moved.md" ]; then
+            { echo '### Repository moves'; cat "$RUNNER_TEMP/moved.md"; } | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Only the owner of its mods changes a collection
         if: github.event_name == 'pull_request'
         working-directory: .

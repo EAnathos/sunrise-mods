@@ -13,6 +13,14 @@ pub struct Repository {
     #[serde(rename = "full_name")]
     pub name: RepositoryName,
     pub private: bool,
+    pub owner: Owner,
+}
+
+/// The account a repository belongs to. Its ID stays the same when the account is renamed.
+#[derive(Deserialize)]
+pub struct Owner {
+    pub id: u64,
+    pub login: String,
 }
 
 #[derive(Deserialize)]
