@@ -207,7 +207,7 @@ def read_deployed(root, key, bot):
             return None  # Confirmed legacy-only, not a missing v2 artifact.
         tree_sha = entry["sha"]
 
-    # The deploy job stages the snapshot it deploys, so the snapshot carries that job's attempt.
+    # deploy only deploys the site staged in its own attempt, so the snapshot carries that attempt.
     name = f"v2-snapshot-{deploy_attempt}"
     subprocess.run(["gh", "run", "download", run_id, "--repo", os.environ["GITHUB_REPOSITORY"],
                     "--name", name, "--dir", str(root)], check=True, capture_output=True)

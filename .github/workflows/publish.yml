@@ -157,9 +157,8 @@ jobs:
             payload/index.json.minisig
           if-no-files-found: error
 
-  # Authenticates the signed candidate, stages the site and deploys it. One job: staging runs the
-  # same verifier and live.py the deploy guard runs, so it gains nothing by sharing these permissions.
-  deploy:
+  # Authenticates the signed candidate, stages the site and runs the deploy guard on it.
+  stage:
     needs: [registry_v2, sign]
     if: always() && !cancelled() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -168,11 +167,6 @@ jobs:
       contents: read
       deployments: read
       statuses: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}v2/index.signed
     outputs:
       attempt: ${{ github.run_attempt }}
       record: ${{ steps.guard.outputs.record }}
@@ -254,6 +248,29 @@ jobs:
           name: ${{ steps.guard.outputs.snapshot }}
           path: site/v2/
           if-no-files-found: error
+
+  # deploy-pages does not see an artifact uploaded by its own job, so the deployment is a job of
+  # its own. It deploys only what stage guarded in the same attempt: a retry of this job alone
+  # would deploy a site whose guard ran before whatever was deployed since.
+  deploy:
+    needs: stage
+    if: always() && !cancelled() && needs.stage.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}v2/index.signed
+    steps:
+      - name: Require the site staged in this attempt
+        env:
+          STAGED: ${{ needs.stage.outputs.attempt }}
+        run: |
+          if [[ "$STAGED" != "$GITHUB_RUN_ATTEMPT" ]]; then
+            echo "::error::The site was staged in attempt $STAGED. Re-run all jobs, not only the failed ones."
+            exit 1
+          fi
       - id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
         with:
@@ -262,8 +279,8 @@ jobs:
   # Pages can report a deployment and still serve the previous files. Readers fetch one file,
   # so they never see a mixed pair; this makes a site that did not take the deployment a red run.
   confirm-live:
-    needs: deploy
-    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.deploy.outputs.snapshot != ''
+    needs: [stage, deploy]
+    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.stage.outputs.snapshot != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -279,7 +296,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: ${{ needs.deploy.outputs.snapshot }}
+          name: ${{ needs.stage.outputs.snapshot }}
           path: deployed
       - name: Wait until the site serves the deployed signed index
         run: |
@@ -291,8 +308,8 @@ jobs:
 
   # The next deploy's guard reads this when the bulk snapshot artifact cannot be fetched.
   record-deployment:
-    needs: deploy
-    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.deploy.outputs.record != ''
+    needs: [stage, deploy]
+    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.stage.outputs.record != ''
     runs-on: ubuntu-latest
     permissions:
       statuses: write
@@ -300,16 +317,16 @@ jobs:
       - name: Record the deployed serial and index digest on the commit
         env:
           GH_TOKEN: ${{ github.token }}
-          RECORD: ${{ needs.deploy.outputs.record }}
-          DEPLOY_ATTEMPT: ${{ needs.deploy.outputs.attempt }}
+          RECORD: ${{ needs.stage.outputs.record }}
+          DEPLOY_ATTEMPT: ${{ needs.stage.outputs.attempt }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -X POST -f state=success \
             -f context=registry-v2/deployed -f description="$RECORD" \
             -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$DEPLOY_ATTEMPT"
 
   report-v2-failure:
-    needs: deploy
-    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.deploy.outputs.v2_failed == 'true'
+    needs: [stage, deploy]
+    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.stage.outputs.v2_failed == 'true'
     runs-on: ubuntu-latest
     permissions: {}
     steps:
