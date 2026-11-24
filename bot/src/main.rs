@@ -27,6 +27,7 @@ const USAGE: &str = "usage: registry-bot check <checkout>
        registry-bot verify-release <checkout> <registry-owner/repo> <project> <release.toml> <out>
        registry-bot builds --out <file>
        registry-bot fit <checkout> [--builds <candidates file>]
+       registry-bot release-fit <builds.json> <release.toml> --out <file>
        registry-bot verify-index <index> <sig> --key <pub>";
 
 fn main() -> ExitCode {
@@ -87,6 +88,11 @@ fn main() -> ExitCode {
             if command == "fit" && builds_flag == "--builds" =>
         {
             fit::run(Path::new(checkout), Some(Path::new(builds)))
+        }
+        [command, builds, row, out_flag, out]
+            if command == "release-fit" && out_flag == "--out" =>
+        {
+            fit::release(Path::new(builds), Path::new(row), Path::new(out))
         }
         [command, index, sig, flag, pubkey] if command == "verify-index" && flag == "--key" => {
             signed::verify(Path::new(index), Path::new(sig), Path::new(pubkey)).map(|_| ())

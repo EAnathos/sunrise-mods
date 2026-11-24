@@ -158,11 +158,21 @@ def verify(out):
     expected = {p.relative_to(regenerated).as_posix(): git("hash-object", "--no-filters", p).decode().strip()
                 for p in regenerated.rglob("*") if p.is_file()}
     require(actual == expected, "PR files are not exactly the release row and page regenerated from the attested assets")
+    # What the judging job will store for this release once it is merged, for the reviewer to see now. Nothing is
+    # kept. A build the release cannot be judged on fails this check instead of every publish after the merge.
+    subprocess.run([sys.executable, "-I", ROOT / ".github/registry-v2/fit_store.py", "read"], cwd=ROOT, check=True)
+    subprocess.run([os.environ["REGISTRY_BOT"], "release-fit", ROOT / "registry/fit/builds.json", claim, "--out", out / "fit.json"],
+                   cwd=ROOT, check=True)
+    cells = json.loads((out / "fit.json").read_text(encoding="utf-8"))
+    fit = "; ".join(f"{label} {', '.join(builds)}" for label, builds in
+                    (("fits", cells["fits"]), ("does not fit", cells["does_not_fit"])) if builds) or "none is offered"
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
         print("previous=" + str((out / "previous").is_dir()).lower(), file=stream)
         print("comparison=" + ("missing" if (out / "previous-unavailable").exists() else "available"), file=stream)
+        print("fit=" + fit, file=stream)
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as stream:
         print("Verified the PR file scope, both attestations, hashes, package manifest, pinned build and resolved page.", file=stream)
+        print(f"\nOn the offered builds: {fit}.", file=stream)
 
 
 def install_tree(generated, work, branch):
@@ -362,6 +372,7 @@ def report(folder):
                 body += ("\n**No comparison with the last approved release**: its tag, package or attestation is no "
                          "longer published in the author's repository, so the scan below treats every file and "
                          "dependency as new. Review this release in full.\n")
+            body += f"\n**On the offered builds**: {safe(jobs['verify']['outputs']['fit'])}.\n"
             body += "\n" + scan_summary(folder, scan)
             success = jobs.keys() == REQUIRED_JOBS and all(job["result"] == "success" for job in jobs.values())
             if success:

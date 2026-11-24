@@ -174,6 +174,11 @@ A native mod with `[native.*]` rows fits only the build it was made for. A cell 
 fails the run and stores nothing: an unknown is never recorded as "does not fit". When the job
 succeeds it starts `publish.yml`.
 
+The release check judges a proposed release the same way on the builds offered at that moment
+(`registry-bot release-fit`) and shows the result in its report, so a reviewer sees where the release
+will appear before merging. It stores nothing: the job above judges the release again after the
+merge. A release that cannot be judged on an offered build fails its check.
+
 ### `registry/revoked.toml`
 
 Maintainers record `[[revoked]]` rows with `project`, `reason`, `date`, and optional `sha256`. Without
@@ -266,6 +271,8 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
 - `registry-bot fit <checkout> [--builds <file>]` brings `registry/fit/` in the checkout up to date,
   judging only what has no current verdict. With `--builds` the offered builds become the readable
   ones in that list; without it they stay as they are.
+- `registry-bot release-fit <builds.json> <release.toml> --out <file>` judges one release row on each
+  build in a stored `builds.json` and writes the build IDs it fits and does not fit, storing nothing.
 - `registry-bot index <checkout> --serial <n> --out <dir>` validates the same tree and stages
   `index.json` and the exact referenced images under `pages/`. Use `--generated-fit` to read the
   verdicts in `registry/fit/`, which must then be current for every release on every offered build.
