@@ -1,0 +1,23 @@
+version = "0.1.3"
+kind = "native-mod"
+tag = "butterflies/v0.1.3"
+published = "2026-11-24T18:46:10Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/butterflies/v0.1.3/butterflies-0.1.3.smod"
+size = 108025
+sha256 = "ca54c044b09dfdf73a2b6a3d5ca64f4565f0e84c42401c26a92150633bc0a661"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/butterflies/v0.1.3/butterflies-0.1.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/butterflies/v0.1.3/butterflies-0.1.3.page.tar"
+size = 128000
+sha256 = "b0d872b996572828600a5bbf6b8d3b75b3cd85484596aa78234b27b7883f2c87"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/butterflies/v0.1.3/butterflies-0.1.3.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.3"
+required = true
