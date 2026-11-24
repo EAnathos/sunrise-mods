@@ -1,0 +1,59 @@
+id = "4pggl9jF"
+name = "Sunrise Creatures"
+summary = "EAnathos's creatures for Sunrise: birds, insects, sea life, spirits and a giant, each with a page in the creature guide."
+description = """
+The Sunrise Creatures series fills the world with animals and beings that each behave in their own way: butterflies and moths, fireflies, ladybugs, stick insects, dung beetles, worms and scorpions; seagulls, a vulture you can ride, flying fish and jellyfish; and sporelins, fairies, storm spirits and a cyclops. A creature guide given to every player records each one you meet in its bestiary, and Vanilla Bestiary adds Minecraft's own creatures to it.
+
+These mods are written by EAnathos. Each is its own project with its own page; pick the ones you want. All of them need the Sunrise Creatures library, which is installed with any of them.
+"""
+
+[[member]]
+project = "M8bq6zGg"  # Sunrise Creatures, the library the others need
+
+[[member]]
+project = "qe9B3Uf7"  # Butterflies
+
+[[member]]
+project = "HqCzCSkE"  # Seagulls
+
+[[member]]
+project = "q4tpfIcX"  # Flying Fish
+
+[[member]]
+project = "c0wPLpcU"  # Jellyfish
+
+[[member]]
+project = "KqN0gfy9"  # Fireflies
+
+[[member]]
+project = "lg0nzXEj"  # Ladybugs
+
+[[member]]
+project = "utIDSCOG"  # Phasmids
+
+[[member]]
+project = "x0EwCB1L"  # Dung Beetles
+
+[[member]]
+project = "xiujjEeD"  # Worms
+
+[[member]]
+project = "oPJBWpql"  # Scorpions
+
+[[member]]
+project = "OzOGlZTW"  # Vulture
+
+[[member]]
+project = "Q4PbUt15"  # Sporelins
+
+[[member]]
+project = "EDGyj5Qi"  # Fairies
+
+[[member]]
+project = "RwN3a95s"  # Storm Spirits
+
+[[member]]
+project = "Hj69RRll"  # Cyclops
+
+[[member]]
+project = "WFZs73aL"  # Vanilla Bestiary
