@@ -1,8 +1,8 @@
 name: judge fits
 
-# The one writer of fit verdicts. Every push to main is judged here and then published. A dispatch
-# also looks for new game builds to offer, and publishes only when that changed what is stored:
-# timer.yml dispatches this whenever Sunrise has a release the stored list does not name.
+# The one writer of fit verdicts. Every push to main is judged here, and a dispatch also looks
+# for new game builds to offer: timer.yml dispatches this whenever Sunrise has a release the
+# stored list does not name. A run that changed what is stored starts a publish.
 on:
   push:
     branches: [main]
@@ -43,16 +43,9 @@ jobs:
           fi
           "$bot" fit . "${considered[@]}"
           python3 -I .github/registry-v2/fit_store.py write "Judge fits for $GITHUB_SHA"
-      # A newer push has its own run of this job, which publishes it once it is judged. A push
-      # can change what the index says without changing a verdict (a project's details, a pause,
-      # a takedown, a collection), so it always publishes.
-      - name: Publish main
-        if: github.event_name == 'push' || steps.judge.outputs.changed == 'true'
-        run: |
-          set -euo pipefail
-          head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
-          if [[ "$head" == "$GITHUB_SHA" ]]; then
-            gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main
-          else
-            echo "Main moved to $head; its own run publishes it." >> "$GITHUB_STEP_SUMMARY"
-          fi
+      # publish.yml publishes every push by itself. This publish carries the verdicts stored
+      # above, on whatever main is by now: what a newer push added is left unjudged in it until
+      # that push's own run of this job.
+      - name: Publish the new verdicts
+        if: steps.judge.outputs.changed == 'true'
+        run: gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main
