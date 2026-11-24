@@ -40,7 +40,7 @@ Things to get right, since each one otherwise costs a round trip:
 - **The release tag is new.** A fork starts with every tag of the repository it was forked from.
   Release a version whose tag (`v<version>`, or `<mod>/v<version>` in a subfolder) does not exist yet.
 - **The first release proposed is your newest one.** For a project with no approved release the
-  watcher looks only at the newest published release. It looks every 30 minutes.
+  watcher looks only at the newest published release. It looks every 10 minutes.
 - **One release pull request per project at a time.** A later release is proposed once the open one
   is merged or closed.
 

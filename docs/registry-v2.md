@@ -280,7 +280,7 @@ artifact. It deploys the legacy update and reports the v2 failure. If neither so
 recovered it reports `NO_AUTHENTICATED_V2_SNAPSHOT`, and if the deployed serial cannot be
 established it reports `V2_DEPLOYED_SERIAL_UNKNOWN`; either way the entire site is left unchanged. Without a committed public key, the publish does not contact
 the v2 services and deploys only the legacy site. A separate
-workflow, started every half hour by `timer.yml`, detects new offered builds and requests a publish on `main` without
+workflow, started every ten minutes by `timer.yml`, detects new offered builds and requests a publish on `main` without
 committing generated files.
 
 The [two-provider fixture](../bot/tests/fixtures/two-ports/registry/) and
@@ -288,8 +288,8 @@ The [two-provider fixture](../bot/tests/fixtures/two-ports/registry/) and
 
 ## The watcher and release PR checks
 
-`watch.yml` polls every 30 minutes and can also be started manually on `main`. GitHub's own schedule
-events rarely arrive, so `timer.yml` starts it: each timer run starts the watcher, waits half an hour and
+`watch.yml` polls every 10 minutes and can also be started manually on `main`. GitHub's own schedule
+events rarely arrive, so `timer.yml` starts it: each timer run starts the watcher, waits ten minutes and
 starts the next timer run, and a push to `main` restarts a chain that has stopped. It looks up each
 repository by its numeric GitHub ID. A rename opens a separate maintenance PR for that repository's file;
 it does not change project IDs or rewrite old release URLs. At registration the watcher considers
