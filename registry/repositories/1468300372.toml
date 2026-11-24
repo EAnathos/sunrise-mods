@@ -1,4 +1,4 @@
-name = "arismoko/horizon-ports"
+name = "arismoko/sunrise-ports"
 
 [[package]]
 path = "carryon"
