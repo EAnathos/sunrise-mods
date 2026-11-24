@@ -1,7 +1,7 @@
 [[release]]
 version = "2.0.0-beta.1"
 package = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
-rules = 1
+rules = 2
 
 [release.fits]
 

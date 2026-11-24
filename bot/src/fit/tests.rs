@@ -59,6 +59,43 @@ fn candidates(registry: &Registry) -> Vec<Build> {
         .collect()
 }
 
+/// The SDK index of `commit` as far as a fit reads it: its content API, game and mixins
+/// revision.
+fn index(commit: &Commit, content_api: String) -> sdk::Index {
+    sdk::Index {
+        schema: 1,
+        build: sdk::Build {
+            commit: commit.as_str().into(),
+            game: "26.3".into(),
+            date: "2026-11-24".into(),
+            nightly: None,
+        },
+        package_format: 1,
+        toolchain: sdk::Toolchain {
+            rust: "1.99.1".into(),
+        },
+        content_api,
+        surface: sdk::Surface {
+            hash: "ab".repeat(16),
+            previous: None,
+            source: None,
+            changes: Vec::new(),
+            notes: Vec::new(),
+        },
+        mixins: sdk::Mixins {
+            rev: "e".repeat(40),
+            patch: "c".repeat(64),
+        },
+        assets: BTreeMap::new(),
+        inputs: sdk::Inputs {
+            routes: BTreeMap::new(),
+            how: BTreeMap::new(),
+            members: BTreeMap::new(),
+            unknown: BTreeMap::new(),
+        },
+    }
+}
+
 fn written(tree: &Path, id: &str) -> Fit {
     toml::from_str(&fs::read_to_string(tree.join(format!("{id}.toml"))).unwrap()).unwrap()
 }
@@ -211,7 +248,7 @@ fn package_download_checks_hash_before_reading_the_archive() {
 }
 
 #[test]
-fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
+fn an_entry_only_the_compile_can_judge_is_a_note_beside_a_fit() {
     use std::cell::Cell;
 
     struct PackageDownload<'a> {
@@ -240,9 +277,12 @@ fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
             vec![],
         )
     };
-    let report = table.fits(table.entries.iter(), &surface());
-    assert!(matches!(report.verdict, SurfaceFit::Fits));
-    assert!(report.deferred.is_some());
+    assert!(
+        table
+            .fits(table.entries.iter(), &surface())
+            .deferred
+            .is_some()
+    );
     let pin = table.made_for;
     let manifest = format!(
         "id='wayfinder'\nname='Wayfinder'\nversion='1.2.0'\n[native]\ngame='26.3'\nsunrise='{pin}'\n"
@@ -284,12 +324,12 @@ fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
         sdks: BTreeMap::from([(
             build.commit.clone(),
             Ok(Rc::new(Sdk {
-                content_api: Manifest::parse(&manifest).unwrap().api,
-                game: "26.3".into(),
+                index: index(&build.commit, Manifest::parse(&manifest).unwrap().api),
                 surface_bytes: vec![],
-                surface: Ok(surface()),
+                surface: Ok(Rc::new(surface())),
             })),
         )]),
+        data: BTreeMap::new(),
     };
     // The build was offered with another surface than the one now published for its commit.
     assert!(
@@ -301,6 +341,7 @@ fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
         surface: Sha256::parse(sha256_hex(&[])).unwrap(),
         ..build
     };
-    assert_eq!(tool.judge(release, &build), Err(report.deferred.unwrap()));
+    // The launcher builds it too: the entry is shown beside the verdict, never a refusal.
+    assert_eq!(tool.judge(release, &build), Ok(true));
     assert_eq!(requests.get(), 1);
 }
