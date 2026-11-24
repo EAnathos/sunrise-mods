@@ -239,13 +239,12 @@ invalid collection members and members not listed in `mods/`; a missing listing 
 
 ## How it works
 
-Both workflows build `cargo-sunrise-mod` and the release verifier from the `sunrise-org/sunrise` commit named
-in `.github/sunrise-rev` and cache the tools per commit. They look up the stable release tags and the current
-Nightly's build, then download and verify the small SDK files needed to judge which builds each mod fits.
-They cache those files per build. The Nightly's commit and date come from its release's title and
+`check` builds `cargo-sunrise-mod` and the release verifier from the `sunrise-org/sunrise` commit named
+in `.github/sunrise-rev` and caches the tools per commit. It looks up the stable release tags and the current
+Nightly's build, then downloads and verifies the small SDK files needed to judge which builds each mod fits.
+It caches those files per build. The Nightly's commit and date come from its release's title and
 its signed `sunrise-release.json` and `sdk.json`, verified with the signature for exactly that build. Sunrise takes its `nightly` release away for a moment while it
-publishes the next one: `check` then warns and judges a pull request against the stable releases only, and
-`publish` stops before it deploys, so the last good index stays live.
+publishes the next one: `check` then warns and judges a pull request against the stable releases only.
 
 - **`check`** runs on every pull request. It uses the tool pin and scripts from the base checkout and reads
   the proposed entries only as data. Its steps are:
@@ -262,18 +261,11 @@ publishes the next one: `check` then warns and judges a pull request against the
   - `registry build`: builds the whole index the merge would publish.
   After the build, `scripts/build_sources.py check` checks every `sources/` listing and asks GitHub about the new
   or changed ones. A separate job runs the tests of the registry's own scripts.
-- **`publish`** runs on every push to `main`, and every three hours to refresh the release and Nightly
-  metadata and counts. It downloads the listed files as `check` does and builds the index, which checks them;
-  only then does it create the `<id>-<version>` release for each file still in `staging` or only in its
-  author's release, under the file's own name, with a stable native build's descriptor and archives beside it.
-  It then reads GitHub's
-  download count of each listed file's release asset and the stars of each project's source repository
-  (`scripts/fetch_counts.py`), builds `index.json` again with them, writes `sources.json`
-  (`scripts/build_sources.py build`, without asking GitHub), and deploys both to GitHub Pages together with
-  `icons/` and `screenshots/`. For both `check` and `build`, `SUNRISE_REGISTRY_INDEX` points to the freshly built
-  `index.json` used to verify source icons and select source collections. A count GitHub fails to answer
-  (other than a repository that is gone) stops the run before it deploys, so the last good index stays live.
-  Both workflows keep the downloaded files in an Actions cache, so our own runs fetch only files they haven't
+- **`publish`** runs on every push to `main`, and every three hours to refresh the offered builds. It no
+  longer builds `index.json` and `sources.json` (the format launchers up to 1.2.0 read): each deploy copies
+  them, and the images they link under `icons/` and `screenshots/`, from the live site unchanged
+  (`scripts/carry_legacy.py`), and builds only the signed v2 index ([docs/registry-v2.md](docs/registry-v2.md)).
+  `check` keeps the downloaded files in an Actions cache, so our own runs fetch only files they haven't
   seen and stay out of the download counts.
 - **`dco`**: every commit carries a `Signed-off-by:` line for its author.
 
