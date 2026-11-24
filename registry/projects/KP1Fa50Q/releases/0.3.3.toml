@@ -1,0 +1,19 @@
+version = "0.3.3"
+kind = "native-mod"
+tag = "v0.3.3"
+published = "2026-11-24T00:22:19Z"
+sunrise = "dev-2026-11-23-ebd2d22"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/simply_light/releases/download/v0.3.3/simplylight-0.3.3.smod"
+size = 1002558
+sha256 = "ca9c9e9068f4e41f79c2a9aa3cba59f5f578d4aa15941d507c7b177a6dcab33b"
+attestation = "https://github.com/arismoko/simply_light/releases/download/v0.3.3/simplylight-0.3.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/simply_light/releases/download/v0.3.3/simplylight-0.3.3.page.tar"
+size = 1275904
+sha256 = "107c5ab95f4681549417934fba081993c89cb811712e6c0066aa2c06be0b14df"
+attestation = "https://github.com/arismoko/simply_light/releases/download/v0.3.3/simplylight-0.3.3.page.tar.sigstore.json"
