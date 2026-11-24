@@ -28,6 +28,18 @@ Sunrise's mod registry. It lists the projects whose releases the launcher's Disc
    The shared workflow publishes a signed `.smod` and a separate signed page bundle. A native mod
    ships source and `Cargo.lock`, not prebuilt binaries; the launcher builds it on the player's computer.
    The registry bot checks the release and opens the release PR for you.
+4. **Group your mods into a collection (optional).** Once several of your projects are registered, they can
+   show as one card in Discover. In a pull request on this repository, add `registry/collections/<collection ID>/`
+   with `collection.toml` (`id`, `name`, `summary`, an optional `description`, and one `[[member]] project =
+   "<project ID>"` per mod, `default = false` to start one unticked) and a square PNG `icon.png` of at most
+   512×512 pixels and 256 KiB. The collection ID is a new, permanent eight characters from `0-9`, `A-Z` and `a-z`.
+   Each project's ID is its `project` in `registry/repositories/<repository ID>.toml`. Every member must be in a
+   repository owned by the same GitHub account, and the pull request's author must be listed in `owners` of every
+   member. Discover shows the collection once two of its members have a reviewed release, one of them ticked by
+   default; it then shows the
+   members only inside the collection, and a search still finds each by name.
+   [Group your mods into a collection](https://github.com/sunrise-org/sunrise/blob/main/docs/modding/src/how-to/collections.md)
+   walks through it.
 
 Things to get right, since each one otherwise costs a round trip:
 
