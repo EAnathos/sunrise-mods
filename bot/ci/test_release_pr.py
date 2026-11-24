@@ -84,7 +84,7 @@ class ReleasePRTests(unittest.TestCase):
         for branch in (rejected["head"]["ref"], "release/Bb3dE9xQ/1.0.0", "release/Cb3dE9xQ/1.0.0"):
             (self.folder / "releases" / branch.removeprefix("release/")).mkdir(parents=True)
         summary = self.folder / "summary.md"
-        api = Mock(side_effect=[{"object": {"sha": SHA}}, [{"workflow_runs": []}]])
+        api = Mock(side_effect=[{"object": {"sha": SHA}}, {"statuses": []}, [{"workflow_runs": []}]])
         with patch.dict(os.environ, GITHUB_STEP_SUMMARY=str(summary)), patch.object(release, "api", api), \
              patch.object(release, "rows", side_effect=[[rejected, open_pr], [{"ref": "refs/heads/" + rejected["head"]["ref"]}], [open_pr]]), \
              patch.object(release, "git", return_value=SHA.encode()), patch.object(release, "gh") as gh, \
@@ -219,9 +219,23 @@ class ReleasePRTests(unittest.TestCase):
             release.publish(self.folder)
         self.assertEqual([call.args[1] for call in open_pr.call_args_list], [withdrawn])
 
+    def test_an_open_release_pr_holds_a_later_release_back_unless_its_check_failed(self):
+        earlier, later = "release/Ab3dE9xQ/1.0.0", "release/Ab3dE9xQ/1.0.1"
+        (self.folder / "releases" / later.removeprefix("release/")).mkdir(parents=True)
+        for state, opened in (("pending", []), ("failure", [later])):
+            with self.subTest(state=state):
+                api = Mock(side_effect=lambda endpoint, state=state: {"statuses": [{"context": release.STATUS, "state": state}]}
+                           if endpoint.endswith("/status") else {"object": {"sha": SHA}})
+                with patch.dict(os.environ, GITHUB_STEP_SUMMARY=str(self.folder / "summary.md")), \
+                     patch.object(release, "api", api), patch.object(release, "rows", listing([pull(earlier)])), \
+                     patch.object(release, "git", return_value=SHA.encode()), patch.object(release, "gh"), \
+                     patch.object(release, "dispatch_runs", return_value=[]), patch.object(release, "open_pr") as open_pr:
+                    release.publish(self.folder)
+                self.assertEqual([call.args[1] for call in open_pr.call_args_list], opened)
+
     def test_a_burst_of_open_release_prs_lists_the_dispatched_runs_once(self):
         first, second = pull("release/Ab3dE9xQ/1.0.0", number=10), pull("release/Bb3dE9xQ/1.0.0", number=11)
-        api = Mock(return_value={"object": {"sha": "0" * 40}})
+        api = Mock(return_value={"object": {"sha": "0" * 40}, "statuses": []})
         runs = Mock(return_value=[{"display_title": f"Registry release PR 10 at {SHA}"}])
         with patch.dict(os.environ, GITHUB_STEP_SUMMARY=str(self.folder / "summary.md")), \
              patch.object(release, "api", api), patch.object(release, "rows", listing([first, second])), \

@@ -265,6 +265,11 @@ def publish(generated):
             handled = {pr["head"]["ref"] for pr in seen
                        if own_release(pr) and (pr["state"] == "open" or pr["merged_at"] or pr["head"]["ref"] in kept)}
             open_branches = {pr["head"]["ref"] for pr in seen if pr["state"] == "open"}
+            # An open release PR holds its project's later releases back until it is decided, unless its
+            # release check failed: the author's fix for that is a later release.
+            waiting = {pr["head"]["ref"] for pr in seen if pr["state"] == "open" and own_release(pr) and not any(
+                status["context"] == STATUS and status["state"] == "failure"
+                for status in api(f"commits/{pr['head']['sha']}/status")["statuses"])}
             rename = "registry/refresh-repository-names"
             names = {path.relative_to(generated / "rename").as_posix() for path in (generated / "rename").rglob("*.toml")}
             stale = next((path for path in moved if path in names), None)
@@ -282,7 +287,7 @@ def publish(generated):
                     match = RELEASE.fullmatch(branch)
                     require(match, "watch artifact has an invalid release path")
                     prefix = f"release/{match['project']}/"
-                    if branch in handled or any(other.startswith(prefix) for other in open_branches):
+                    if branch in handled or any(other.startswith(prefix) for other in waiting):
                         continue
                     # A repository file says which projects it holds and where: one that names
                     # this project, before or after, changed what the watcher observed.
@@ -296,7 +301,7 @@ def publish(generated):
                             "## Verified release\n\nBoth GitHub attestations match the registered repository ID, tag and commit, and the shared signer workflow. "
                             "The asset sizes and SHA-256 hashes, package manifest, exact Sunrise build and resolved page were checked. "
                             "The release check will reverify those inputs, build the package and run the scanner before review.")
-                    open_branches.add(branch)
+                    waiting.add(branch)
                 except (OSError, ValueError) as error:
                     print(f"- Could not publish {safe(branch)}: {safe(error)}", file=summary)
         else:

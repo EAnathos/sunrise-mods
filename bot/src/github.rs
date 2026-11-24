@@ -66,17 +66,26 @@ impl Repo<'_> {
 
 #[derive(Default)]
 pub struct ReleaseBranches {
-    pub open: BTreeSet<String>,
+    /// Open release PRs that hold their project's later releases back until they are decided.
+    pub waiting: BTreeSet<String>,
     pub handled: BTreeSet<String>,
 }
 
 impl ReleaseBranches {
     /// Records one of the bot's release PRs. An open or merged PR handles its version, and so does a
     /// closed, unmerged one while its branch still exists: that release was refused. One whose branch
-    /// was deleted was withdrawn, and its release may be opened again.
-    fn record(&mut self, branch: String, open: bool, merged: bool, branch_exists: bool) {
-        if open {
-            self.open.insert(branch.clone());
+    /// was deleted was withdrawn, and its release may be opened again. An open PR whose release
+    /// check failed does not hold a later release back: the author's fix for it is that release.
+    fn record(
+        &mut self,
+        branch: String,
+        open: bool,
+        check_failed: bool,
+        merged: bool,
+        branch_exists: bool,
+    ) {
+        if open && !check_failed {
+            self.waiting.insert(branch.clone());
         }
         if open || merged || branch_exists {
             self.handled.insert(branch);
@@ -138,7 +147,17 @@ impl GitHub for Cli<'_> {
         struct Head {
             #[serde(rename = "ref")]
             branch: String,
+            sha: String,
             repo: Option<HeadRepo>,
+        }
+        #[derive(Deserialize)]
+        struct Combined {
+            statuses: Vec<Status>,
+        }
+        #[derive(Deserialize)]
+        struct Status {
+            context: String,
+            state: String,
         }
         #[derive(Deserialize)]
         struct HeadRepo {
@@ -165,9 +184,22 @@ impl GitHub for Cli<'_> {
                 let exists = kept
                     .iter()
                     .any(|r| r.name.strip_prefix("refs/heads/") == Some(&*p.head.branch));
+                let open = p.state == "open";
+                // The newest status of each context on the PR's head.
+                let check_failed = open && {
+                    let combined: Combined = api(&format!(
+                        "repos/{}/commits/{}/status",
+                        self.registry.as_str(),
+                        encode(&p.head.sha)
+                    ))?;
+                    combined.statuses.iter().any(|status| {
+                        status.context == "registry-v2/release-check" && status.state == "failure"
+                    })
+                };
                 branches.record(
                     p.head.branch,
-                    p.state == "open",
+                    open,
+                    check_failed,
                     p.merged_at.is_some(),
                     exists,
                 );
@@ -472,12 +504,14 @@ mod tests {
     #[test]
     fn a_closed_release_pr_handles_its_version_only_while_its_branch_exists() {
         let mut branches = ReleaseBranches::default();
-        branches.record("release/Ab3dE9xQ/1.0.0".into(), true, false, true);
-        branches.record("release/Ab3dE9xQ/0.9.0".into(), false, true, false);
-        branches.record("release/Zz91kLmN/1.0.0".into(), false, false, true);
-        branches.record("release/Zz91kLmN/1.1.0".into(), false, false, false);
+        branches.record("release/Ab3dE9xQ/1.0.0".into(), true, false, false, true);
+        branches.record("release/Ab3dE9xQ/0.9.0".into(), false, false, true, false);
+        branches.record("release/Zz91kLmN/1.0.0".into(), false, false, false, true);
+        branches.record("release/Zz91kLmN/1.1.0".into(), false, false, false, false);
+        // Open with a failed release check: handled, but a later release need not wait for it.
+        branches.record("release/Cc3dE9xQ/1.0.0".into(), true, true, false, true);
         assert_eq!(
-            branches.open,
+            branches.waiting,
             BTreeSet::from(["release/Ab3dE9xQ/1.0.0".to_owned()])
         );
         assert_eq!(
@@ -485,6 +519,7 @@ mod tests {
             BTreeSet::from([
                 "release/Ab3dE9xQ/0.9.0".to_owned(),
                 "release/Ab3dE9xQ/1.0.0".to_owned(),
+                "release/Cc3dE9xQ/1.0.0".to_owned(),
                 "release/Zz91kLmN/1.0.0".to_owned(),
             ])
         );
