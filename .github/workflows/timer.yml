@@ -7,7 +7,8 @@ name: registry timer
 #
 # Each run also asks whether Sunrise has published a release the judging job has not looked at,
 # and starts the judging job when it has. That job owns the offered-build policy; this one only
-# compares names.
+# compares names. That look is outside the chain's concurrency group, so it happens when the run
+# starts, whatever the chain is doing.
 
 on:
   push:
@@ -23,15 +24,16 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: registry-timer
-  cancel-in-progress: false
-
 jobs:
   tick:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # On this job, not the workflow: a run started while the chain waits must still look for
+    # builds at once, and only its place in the chain is replaced.
+    concurrency:
+      group: registry-timer
+      cancel-in-progress: false
     permissions:
       actions: write
     env:
