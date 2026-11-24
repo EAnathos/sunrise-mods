@@ -1,8 +1,0 @@
-id = "phasmids"
-name = "Phasmids"
-summary = "Stick and leaf insects hiding in the trees as twigs and leaves: spot them, catch them in a jar and settle them on your own tree."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/phasmids/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/phasmids.png"

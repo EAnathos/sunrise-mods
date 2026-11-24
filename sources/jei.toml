@@ -1,8 +1,0 @@
-id = "jei"
-name = "JEI"
-summary = "Just Enough Items for Sunrise: item list and search, recipes and uses, the recipe window, transfer, bookmarks, and where things come from."
-repo = "Joeypc6/JEI-Sunrise"
-repo_id = 1460980278
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/jei.png"

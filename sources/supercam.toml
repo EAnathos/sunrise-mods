@@ -1,8 +1,0 @@
-id = "supercam"
-name = "SuperCam"
-summary = "Hold-to-zoom with scroll, a free camera that flies while you stay put, and optional camera motion, FOV and breathing hands."
-repo = "Zekrenlight/supercam"
-repo_id = 1464968782
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/supercam.png"

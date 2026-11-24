@@ -1,8 +1,0 @@
-id = "jellyfish"
-name = "Jellyfish"
-summary = "Stinging jellyfish drifting in blooms through the oceans, some glowing in the deep; catch them in a bucket for an aquarium."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/jellyfish/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/jellyfish.png"

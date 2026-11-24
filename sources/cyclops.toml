@@ -1,8 +1,0 @@
-id = "cyclops"
-name = "Cyclops"
-summary = "A one-eyed giant shepherd at cave mouths, with its flock, a club that breaks the ground and boulders it throws."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/cyclops/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/cyclops.png"

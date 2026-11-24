@@ -1,8 +1,0 @@
-id = "jade"
-name = "Jade"
-summary = "Shows what you are looking at: the block, fluid or entity, its mod, harvest tool and contents. A port of Jade to Sunrise."
-repo = "Joeypc6/Jade-Sunrise"
-repo_id = 1463888576
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/jade.png"

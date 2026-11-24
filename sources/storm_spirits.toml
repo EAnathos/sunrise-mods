@@ -1,8 +1,0 @@
-id = "storm_spirits"
-name = "Storm Spirits"
-summary = "Spirits of living lightning born in thunderstorms: they shock whoever hits them, and their sparks call lightning where you aim."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/storm_spirits/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/storm_spirits.png"

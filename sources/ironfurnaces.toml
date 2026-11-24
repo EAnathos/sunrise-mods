@@ -1,8 +1,0 @@
-id = "ironfurnaces"
-name = "Iron Furnaces"
-summary = "Furnaces of every metal, faster with each tier, with augments, factories, generators and a Rainbow Furnace. A port of Iron Furnaces to Sunrise."
-repo = "Joeypc6/IronFurnaces-Sunrise"
-repo_id = 1462487877
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/ironfurnaces.png"

@@ -1,8 +1,0 @@
-id = "motion_blur"
-name = "Motion Blur"
-summary = "Smooth motion blur when you turn, run and fly."
-repo = "GeorgeDev22/sunrise-motion-blur"
-repo_id = 1463524125
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/motion_blur.png"

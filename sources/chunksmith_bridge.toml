@@ -1,8 +1,0 @@
-id = "chunksmith_bridge"
-name = "Chunksmith Bridge"
-summary = "On Chunksmith servers, shows the distant terrain the server sends (made for Distant Horizons and Voxy) in Sunrise's own far terrain."
-repo = "Flo-bot-png/chunksmith-bridge"
-repo_id = 1467385590
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/chunksmith_bridge.png"

@@ -1,7 +1,0 @@
-id = "ae2"
-name = "Applied Energistics 2 (Early Access)"
-summary = "Early Access: Applied Energistics 2 for Sunrise. ME networks and storage, terminals, autocrafting, P2P tunnels, spatial storage and meteorites."
-repo = "Joeypc6/AE2-Sunrise"
-repo_id = 1468450230
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }

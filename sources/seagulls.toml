@@ -1,8 +1,0 @@
-id = "seagulls"
-name = "Seagulls"
-summary = "Noisy gulls of the coasts that float on the waves, follow your boat and snatch food from your hand; befriend one with fish and it fishes for you."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "mods/seagulls/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/seagulls.png"

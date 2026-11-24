@@ -1,8 +1,0 @@
-id = "chatty"
-name = "Chatty"
-summary = "Player heads beside chat names, timestamps, stacked repeats, per-server history, and a symbol picker by the chat box."
-repo = "Zekrenlight/chatty"
-repo_id = 1464968880
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/chatty.png"

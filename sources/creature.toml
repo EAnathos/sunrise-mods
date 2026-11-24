@@ -1,8 +1,0 @@
-id = "creature"
-name = "Sunrise Creatures"
-summary = "The library of the Sunrise Creatures mods: the creature guide and its bestiary, the glass jar, the series' creative tab. Needed by every mod of the series."
-repo = "EAnathos/sunrise-creatures"
-repo_id = 1449407242
-manifest = "common/sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/creature.png"

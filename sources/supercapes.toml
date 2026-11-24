@@ -1,8 +1,0 @@
-id = "supercapes"
-name = "SuperCapes"
-summary = "Cape cloth that moves with the player, plus public cape pictures (OptiFine and MinecraftCapes by default)."
-repo = "Zekrenlight/supercapes"
-repo_id = 1464968198
-manifest = "sunrise-mod.toml"
-track = { branch = "main" }
-icon = "icons/supercapes.png"
