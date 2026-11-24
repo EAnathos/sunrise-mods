@@ -266,6 +266,14 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
   does not sign or deploy anything.
 - `registry-bot verify-index <index> <sig> --key <pub>` checks the exact bytes and the index schema.
 
+The publish workflow runs `registry-bot` as released by `registry-tools.yml`, which builds it from a
+commit of `main` on every change to its source and publishes it as `registry-tools-<commit>`.
+`publish.yml` names that tag, the binary's SHA-256 and the digest of its source
+(`git ls-tree <commit> -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum`); the release's notes
+give all three, and moving to a newer tool is a pull request that changes them. A download that does
+not match the SHA-256 fails the run. When the source on `main` is not the pinned one, the run builds
+the tool from source instead, with a warning, so it never runs a tool that disagrees with the code.
+
 The publish workflow uses the current UTC epoch second as the next serial. Signing and deployment
 both require a commit of `main` that is not older than the deployed one, so a merge during a publish
 does not stop it and a rerun of an old publish cannot bring back old content under a new serial. Immediately before publishing, deployment compares the
@@ -276,7 +284,7 @@ what that deployment recorded: after each keyed deploy, the workflow writes both
 `registry-v2/deployed` commit status that names the run. Assembly verifies the index and images and
 checks that the Pages archive will include them. If the new catalogue fails, the workflow uses the
 last complete signed snapshot, from Pages first or from the last successful deployment's retained
-artifact. It deploys the legacy update and reports the v2 failure. If neither source can be
+artifact. It deploys the legacy site and reports the v2 failure. If neither source can be
 recovered it reports `NO_AUTHENTICATED_V2_SNAPSHOT`, and if the deployed serial cannot be
 established it reports `V2_DEPLOYED_SERIAL_UNKNOWN`; either way the entire site is left unchanged. Without a committed public key, the publish does not contact
 the v2 services and deploys only the legacy site. A separate

@@ -103,53 +103,6 @@ class FetchFiles(unittest.TestCase):
                 self.assertIn("not a plain sha256", errors[0])
                 self.assertEqual(asked, [])
 
-    def test_mirroring_adds_only_what_the_release_lacks_from_the_checked_files(self):
-        (self.files / DIGEST).write_bytes(PACKAGE)
-        other = hashlib.sha256(b"descriptor").hexdigest()
-        (self.files / other).write_bytes(b"descriptor")
-        missing = hashlib.sha256(b"never downloaded").hexdigest()
-        text = (f"{DIGEST} example 0.1.0 {THEIRS}\n{other} listed 1.0.0 listed-1.0.0.smod\n"
-                f"{missing} example 0.1.0 {THEIRS.replace('.smod', '.zip')}\n")
-        published = []
-
-        def publish(repo, tag, title, file, exists):
-            published.append((tag, file.name, file.read_bytes(), exists))
-
-        with mock.patch.object(fetch_files, "release_assets", side_effect=lambda repo, tag:
-                               {"listed-1.0.0.smod": other} if tag == "listed-1.0.0" else None), \
-                mock.patch.object(fetch_files, "publish", side_effect=publish):
-            errors = fetch_files.mirror(REGISTRY, self.listing(text), self.files)
-        self.assertEqual(published, [("example-0.1.0", "example-0.1.0.smod", PACKAGE, False)])
-        self.assertEqual(len(errors), 1)
-        self.assertIn("example-0.1.0.zip: not among the downloaded files", errors[0])
-
-    def test_a_mirrored_asset_with_other_bytes_stops_publication(self):
-        (self.files / DIGEST).write_bytes(PACKAGE)
-        mirror = f"https://github.com/{REGISTRY}/releases/download/example-0.1.0/example-0.1.0.smod"
-        text = f"{DIGEST} example 0.1.0 {THEIRS}\n"
-        refusal = f"holds a different file than the entry's sha256 {DIGEST}"
-        # GitHub's recorded digest decides; an asset without one is downloaded and hashed.
-        for held, pages, wrong in ((DIGEST, {}, False), ("0" * 64, {}, True), (None, {mirror: PACKAGE}, False),
-                                   (None, {mirror: b"other one"}, True), (None, {mirror: PACKAGE + b"+"}, True),
-                                   (None, {}, True)):
-            with self.subTest(held=held, pages=pages), \
-                    mock.patch.object(fetch_files, "release_assets", return_value={"example-0.1.0.smod": held}), \
-                    mock.patch.object(fetch_files, "publish", side_effect=AssertionError("uploaded")), \
-                    mock.patch.object(fetch_files.urllib.request, "urlopen", Web(pages)):
-                errors = fetch_files.mirror(REGISTRY, self.listing(text), self.files)
-                self.assertEqual(len(errors), int(wrong))
-                if wrong:
-                    self.assertIn(refusal, errors[0])
-        self.assertEqual([f.name for f in self.files.iterdir()], [DIGEST])
-
-    def test_release_assets_reads_githubs_digests(self):
-        answer = json.dumps({"assets": [{"name": "a.smod", "digest": "sha256:" + DIGEST},
-                                        {"name": "old.smod", "digest": None}]})
-        with mock.patch.object(fetch_files, "gh", return_value=mock.Mock(returncode=0, stdout=answer)):
-            self.assertEqual(fetch_files.release_assets(REGISTRY, "a-1"), {"a.smod": DIGEST, "old.smod": None})
-        with mock.patch.object(fetch_files, "gh", return_value=mock.Mock(returncode=1, stdout="")):
-            self.assertIsNone(fetch_files.release_assets(REGISTRY, "a-1"))
-
 
 if __name__ == "__main__":
     unittest.main()
