@@ -636,7 +636,7 @@ change!(
     duplicate_fit_release,
     FIT,
     "[[release]]",
-    "[[release]]\nversion = \"1.2.0\"\npackage = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\nrules = 1\n\n[[release]]",
+    "[[release]]\nversion = \"1.2.0\"\npackage = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\nrules = 2\n\n[[release]]",
     "duplicate fit row"
 );
 change!(
@@ -878,7 +878,7 @@ fn unexpected_entries_are_rejected() {
 #[test]
 fn index_needs_a_current_verdict_for_every_release_on_every_offered_build() {
     for (file, old, new) in [
-        (FIT, "rules = 1", "rules = 0"),
+        (FIT, "rules = 2", "rules = 1"),
         (
             FIT,
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
