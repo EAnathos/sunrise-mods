@@ -32,12 +32,6 @@ class Publish(unittest.TestCase):
         self.verifier = Path(os.environ["REGISTRY_VERIFIER"])
         self.site = self.root / "site"
         self.site.mkdir()
-        self.legacy = {"index.json": b"new legacy index\n", "sources.json": b"new legacy sources\n",
-                       "icons/example.png": b"legacy icon"}
-        for name, body in self.legacy.items():
-            path = self.site / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(body)
 
     def snapshot(self, root, variant):
         root.mkdir(exist_ok=True)
@@ -63,11 +57,9 @@ class Publish(unittest.TestCase):
         return patch.object(live, "download", side_effect=download)
 
     def assert_site(self, variant=None):
-        for name, bytes_ in self.legacy.items():
-            self.assertEqual((self.site / name).read_bytes(), bytes_)
-        if variant is None:
-            self.assertFalse((self.site / "v2").exists())
-        else:
+        # The catalogue is the whole site.
+        self.assertEqual([path.name for path in self.site.iterdir()], [] if variant is None else ["v2"])
+        if variant is not None:
             published = self.site / "v2"
             index = live.verify(published, KEY, self.verifier)
             live.check_images(published, index)
@@ -148,13 +140,13 @@ class Publish(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "old or different equal serial"):
                 live.guard_deploy(published, KEY, self.verifier, carried=False)
 
-    def test_legacy_publish_carries_live_snapshot_after_generation_failure(self):
+    def test_publish_carries_live_snapshot_after_generation_failure(self):
         self.assert_failed_candidate_carries_live("generation")
 
-    def test_legacy_publish_carries_live_snapshot_after_signing_failure(self):
+    def test_publish_carries_live_snapshot_after_signing_failure(self):
         self.assert_failed_candidate_carries_live("signing")
 
-    def test_legacy_publish_carries_live_snapshot_after_verification_failure(self):
+    def test_publish_carries_live_snapshot_after_verification_failure(self):
         self.assert_failed_candidate_carries_live("verification")
 
     def assert_failed_candidate_carries_live(self, phase):
@@ -287,7 +279,7 @@ class Publish(unittest.TestCase):
                 return live.guard_deploy(candidate, KEY, self.verifier, carried=carried)
 
         self.assertEqual(guard(newer, False).serial, 42)
-        self.assertEqual(guard(published, True).serial, 41)  # A legacy-only update carries the same index.
+        self.assertEqual(guard(published, True).serial, 41)  # A carried snapshot is the same index.
         with self.assertRaisesRegex(ValueError, "old or different equal serial"):
             guard(published, False)
         for changes in ({"target_url": "https://github.com/example/mods/actions/runs/70/attempts/1"},
@@ -296,7 +288,7 @@ class Publish(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaisesRegex(ValueError, "V2_DEPLOYED_SERIAL_UNKNOWN"):
                 guard(newer, False, **changes)
 
-    def test_first_keyed_deploy_can_follow_a_confirmed_legacy_only_deploy(self):
+    def test_first_keyed_deploy_can_follow_a_deploy_without_a_key(self):
         candidate = self.snapshot(self.root / "candidate", "older")
         env, api = self.deployed_api(assembly_attempts=(), keyed=False)
         with (patch.dict(os.environ, env), patch.object(live, "gh_api", side_effect=api.__getitem__) as request,
@@ -305,7 +297,7 @@ class Publish(unittest.TestCase):
         self.assertNotIn("actions/runs/70/jobs?filter=all&per_page=100&page=1",
                          [call.args[0] for call in request.call_args_list])
 
-    def test_no_key_never_reads_v2_and_keeps_legacy_site(self):
+    def test_no_key_never_reads_v2_and_stages_nothing(self):
         with patch.object(live, "download") as download, patch.object(live, "gh_api") as api:
             no_key = self.root / "no-key"
             self.assertFalse(live.assemble(self.site, self.root / "none", self.root / "no.tar", no_key, self.verifier))
