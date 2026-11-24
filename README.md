@@ -1,9 +1,10 @@
 # sunrise-mods
 
-## The new registry (being built)
+## The new registry
 
-The new registry is being built alongside the current one, at `v2/index.json` on the same site.
-It is not live yet; the current registry and the instructions below are unchanged.
+The new registry is published alongside the current one, at `v2/index.signed` on the same site, and
+the steps below work today. Launchers released so far still read the current registry, which the
+rest of this page describes; the launcher that reads the new one is not released yet.
 
 1. **Prepare your repository.** In `page.toml`, write a short summary and a long description and
    list at least one screenshot under `page/`. Categories are optional. The page uses the mod's
@@ -122,8 +123,8 @@ and Dev is listed by its source instead ([Source mods](#source-mods)).
 4. A reviewer reads the change and merges it. The `publish` workflow then publishes the file as the release
    `<id>-<version>` and adds the project to the index.
 
-The submission form at playsunrise.net/mods/submit will open these pull requests for you once its service runs.
-Until then, submit by hand as described above.
+The form at playsunrise.net/mods/submit registers a repository on the new registry only. This route
+is by hand, as described above.
 
 ```toml
 id = "coords_hud"
