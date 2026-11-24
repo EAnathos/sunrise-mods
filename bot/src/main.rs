@@ -142,7 +142,6 @@ fn write_index(
         registry::load
     };
     let registry = load(checkout).map_err(|e| e.join("; "))?;
-    fit::complete(&registry)?;
     let generated = OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .map_err(|e| e.to_string())?;

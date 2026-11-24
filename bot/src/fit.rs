@@ -54,34 +54,6 @@ pub fn verdict(row: Option<&FitRelease>, release: &Release, build: &Offered) -> 
         .find_map(|(cells, verdict)| (cells.get(&build.id)? == &build.surface).then_some(verdict))
 }
 
-/// Refuses a registry in which a release has no current verdict on an offered build.
-pub fn complete(registry: &Registry) -> Result<(), String> {
-    let mut missing = Vec::new();
-    for (id, project) in &registry.projects {
-        let rows = registry.fits.get(id);
-        for release in project.releases.values() {
-            let row = rows.and_then(|rows| rows.get(&release.version));
-            for build in &registry.builds {
-                if verdict(row, release, build).is_none() {
-                    missing.push(format!(
-                        "{} {} on {}",
-                        id.as_str(),
-                        release.version,
-                        build.id.as_str()
-                    ));
-                }
-            }
-        }
-    }
-    if missing.is_empty() {
-        return Ok(());
-    }
-    Err(format!(
-        "no current fit verdict for: {}",
-        missing.join(", ")
-    ))
-}
-
 /// Judges every release on every candidate build that has no current verdict, and rewrites
 /// `out`. A candidate whose surface this tool cannot read is not offered. Nothing is written
 /// when a cell cannot be judged.
