@@ -77,19 +77,19 @@ jobs:
         if: inputs.source-artifact != ''
         with:
           artifact-ids: ${{ inputs.source-artifact }}
-          path: ${{ runner.temp }}/scan-input/source
+          path: ${{ runner.temp }}/scan-archive/source
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         if: inputs.previous-artifact != ''
         with:
           artifact-ids: ${{ inputs.previous-artifact }}
-          path: ${{ runner.temp }}/scan-input/previous
+          path: ${{ runner.temp }}/scan-archive/previous
       - name: Unpack the release archives
-        if: inputs.source-artifact != ''
-        working-directory: ${{ runner.temp }}/scan-input
+        if: inputs.source-artifact != '' || inputs.previous-artifact != ''
+        working-directory: ${{ runner.temp }}/scan-archive
         run: |
           for release in *; do
-            tar -xf "$release/release.tar" -C "$release"
-            rm "$release/release.tar"
+            mkdir -p "../scan-input/$release"
+            tar -xf "$release/release.tar" -C "../scan-input/$release"
           done
       - name: Scan without running release code
         id: scan
