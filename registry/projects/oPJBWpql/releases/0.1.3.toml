@@ -1,0 +1,24 @@
+version = "0.1.3"
+kind = "native-mod"
+tag = "scorpions/v0.1.3"
+published = "2026-11-24T20:15:19Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/scorpions/v0.1.3/scorpions-0.1.3.smod"
+size = 86964
+sha256 = "7230ca9cc02f323464cd2569dabb987dfe5cf4afbbca8fbdf2d5d5f59b808b09"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/scorpions/v0.1.3/scorpions-0.1.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/scorpions/v0.1.3/scorpions-0.1.3.page.tar"
+size = 83456
+sha256 = "1455404dfde79bacbe2be7b460f40bb2aeded0cd094bab1019d5c437f432f228"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/scorpions/v0.1.3/scorpions-0.1.3.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.3.5"
+required = true
