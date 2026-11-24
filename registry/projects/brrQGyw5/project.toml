@@ -1,0 +1,9 @@
+id = "brrQGyw5"
+slug = "earshot"
+mod = "earshot"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300668
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
