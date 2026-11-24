@@ -28,10 +28,10 @@ BOT = "github-actions[bot]"
 STATUS = "registry-v2/release-check"
 WORKFLOW = "release-check.yml"
 NOT_A_RELEASE = "release-not-applicable.yml"
-# The status description of a check that could not finish because a download stayed unavailable. It says
+# The status description of a check that could not finish because GitHub or the connection failed. It says
 # nothing about the release: the watcher runs such a check once more, and a reader of the status (a reviewer,
 # the merger) tells it from a refusal by this text.
-UNAVAILABLE = "Not checked: a download failed. Not a verdict on the release"
+UNAVAILABLE = "Not checked: GitHub failed. Not a verdict on the release"
 # registry-bot's exit for it (`UNAVAILABLE_EXIT` in bot/src/github.rs).
 UNAVAILABLE_EXIT = 75
 MAIN = "refs/heads/main"
@@ -126,7 +126,7 @@ def pending():
 
 
 def bot(*args):
-    """Runs registry-bot, and tells the report job when it stopped at an unavailable download."""
+    """Runs registry-bot, and tells the report job when it stopped because GitHub was unavailable."""
     code = subprocess.run([os.environ["REGISTRY_BOT"], *args], cwd=ROOT).returncode
     if code == UNAVAILABLE_EXIT:
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
@@ -344,7 +344,7 @@ def publish(generated):
                 if dispatched is None:
                     # Listed once for every open release PR, not once per PR.
                     dispatched = collections.Counter(run["display_title"] for run in dispatch_runs())
-                # A head is checked once, and once more when that check stopped at an unavailable download.
+                # A head is checked once, and once more when that check stopped because GitHub was unavailable.
                 if dispatched[title] == 0 or dispatched[title] == 1 and any(
                         status["context"] == STATUS and status["description"] == UNAVAILABLE
                         for status in api(f"commits/{sha}/status")["statuses"]):
@@ -395,7 +395,7 @@ def report(folder):
         verified = jobs.get("verify", {}).get("outputs", {})
         if verified.get("attempt") == attempt and verified.get("unavailable") == "true":
             description = UNAVAILABLE
-            body += ("\n**Not checked**: a download kept failing on the server's or the network's side, so this "
+            body += ("\n**Not checked**: GitHub answered with a server error or the connection failed, so this "
                      "says nothing about the release. The check runs once more by itself; after that, use "
                      "**Rerun all jobs**.\n")
         elif not current or os.environ["REPORT_DOWNLOADED"] != "true":

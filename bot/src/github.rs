@@ -260,12 +260,24 @@ fn gh(args: &[&str]) -> Result<Vec<u8>, String> {
         .output()
         .map_err(|e| format!("gh: {e}"))?;
     if output.status.success() {
-        Ok(output.stdout)
+        return Ok(output.stdout);
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = stderr.trim();
+    // What `gh` prints when GitHub or the connection failed, not the request: `HTTP 502` and the
+    // other 5xx statuses, and the Go network errors. A 4xx or a refused attestation has neither.
+    let server_error = stderr.match_indices("HTTP 5").any(|(at, found)| {
+        let status = &stderr.as_bytes()[at + found.len()..];
+        status.len() >= 2 && status[..2].iter().all(u8::is_ascii_digit)
+    });
+    if server_error
+        || BROKEN_GH_CONNECTION
+            .iter()
+            .any(|text| stderr.contains(text))
+    {
+        Err(format!("{UNAVAILABLE}: gh: {stderr}"))
     } else {
-        Err(format!(
-            "gh: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ))
+        Err(format!("gh: {stderr}"))
     }
 }
 
@@ -273,10 +285,21 @@ fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String> {
     serde_json::from_slice(bytes).map_err(|e| format!("GitHub JSON: {e}"))
 }
 
-/// Starts the message of a download that kept failing for a reason that is not the file's:
-/// the server answered 5xx, or the connection timed out or broke. `main` turns it into
-/// [`UNAVAILABLE_EXIT`], so a caller can tell "could not check" from "checked and refused".
-pub const UNAVAILABLE: &str = "download unavailable";
+/// Starts the message of a download or a `gh` call that failed for a reason that is not the
+/// release's: the server answered 5xx, or the connection timed out or broke. `main` turns it
+/// into [`UNAVAILABLE_EXIT`], so a caller can tell "could not check" from "checked and refused".
+pub const UNAVAILABLE: &str = "GitHub unavailable";
+
+/// Go's texts for a connection that timed out, was refused or reset, or never resolved, as
+/// `gh` passes them on (`net`, `net/http`, `context` and `crypto/tls` errors).
+const BROKEN_GH_CONNECTION: [&str; 6] = [
+    "i/o timeout",
+    "context deadline exceeded",
+    "TLS handshake timeout",
+    "connection reset by peer",
+    "connection refused",
+    "no such host",
+];
 
 /// `EX_TEMPFAIL` of BSD `sysexits.h`: a temporary failure, the caller is invited to retry.
 pub const UNAVAILABLE_EXIT: u8 = 75;
@@ -343,7 +366,7 @@ pub fn download(url: &str, dest: &Path, limit: u64) -> Result<(), String> {
         }
         let Some(wait) = waits.next() else {
             return Err(format!(
-                "{UNAVAILABLE} after {} attempts: {reason}",
+                "{UNAVAILABLE}: download failed {} times: {reason}",
                 RETRY_WAITS.len() + 1
             ));
         };
