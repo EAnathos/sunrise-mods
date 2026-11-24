@@ -1,0 +1,9 @@
+id = "BPT9kjKd"
+slug = "iron-furnaces-arismoko"
+mod = "ironfurnaces"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1465148586
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
