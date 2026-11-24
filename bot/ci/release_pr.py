@@ -231,7 +231,18 @@ def publish(generated):
     repo = os.environ["GITHUB_REPOSITORY"]
     pulls = "pulls?per_page=100&state="
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-        if live == base:
+        # Main may have moved while the watcher observed. An output is still published when none of
+        # the files it was generated from changed; its branch is based on the observed commit.
+        moved, tool = [], None
+        if live != base:
+            require(SHA.fullmatch(live), "GitHub returned an invalid commit for main")
+            git("fetch", "--no-tags", "--depth=1", "origin", live)
+            moved = git("diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv",
+                        base, live, "--").decode().split("\0")[:-1]
+            # The watcher itself, and what it reads for every release.
+            tool = next((path for path in moved if path.startswith(("bot/", ".github/"))
+                         or path in ("registry/categories.toml", "registry/release-workflow.toml")), None)
+        if tool is None:
             seen = [pr for pr in rows(pulls + "all") if own_bot_pr(pr)]
             kept = {ref["ref"].removeprefix("refs/heads/") for ref in rows("git/matching-refs/heads/release/")}
             # A closed, unmerged PR whose branch was deleted was withdrawn, not refused.
@@ -239,7 +250,11 @@ def publish(generated):
                        if own_release(pr) and (pr["state"] == "open" or pr["merged_at"] or pr["head"]["ref"] in kept)}
             open_branches = {pr["head"]["ref"] for pr in seen if pr["state"] == "open"}
             rename = "registry/refresh-repository-names"
-            if (generated / "rename").exists() and rename not in open_branches:
+            names = {path.relative_to(generated / "rename").as_posix() for path in (generated / "rename").rglob("*.toml")}
+            stale = next((path for path in moved if path in names), None)
+            if stale:
+                print(f"- Skipped {rename}: main changed {safe(stale)} during observation.", file=summary)
+            elif names and rename not in open_branches:
                 try:
                     open_pr(generated / "rename", rename, base, "Refresh watched repository names",
                             "Updates the display names returned by GitHub for registered numeric repository IDs. No package or release identity changes.")
@@ -253,6 +268,14 @@ def publish(generated):
                     prefix = f"release/{match['project']}/"
                     if branch in handled or any(other.startswith(prefix) for other in open_branches):
                         continue
+                    # A repository file says which projects it holds and where: one that names
+                    # this project, before or after, changed what the watcher observed.
+                    stale = next((path for path in moved if path.startswith(f"registry/projects/{match['project']}/")
+                                  or REPOSITORY.fullmatch(path) and f'"{match["project"]}"' in git(
+                                      "diff", "-U9999", "--no-ext-diff", "--no-textconv", base, live, "--", path).decode()), None)
+                    if stale:
+                        print(f"- Skipped {safe(branch)}: main changed {safe(stale)} during observation.", file=summary)
+                        continue
                     open_pr(path, branch, base, f"Publish {match['project']} {match['version']}",
                             "## Verified release\n\nBoth GitHub attestations match the registered repository ID, tag and commit, and the shared signer workflow. "
                             "The asset sizes and SHA-256 hashes, package manifest, exact Sunrise build and resolved page were checked. "
@@ -261,7 +284,7 @@ def publish(generated):
                 except (OSError, ValueError) as error:
                     print(f"- Could not publish {safe(branch)}: {safe(error)}", file=summary)
         else:
-            print("Main changed during observation; no generated files were published.", file=summary)
+            print(f"Main changed {safe(tool)} during observation; no generated files were published.", file=summary)
 
         # A dispatch retry after a failed request, without redispatching a queued or completed run.
         dispatched = None
