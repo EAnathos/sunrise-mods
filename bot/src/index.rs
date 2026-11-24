@@ -74,6 +74,8 @@ struct IndexRelease<'a> {
     published: &'a str,
     sunrise: &'a BuildName,
     workflow: &'a SignerWorkflowRef,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    repository: Option<RepositoryId>,
     fits: Vec<&'a BuildName>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     does_not_fit: Vec<&'a BuildName>,
@@ -174,6 +176,7 @@ pub fn write(
                             published: release.published.date(),
                             sunrise: &release.sunrise,
                             workflow: &release.workflow,
+                            repository: release.repository,
                             fits: verdicts(true),
                             does_not_fit: verdicts(false),
                             file: &release.file,

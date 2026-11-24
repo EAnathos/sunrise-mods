@@ -707,6 +707,8 @@ fn prepared(
         published: PublishedAt::of(published)?,
         sunrise,
         workflow: assets.workflow,
+        // Both attestations were verified against this ID (`asset`).
+        repository: Some(request.entry.project.repository),
         file: assets.package,
         page: assets.page,
         dependencies: payload.dependencies.clone(),
