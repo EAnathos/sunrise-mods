@@ -80,6 +80,9 @@
             "26.3-0.1.0",
             "26.3-0.1.1"
           ],
+          "does_not_fit": [
+            "dev-2026-11-23-abcdef0"
+          ],
           "file": {
             "url": "https://github.com/example/wayfinder/releases/download/v1.2.0/wayfinder-1.2.0.smod",
             "size": 123456,
@@ -136,6 +139,11 @@
           "sunrise": "nightly-2026-11-23-abcdef0",
           "workflow": "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1",
           "fits": [],
+          "does_not_fit": [
+            "26.3-0.1.0",
+            "26.3-0.1.1",
+            "dev-2026-11-23-abcdef0"
+          ],
           "file": {
             "url": "https://github.com/other/port-collection/releases/download/wayfinder%2Fv2.0.0-beta.1/wayfinder-2.0.0-beta.1.smod",
             "size": 123456,

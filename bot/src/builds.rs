@@ -12,7 +12,7 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::{
     command_output, game_build,
-    schema::{BuildName, Commit, RepositoryName},
+    schema::{BuildName, Commit, RepositoryName, Sha256},
 };
 
 pub const SUNRISE: &str = "sunrise-org/sunrise";
@@ -25,6 +25,16 @@ const ROLLING_BUILDS: usize = 10;
 pub struct Build {
     pub id: BuildName,
     pub commit: Commit,
+}
+
+/// A build the registry offers: its verdicts are complete for the surface named here.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Offered {
+    pub id: BuildName,
+    pub commit: Commit,
+    /// SHA-256 of the build's signed `surface.json`.
+    pub surface: Sha256,
 }
 
 #[derive(Deserialize)]
@@ -225,7 +235,7 @@ fn select(source: &impl Releases) -> Result<Vec<Build>, String> {
         builds.push(build);
     }
     builds.sort_unstable_by(|a, b| a.id.cmp(&b.id));
-    validate(&builds)?;
+    validate(builds.iter().map(|build| (&build.id, &build.commit)))?;
     Ok(builds)
 }
 
@@ -238,26 +248,32 @@ pub fn discover(out: &Path) -> Result<(), String> {
     write(out, &builds)
 }
 
-pub fn write(path: &Path, builds: &[Build]) -> Result<(), String> {
+pub fn write(path: &Path, builds: &[impl Serialize]) -> Result<(), String> {
     let bytes = serde_json::to_vec_pretty(builds).map_err(|e| e.to_string())?;
     fs::write(path, bytes).map_err(|e| format!("{}: {e}", path.display()))
 }
 
-pub fn read(path: &Path) -> Result<Vec<Build>, String> {
+/// Reads a list of candidate builds ([`Build`]) or of offered ones ([`Offered`]).
+pub fn read<T: serde::de::DeserializeOwned>(
+    path: &Path,
+    name: impl Fn(&T) -> (&BuildName, &Commit),
+) -> Result<Vec<T>, String> {
     let bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let builds: Vec<Build> = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-    validate(&builds)?;
+    let builds: Vec<T> = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    validate(builds.iter().map(name))?;
     Ok(builds)
 }
 
-pub fn validate(builds: &[Build]) -> Result<(), String> {
+pub fn validate<'a>(
+    builds: impl Iterator<Item = (&'a BuildName, &'a Commit)>,
+) -> Result<(), String> {
     let mut ids = BTreeSet::new();
-    for build in builds {
-        let id = build.id.as_str();
+    for (id, commit) in builds {
+        let id = id.as_str();
         if Channel::of(id).is_some()
             && id
                 .rsplit_once('-')
-                .is_none_or(|(_, short)| !build.commit.as_str().starts_with(short))
+                .is_none_or(|(_, short)| !commit.as_str().starts_with(short))
         {
             return Err(format!("build {id} does not match its commit"));
         }

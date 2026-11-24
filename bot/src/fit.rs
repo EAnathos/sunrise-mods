@@ -16,136 +16,185 @@ use sunrise_mod_package::{
 use sunrise_release_sign::{SIGNATURE, SUMS, check, sdk_digest, sha256_hex, trusted_keys_for};
 
 use crate::{
-    builds::{self, Build, SUNRISE},
+    builds::{self, Build, Offered, SUNRISE},
     escape,
     registry::{self, Registry},
-    schema::{Asset, BuildName, Commit, Fit, FitRelease, Sha256},
-    signed::{self, Catalog, SMALL},
+    schema::{Asset, Commit, Fit, FitRelease, Release, Sha256},
+    signed::SMALL,
 };
 
 const SURFACE: &str = "surface.json";
-type Cells = BTreeMap<(Sha256, BuildName, Commit), bool>;
+/// The version of the rules a verdict was judged by. Raise it with any change to what
+/// [`Tool::judge`] answers, the pinned Sunrise crates it compares with included: every stored
+/// verdict is then judged again.
+pub const RULES: u32 = 1;
 
 trait Judge {
-    fn judge(&mut self, asset: &Asset, build: &Build) -> Result<bool, String>;
+    /// The digest of the build's signed `surface.json`, or `None` when this tool cannot read that
+    /// surface and so cannot offer the build.
+    fn surface(&mut self, build: &Build) -> Result<Option<Sha256>, String>;
+    fn judge(&mut self, release: &Release, build: &Offered) -> Result<bool, String>;
 }
 
-fn cache(index: Catalog) -> Result<Cells, String> {
-    let builds: BTreeMap<_, _> = index
-        .builds
+/// The stored verdict for a release on an offered build, when it was judged from the release's
+/// package and the build's surface by the current rules.
+pub fn verdict(row: Option<&FitRelease>, release: &Release, build: &Offered) -> Option<bool> {
+    let row = row.filter(|row| row.package == release.file.sha256 && row.rules == RULES)?;
+    [(&row.fits, true), (&row.does_not_fit, false)]
         .into_iter()
-        .map(|row| (row.id, row.commit))
-        .collect();
-    let mut cells = Cells::new();
-    for release in index.projects.into_iter().flat_map(|p| p.releases) {
-        for (verdict, ids) in [(true, release.fits), (false, release.does_not_fit)] {
-            for id in ids {
-                // Older catalogues need not have a build table. They carry no reusable cells.
-                let Some(commit) = builds.get(&id) else {
-                    continue;
-                };
-                let key = (release.file.sha256.clone(), id, commit.clone());
-                if cells.insert(key, verdict).is_some_and(|old| old != verdict) {
-                    return Err("contradictory fit verdicts in the signed cache".into());
+        .find_map(|(cells, verdict)| (cells.get(&build.id)? == &build.surface).then_some(verdict))
+}
+
+/// Refuses a registry in which a release has no current verdict on an offered build.
+pub fn complete(registry: &Registry) -> Result<(), String> {
+    let mut missing = Vec::new();
+    for (id, project) in &registry.projects {
+        let rows = registry.fits.get(id);
+        for release in project.releases.values() {
+            let row = rows.and_then(|rows| rows.get(&release.version));
+            for build in &registry.builds {
+                if verdict(row, release, build).is_none() {
+                    missing.push(format!(
+                        "{} {} on {}",
+                        id.as_str(),
+                        release.version,
+                        build.id.as_str()
+                    ));
                 }
             }
         }
     }
-    Ok(cells)
+    if missing.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "no current fit verdict for: {}",
+        missing.join(", ")
+    ))
 }
 
+/// Judges every release on every candidate build that has no current verdict, and rewrites
+/// `out`. A candidate whose surface this tool cannot read is not offered. Nothing is written
+/// when a cell cannot be judged.
 fn write_rows(
     registry: &Registry,
-    builds: &[Build],
-    mut cells: Cells,
+    candidates: &[Build],
     judge: &mut impl Judge,
     out: &Path,
 ) -> Result<(), String> {
-    // The output is a fresh CI scratch directory. Refuse an existing path rather than mixing runs.
-    if let Some(parent) = out.parent().filter(|p| !p.as_os_str().is_empty()) {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    let mut builds = Vec::new();
+    for build in candidates {
+        let surface = match registry
+            .builds
+            .iter()
+            .find(|old| old.id == build.id && old.commit == build.commit)
+        {
+            Some(old) => Some(old.surface.clone()),
+            None => judge.surface(build)?,
+        };
+        if let Some(surface) = surface {
+            builds.push(Offered {
+                id: build.id.clone(),
+                commit: build.commit.clone(),
+                surface,
+            });
+        }
     }
-    fs::create_dir(out).map_err(|e| format!("{}: {e}", out.display()))?;
-    builds::write(&out.join("builds.json"), builds)?;
+    let mut failed = Vec::new();
+    let mut files = Vec::new();
     for (id, project) in &registry.projects {
         if project.releases.is_empty() {
             continue;
         }
+        let rows = registry.fits.get(id);
         let mut results = Fit {
             release: Vec::new(),
         };
         for release in project.releases.values() {
+            let stored = rows.and_then(|rows| rows.get(&release.version));
             let mut row = FitRelease {
                 version: release.version.clone(),
-                fits: Vec::new(),
-                does_not_fit: Vec::new(),
+                package: release.file.sha256.clone(),
+                rules: RULES,
+                fits: BTreeMap::new(),
+                does_not_fit: BTreeMap::new(),
             };
-            for build in builds {
-                let key = (
-                    release.file.sha256.clone(),
-                    build.id.clone(),
-                    build.commit.clone(),
-                );
-                let verdict = match cells.entry(key) {
-                    Entry::Occupied(previous) => *previous.get(),
-                    Entry::Vacant(slot) => match judge.judge(&release.file, build) {
-                        Ok(verdict) => *slot.insert(verdict),
+            for build in &builds {
+                let fits = match verdict(stored, release, build) {
+                    Some(fits) => fits,
+                    None => match judge.judge(release, build) {
+                        Ok(fits) => fits,
                         Err(why) => {
-                            eprintln!(
-                                "fit unavailable: {} {} on {}: {}",
+                            failed.push(format!(
+                                "{} {} on {}: {}",
                                 id.as_str(),
                                 release.version,
                                 build.id.as_str(),
-                                escape(&why)
-                            );
+                                why
+                            ));
                             continue;
                         }
                     },
                 };
-                if verdict {
+                if fits {
                     &mut row.fits
                 } else {
                     &mut row.does_not_fit
                 }
-                .push(build.id.clone());
+                .insert(build.id.clone(), build.surface.clone());
             }
             results.release.push(row);
         }
+        files.push((id, results));
+    }
+    if !failed.is_empty() {
+        return Err(format!("cannot judge:\n{}", failed.join("\n")));
+    }
+    if out.exists() {
+        fs::remove_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    }
+    fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    builds::write(&out.join("builds.json"), &builds)?;
+    for (id, results) in files {
         let text = toml::to_string(&results).map_err(|e| e.to_string())?;
         fs::write(out.join(format!("{}.toml", id.as_str())), text).map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
-pub fn run(
-    checkout: &Path,
-    builds_path: &Path,
-    previous: Option<&Path>,
-    out: &Path,
-) -> Result<(), String> {
-    let registry = registry::load(checkout).map_err(|errors| errors.join("\n"))?;
-    let builds = builds::read(builds_path)?;
-    let cells = match previous {
-        Some(path) => cache(signed::verify(
-            path,
-            &signed::sibling_signature(path),
-            &checkout.join(signed::KEY),
-        )?)?,
-        None => Cells::new(),
+/// Brings `registry/fit` in the checkout up to date. Without a candidate list the offered builds
+/// stay as they are.
+pub fn run(checkout: &Path, candidates: Option<&Path>) -> Result<(), String> {
+    let out = checkout.join("registry/fit");
+    let load = if out.exists() {
+        registry::load_generated
+    } else {
+        registry::load
     };
-    let temp = tempfile::tempdir_in(checkout).map_err(|e| e.to_string())?;
+    let registry = load(checkout).map_err(|errors| errors.join("\n"))?;
+    let candidates = match candidates {
+        Some(path) => builds::read(path, |build: &Build| (&build.id, &build.commit))?,
+        None => registry
+            .builds
+            .iter()
+            .map(|build| Build {
+                id: build.id.clone(),
+                commit: build.commit.clone(),
+            })
+            .collect(),
+    };
+    let temp = tempfile::tempdir().map_err(|e| e.to_string())?;
     let scratch = temp.path().canonicalize().map_err(|e| e.to_string())?;
     write_rows(
         &registry,
-        &builds,
-        cells,
+        &candidates,
         &mut Tool {
             root: &scratch,
             downloads: Https,
             packages: BTreeMap::new(),
             sdks: BTreeMap::new(),
         },
-        out,
+        &out,
     )
 }
 
@@ -282,16 +331,36 @@ fn sdk(downloader: &impl Download, mirror: &Path, commit: &Commit) -> Result<Rc<
     }))
 }
 
-impl<D: Download> Judge for Tool<'_, D> {
-    fn judge(&mut self, asset: &Asset, build: &Build) -> Result<bool, String> {
+impl<D: Download> Tool<'_, D> {
+    fn sdk(&mut self, commit: &Commit) -> Result<Rc<Sdk>, String> {
         let mirror = self.root.join("sdk-releases");
-        let target = self
-            .sdks
-            .entry(build.commit.clone())
-            .or_insert_with(|| sdk(&self.downloads, &mirror, &build.commit))
+        self.sdks
+            .entry(commit.clone())
+            .or_insert_with(|| sdk(&self.downloads, &mirror, commit))
             .as_ref()
             .map(Rc::clone)
-            .map_err(Clone::clone)?;
+            .map_err(Clone::clone)
+    }
+}
+
+impl<D: Download> Judge for Tool<'_, D> {
+    fn surface(&mut self, build: &Build) -> Result<Option<Sha256>, String> {
+        let sdk = self.sdk(&build.commit)?;
+        match &sdk.surface {
+            Ok(_) => Ok(Some(Sha256::parse(sha256_hex(&sdk.surface_bytes))?)),
+            Err(why) => {
+                println!("not offering {}: {}", build.id.as_str(), escape(why));
+                Ok(None)
+            }
+        }
+    }
+
+    fn judge(&mut self, release: &Release, build: &Offered) -> Result<bool, String> {
+        let asset = &release.file;
+        let target = self.sdk(&build.commit)?;
+        if sha256_hex(&target.surface_bytes) != build.surface.as_str() {
+            return Err("the build's surface is not the one it was offered with".into());
+        }
         let (file, manifest) = match self.packages.entry(asset.sha256.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(package(&self.downloads, self.root, asset)?),
@@ -308,10 +377,14 @@ impl<D: Download> Judge for Tool<'_, D> {
         if native.sunrise == build.commit.as_str() {
             return Ok(true);
         }
-        if let Some(table) = native_route::manifest_game_code(manifest) {
-            return Err(format!(
-                "cross-build comparison for {table} needs the shared package fit API"
-            ));
+        if native_route::manifest_game_code(manifest).is_some() {
+            println!(
+                "{} does not fit {}: made for {}, has native hooks",
+                asset.url.as_str(),
+                build.id.as_str(),
+                release.sunrise.as_str()
+            );
+            return Ok(false);
         }
         let bytes = Package::entry(file, USES_FILE, MAX_USES)?.ok_or("package has no uses list")?;
         let mut table = UsesTable::read(&bytes).map_err(|e| format!("{USES_FILE}: {e}"))?;
@@ -341,6 +414,7 @@ impl<D: Download> Judge for Tool<'_, D> {
         if missing_hook_versions(&table) {
             if table.schema < PLAIN_SCHEMA {
                 let pin = Commit::parse(native.sunrise.clone())?;
+                let mirror = self.root.join("sdk-releases");
                 let baseline = self
                     .sdks
                     .entry(pin.clone())

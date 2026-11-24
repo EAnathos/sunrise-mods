@@ -1,0 +1,172 @@
+{
+  "schema": 2,
+  "serial": 41,
+  "generated": "2026-11-23T00:00:00Z",
+  "builds": [
+    {
+      "id": "26.3-0.1.0",
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "id": "26.3-0.1.1",
+      "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "id": "dev-2026-11-23-abcdef0",
+      "commit": "abcdef0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "categories": [
+    {
+      "id": "adventure",
+      "icon": "compass",
+      "kinds": [
+        "mod",
+        "native-mod"
+      ]
+    },
+    {
+      "id": "utility",
+      "icon": "wrench",
+      "kinds": [
+        "mod",
+        "native-mod"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "Ab3dE9xQ",
+      "slug": "wayfinder",
+      "mod": "wayfinder",
+      "kind": "native-mod",
+      "name": "Wayfinder",
+      "summary": "Find your way using the new map display.",
+      "description": "Wayfinder adds a map display that follows you as you explore. Mark landmarks, name spots you want to revisit, and hide the display when you no longer need it.",
+      "authors": [
+        "Example"
+      ],
+      "owners": [
+        "Example"
+      ],
+      "license": "MIT",
+      "homepage": "https://example.org/wayfinder",
+      "issues": "https://example.org/wayfinder/issues",
+      "source": "https://github.com/example/wayfinder",
+      "icon": "pages/Ab3dE9xQ/b8aada138ace0aa9fa50eb75bfca71c8902fd11d174b49b238dc77724bedabf9.png",
+      "screenshots": [
+        {
+          "path": "pages/Ab3dE9xQ/b8aada138ace0aa9fa50eb75bfca71c8902fd11d174b49b238dc77724bedabf9.png",
+          "caption": "The map on the title screen."
+        }
+      ],
+      "categories": [
+        "adventure",
+        "utility"
+      ],
+      "repository": {
+        "id": 123456789,
+        "name": "example/wayfinder",
+        "path": "."
+      },
+      "workflow": "sunrise-org/sunrise-mods/.github/workflows/release.yml",
+      "releases": [
+        {
+          "version": "1.2.0",
+          "published": "2026-11-23",
+          "sunrise": "26.3-0.1.0",
+          "workflow": "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1",
+          "fits": [
+            "26.3-0.1.0",
+            "26.3-0.1.1"
+          ],
+          "file": {
+            "url": "https://github.com/example/wayfinder/releases/download/v1.2.0/wayfinder-1.2.0.smod",
+            "size": 123456,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "attestation": "https://github.com/example/wayfinder/releases/download/v1.2.0/wayfinder-1.2.0.smod.sigstore.json"
+          },
+          "dependencies": [
+            {
+              "mod": "map_markers",
+              "version": ">=0.3, <2",
+              "project": null,
+              "required": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "Zz91kLmN",
+      "slug": "wayfinder-alternate",
+      "mod": "wayfinder",
+      "kind": "mod",
+      "name": "Wayfinder Alternate",
+      "summary": "Find your way using the new map display.",
+      "description": "Wayfinder Alternate adds a map display that follows you as you explore. Mark landmarks, name spots you want to revisit, and hide the display when you no longer need it.",
+      "authors": [
+        "Other"
+      ],
+      "owners": [
+        "Other"
+      ],
+      "license": "MIT",
+      "homepage": null,
+      "issues": null,
+      "source": null,
+      "icon": "pages/Zz91kLmN/7168024acd40dc1ac94b39151094bb3a2500725cb4c30e840e21c3e05475994b.png",
+      "screenshots": [
+        {
+          "path": "pages/Zz91kLmN/7168024acd40dc1ac94b39151094bb3a2500725cb4c30e840e21c3e05475994b.png",
+          "caption": ""
+        }
+      ],
+      "categories": [],
+      "repository": {
+        "id": 987654321,
+        "name": "other/port-collection",
+        "path": "mods/wayfinder"
+      },
+      "workflow": "sunrise-org/sunrise-mods/.github/workflows/release.yml",
+      "releases": [
+        {
+          "version": "2.0.0-beta.1",
+          "published": "2026-11-23",
+          "sunrise": "nightly-2026-11-23-abcdef0",
+          "workflow": "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1",
+          "fits": [],
+          "file": {
+            "url": "https://github.com/other/port-collection/releases/download/wayfinder%2Fv2.0.0-beta.1/wayfinder-2.0.0-beta.1.smod",
+            "size": 123456,
+            "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attestation": "https://github.com/other/port-collection/releases/download/wayfinder%2Fv2.0.0-beta.1/wayfinder-2.0.0-beta.1.smod.sigstore.json"
+          },
+          "dependencies": [
+            {
+              "mod": "wayfinder",
+              "version": "^1.2",
+              "project": "Ab3dE9xQ",
+              "required": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "collections": [],
+  "revoked": [
+    {
+      "project": "Retired0",
+      "sha256": null,
+      "reason": "Listing withdrawn.",
+      "date": "2026-11-25"
+    },
+    {
+      "project": "Ab3dE9xQ",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "reason": "Old package withdrawn.",
+      "date": "2026-11-24"
+    }
+  ]
+}

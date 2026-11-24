@@ -1,12 +1,9 @@
 name: publish
 
+# Started by fit.yml once the verdicts for main's head are stored, so every push to main is
+# published after it is judged.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
-  # Refreshes the offered builds and the fits in the v2 index.
-  schedule:
-    - cron: "23 */3 * * *"
 
 permissions: {}
 
@@ -42,16 +39,17 @@ jobs:
             echo 'Registry v2 was checked offline. Publication needs the public key and main.' >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          "$bot" builds --out offered-builds.json
-          cache=() after=()
-          # Live unavailability prevents reuse, not generation. Deploy checks the
-          # retained snapshot for the last keyed deployment as well as live Pages.
+          # The fit job judged every release on every offered build and started this run. Nothing
+          # is judged or downloaded here: the index is assembled from main and those verdicts,
+          # and refused when a listed release has no current verdict on an offered build.
+          python3 -I .github/registry-v2/fit_store.py read
+          after=()
+          # Live unavailability does not prevent generation. Deploy checks the retained
+          # snapshot for the last keyed deployment as well as live Pages.
           if python3 -I .github/registry-v2/live.py --bot "$bot" --out v2-previous \
               && [[ -f v2-previous/index.json ]]; then
-            cache=(--cache v2-previous/index.json)
             after=(--after v2-previous/index.json)
           fi
-          "$bot" fit . --builds offered-builds.json "${cache[@]}" --out registry/fit
           "$bot" index . --serial "$serial" --out v2-stage --generated-fit "${after[@]}"
           tar -C v2-stage -cf "$RUNNER_TEMP/v2-pages.tar" pages
           echo "sha256=$(sha256sum < v2-stage/index.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"

@@ -203,8 +203,8 @@ change!(
 change!(
     unknown_fit_field,
     FIT,
-    "fits =",
-    "extra = true\nfits =",
+    "rules =",
+    "extra = true\nrules =",
     "unknown field"
 );
 change!(
@@ -456,12 +456,6 @@ fn release_and_fit_require_exact_sunrise_build_names() {
             "expected a stable Sunrise tag or an exact Nightly/Dev build ID",
         );
     }
-    let temp = fit_checkout();
-    replace(temp.path(), FIT, "26.3-0.1.1", "dev-2026-11-23-abcdef0");
-    assert_eq!(
-        index(temp.path())["projects"][0]["releases"][0]["fits"][1],
-        "dev-2026-11-23-abcdef0"
-    );
 }
 
 #[test]
@@ -632,24 +626,17 @@ change!(
     "duplicate category adventure"
 );
 change!(
-    unknown_fit_release,
+    contradictory_fit_verdicts,
     FIT,
-    "1.2.0",
-    "9.9.9",
-    "unknown release"
-);
-change!(
-    duplicate_fit_build,
-    FIT,
-    "26.3-0.1.1",
-    "26.3-0.1.0",
-    "duplicate build"
+    "dev-2026-11-23-abcdef0",
+    "\"26.3-0.1.1\"",
+    "both fits and does not fit"
 );
 change!(
     duplicate_fit_release,
     FIT,
     "[[release]]",
-    "[[release]]\nversion = \"1.2.0\"\nfits = []\n\n[[release]]",
+    "[[release]]\nversion = \"1.2.0\"\npackage = \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\nrules = 1\n\n[[release]]",
     "duplicate fit row"
 );
 change!(
@@ -887,18 +874,64 @@ fn unexpected_entries_are_rejected() {
     );
 }
 
+/// A verdict counts only for the package, surface and rules it was judged from.
 #[test]
-fn fit_filename_must_name_a_registered_project() {
+fn index_needs_a_current_verdict_for_every_release_on_every_offered_build() {
+    for (file, old, new) in [
+        (FIT, "rules = 1", "rules = 0"),
+        (
+            FIT,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        ),
+        (
+            FIT,
+            "\"26.3-0.1.1\" = \"2222222222222222222222222222222222222222222222222222222222222222\"",
+            "\"26.3-0.1.1\" = \"9999999999999999999999999999999999999999999999999999999999999999\"",
+        ),
+        (FIT, "dev-2026-11-23-abcdef0", "dev-2026-11-22-abcdef0"),
+        (
+            RELEASE,
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        ),
+    ] {
+        let temp = fit_checkout();
+        replace(temp.path(), file, old, new);
+        let result = run(
+            &[
+                "index",
+                ".",
+                "--serial",
+                "41",
+                "--out",
+                "output",
+                "--generated-fit",
+            ],
+            temp.path(),
+        );
+        let stderr = String::from_utf8(result.stderr).unwrap();
+        assert_eq!(result.status.code(), Some(1), "{stderr}");
+        assert!(
+            stderr.contains("no current fit verdict for: Ab3dE9xQ 1.2.0 on "),
+            "{stderr}"
+        );
+        assert!(!temp.path().join("output").exists());
+    }
+}
+
+#[test]
+fn verdicts_for_a_build_no_longer_offered_are_ignored() {
     let temp = fit_checkout();
-    fs::rename(
-        temp.path().join(FIT),
-        temp.path().join("registry/fit/Unknown0.toml"),
-    )
-    .unwrap();
-    rejected(
-        temp.path(),
-        "registry/fit/Unknown0.toml",
-        "unregistered project",
+    let builds = temp.path().join("registry/fit/builds.json");
+    let mut offered: Value = serde_json::from_slice(&fs::read(&builds).unwrap()).unwrap();
+    offered.as_array_mut().unwrap().remove(1);
+    fs::write(builds, offered.to_string()).unwrap();
+    let release = &index(temp.path())["projects"][0]["releases"][0];
+    assert_eq!(release["fits"], serde_json::json!(["26.3-0.1.0"]));
+    assert_eq!(
+        release["does_not_fit"],
+        serde_json::json!(["dev-2026-11-23-abcdef0"])
     );
 }
 

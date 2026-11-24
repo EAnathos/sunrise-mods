@@ -26,9 +26,8 @@ const USAGE: &str = "usage: registry-bot check <checkout>
        registry-bot stay-listed <base checkout> <head checkout>
        registry-bot verify-release <checkout> <registry-owner/repo> <project> <release.toml> <out>
        registry-bot builds --out <file>
-       registry-bot fit <checkout> --builds <file> [--cache <previous index.json>] --out <dir>
-       registry-bot verify-index <index> <sig> --key <pub>
-       registry-bot new-builds <builds file> <live index> --key <pub>";
+       registry-bot fit <checkout> [--builds <candidates file>]
+       registry-bot verify-index <index> <sig> --key <pub>";
 
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
@@ -92,28 +91,14 @@ fn main() -> ExitCode {
         [command, out_flag, out] if command == "builds" && out_flag == "--out" => {
             builds::discover(Path::new(out))
         }
-        [command, checkout, builds_flag, builds, tail @ ..]
+        [command, checkout] if command == "fit" => fit::run(Path::new(checkout), None),
+        [command, checkout, builds_flag, builds]
             if command == "fit" && builds_flag == "--builds" =>
         {
-            let (previous, out) = match tail {
-                [flag, out] if flag == "--out" => (None, out),
-                [cache, previous, flag, out] if cache == "--cache" && flag == "--out" => {
-                    (Some(Path::new(previous)), out)
-                }
-                _ => return usage(),
-            };
-            fit::run(
-                Path::new(checkout),
-                Path::new(builds),
-                previous,
-                Path::new(out),
-            )
+            fit::run(Path::new(checkout), Some(Path::new(builds)))
         }
         [command, index, sig, flag, pubkey] if command == "verify-index" && flag == "--key" => {
             signed::verify(Path::new(index), Path::new(sig), Path::new(pubkey)).map(|_| ())
-        }
-        [command, builds, index, flag, pubkey] if command == "new-builds" && flag == "--key" => {
-            new_builds(Path::new(builds), Path::new(index), Path::new(pubkey))
         }
         [help] if help == OsStr::new("--help") || help == OsStr::new("-h") => {
             println!("{USAGE}");
@@ -161,21 +146,12 @@ fn write_index(
         registry::load
     };
     let registry = load(checkout).map_err(|e| e.join("; "))?;
+    fit::complete(&registry)?;
     let generated = OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .map_err(|e| e.to_string())?;
     index::write(&registry, checkout, serial, &generated, out)
         .map_err(|e| format!("{}: {e}", out.join("index.json").display()))
-}
-
-fn new_builds(path: &Path, previous: &Path, key: &Path) -> Result<(), String> {
-    let builds = builds::read(path)?;
-    let live = signed::verify(previous, &signed::sibling_signature(previous), key)?;
-    println!(
-        "{}",
-        builds.iter().any(|build| !live.builds.contains(build))
-    );
-    Ok(())
 }
 
 fn escape(reason: &str) -> String {
