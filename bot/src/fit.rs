@@ -23,7 +23,7 @@ use crate::{
     builds::{self, Build, Offered, SUNRISE},
     escape,
     registry::{self, Registry},
-    schema::{Asset, Commit, Fit, FitRelease, Release, Sha256},
+    schema::{Asset, BuildName, Commit, Fit, FitRelease, Release, Sha256},
     signed::SMALL,
 };
 
@@ -204,6 +204,62 @@ pub fn run(checkout: &Path, candidates: Option<&Path>) -> Result<(), String> {
         },
         &out,
     )
+}
+
+/// What the judging job will store for one release: the offered builds it fits and the rest.
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct Cells<'a> {
+    fits: Vec<&'a BuildName>,
+    does_not_fit: Vec<&'a BuildName>,
+}
+
+fn cells<'a>(
+    release: &Release,
+    builds: &'a [Offered],
+    judge: &mut impl Judge,
+) -> Result<Cells<'a>, String> {
+    let mut cells = Cells {
+        fits: Vec::new(),
+        does_not_fit: Vec::new(),
+    };
+    let mut failed = Vec::new();
+    for build in builds {
+        match judge.judge(release, build) {
+            Ok(true) => cells.fits.push(&build.id),
+            Ok(false) => cells.does_not_fit.push(&build.id),
+            Err(why) => failed.push(format!("{}: {why}", build.id.as_str())),
+        }
+    }
+    if failed.is_empty() {
+        Ok(cells)
+    } else {
+        Err(format!("cannot judge on:\n{}", failed.join("\n")))
+    }
+}
+
+/// Judges the release row `row`, which is not on `main` yet, on every offered build (`builds`,
+/// the stored `builds.json`) and writes the IDs it fits and does not fit to `out`. Nothing is
+/// stored: the judging job judges the release again once it is merged. A cell that cannot be
+/// judged is an error here, as it would be there.
+pub fn release(builds: &Path, row: &Path, out: &Path) -> Result<(), String> {
+    let builds = builds::read(builds, |build: &Offered| (&build.id, &build.commit))?;
+    let row = fs::read_to_string(row).map_err(|e| format!("{}: {e}", row.display()))?;
+    let release = toml::from_str::<Release>(&row).map_err(|e| e.to_string())?;
+    let temp = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let scratch = temp.path().canonicalize().map_err(|e| e.to_string())?;
+    let cells = cells(
+        &release,
+        &builds,
+        &mut Tool {
+            root: &scratch,
+            downloads: Https,
+            packages: BTreeMap::new(),
+            sdks: BTreeMap::new(),
+            data: BTreeMap::new(),
+        },
+    )?;
+    let bytes = serde_json::to_vec(&cells).map_err(|e| e.to_string())?;
+    fs::write(out, bytes).map_err(|e| format!("{}: {e}", out.display()))
 }
 
 trait Download {

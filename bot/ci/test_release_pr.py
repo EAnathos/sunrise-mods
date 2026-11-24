@@ -237,7 +237,7 @@ class ReleasePRTests(unittest.TestCase):
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("summary.md", "A trusted scan report.\n")
         return {"pending": {"result": "success"}, "build": {"result": "success"},
-                "verify": {"result": "success", "outputs": {"attempt": attempt}},
+                "verify": {"result": "success", "outputs": {"attempt": attempt, "fit": "fits dev-b; does not fit dev-a"}},
                 "scanner": {"result": "success", "outputs": {"attempt": attempt, "summary-id": "84",
                             "summary-digest": hashlib.sha256(path.read_bytes()).hexdigest()}}}
 
@@ -284,6 +284,10 @@ class ReleasePRTests(unittest.TestCase):
         self.assertNotIn("A trusted scan report.", posts[-2]["body"])
         self.assertIn("Rerun all jobs", posts[-2]["body"])
         self.assertEqual((posts[-1]["state"], posts[-1]["description"]), ("failure", "Rerun all jobs"))
+
+    def test_the_report_shows_the_fit_on_the_offered_builds(self):
+        body = self.run_report(self.report_jobs())[-2]["body"]
+        self.assertIn("\n**On the offered builds**: fits dev-b; does not fit dev-a.\n", body)
 
     def test_a_missing_comparison_is_named_above_the_scan_and_still_passes(self):
         jobs = self.report_jobs()

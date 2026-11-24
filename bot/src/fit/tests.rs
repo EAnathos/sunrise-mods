@@ -194,6 +194,41 @@ fn a_cell_that_cannot_be_judged_fails_the_run_and_stores_nothing() {
 }
 
 #[test]
+fn a_release_not_yet_merged_is_judged_on_every_offered_build_or_refused() {
+    let target = scratch();
+    let registry = judged(target.path());
+    let release = registry
+        .projects
+        .values()
+        .next()
+        .unwrap()
+        .releases
+        .values()
+        .next()
+        .unwrap();
+    let builds = &registry.builds;
+    assert!(builds.len() >= 2);
+    let key = |build: &Offered| (release.file.sha256.clone(), build.id.clone());
+    let mut judge = Recorded::default();
+    judge.responses.insert(key(&builds[1]), Ok(true));
+    let judged = cells(release, builds, &mut judge).unwrap();
+    assert_eq!(judged.fits, [&builds[1].id]);
+    assert_eq!(judged.does_not_fit.len(), builds.len() - 1);
+    assert!(!judged.does_not_fit.contains(&&builds[1].id));
+
+    judge
+        .responses
+        .insert(key(&builds[0]), Err("recorded missing surface".into()));
+    assert_eq!(
+        cells(release, builds, &mut judge),
+        Err(format!(
+            "cannot judge on:\n{}: recorded missing surface",
+            builds[0].id.as_str()
+        ))
+    );
+}
+
+#[test]
 fn a_build_with_an_unreadable_surface_is_not_offered() {
     let target = scratch();
     let registry = registry::load(fixture()).unwrap();
