@@ -152,86 +152,11 @@ jobs:
             payload/index.json.minisig
           if-no-files-found: error
 
-  assemble:
+  # Authenticates the signed candidate, stages the site and deploys it. One job: staging runs the
+  # same verifier and live.py the deploy guard runs, so it gains nothing by sharing these permissions.
+  deploy:
     needs: [registry_v2, sign]
     if: always() && !cancelled() && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      deployments: read
-    outputs:
-      v2_failed: ${{ steps.overlay.outputs.v2_failed }}
-      carried: ${{ steps.overlay.outputs.carried }}
-      snapshot: ${{ steps.overlay.outputs.snapshot }}
-      pages_artifact: ${{ steps.overlay.outputs.pages_artifact }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        id: signed
-        if: needs.sign.result == 'success'
-        continue-on-error: true
-        with:
-          name: ${{ needs.sign.outputs.signed }}
-          path: candidate
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        id: images
-        if: needs.sign.result == 'success'
-        continue-on-error: true
-        with:
-          name: ${{ needs.registry_v2.outputs.pages }}
-      - name: Authenticate the candidate or recover the last complete v2 snapshot
-        id: overlay
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PREPARE: ${{ needs.registry_v2.result }}
-          SIGNED: ${{ steps.signed.outcome }}
-          IMAGES: ${{ steps.images.outcome }}
-        run: |
-          set -euo pipefail
-          mkdir site
-          echo "pages_artifact=github-pages-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
-          if [[ ! -f registry/index-key.pub ]]; then
-            if [[ "$PREPARE" != success ]]; then
-              echo 'v2_failed=true' >> "$GITHUB_OUTPUT"
-            fi
-            exit 0
-          fi
-          verifier="$RUNNER_TEMP/index-verifier/release/registry-bot"
-          if ! cargo build --locked --manifest-path bot/verifier/Cargo.toml \
-              --target-dir "$RUNNER_TEMP/index-verifier" --release; then
-            echo 'NO_AUTHENTICATED_V2_SNAPSHOT: the independent verifier is unavailable; preserving the existing Pages site.' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          args=()
-          if [[ "$SIGNED" != success || "$IMAGES" != success ]]; then
-            args=(--candidate unavailable-v2-candidate)
-          fi
-          if ! python3 -I .github/registry-v2/live.py --bot "$verifier" --assemble site "${args[@]}"; then
-            echo 'NO_AUTHENTICATED_V2_SNAPSHOT: preserving the existing Pages site without deploying.' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          echo "snapshot=v2-snapshot-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
-          if grep -qx 'carried=true' "$GITHUB_OUTPUT"; then
-            echo 'v2_failed=true' >> "$GITHUB_OUTPUT"
-            echo 'The new catalogue failed. Deploying the previous authenticated snapshot again.' >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
-        with:
-          name: ${{ steps.overlay.outputs.pages_artifact }}
-          path: site
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: steps.overlay.outputs.snapshot != ''
-        with:
-          name: ${{ steps.overlay.outputs.snapshot }}
-          path: site/v2/
-          if-no-files-found: error
-
-  deploy:
-    needs: assemble
-    if: always() && !cancelled() && needs.assemble.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -246,6 +171,8 @@ jobs:
     outputs:
       attempt: ${{ github.run_attempt }}
       record: ${{ steps.guard.outputs.record }}
+      v2_failed: ${{ steps.guard.outputs.v2_failed }}
+      snapshot: ${{ steps.guard.outputs.snapshot }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -256,44 +183,82 @@ jobs:
             bot/verifier
             registry/index-key.pub
           sparse-checkout-cone-mode: false
-      # A merge while this run works does not stop it: the run publishes its own commit and the
-      # queued run for the newer commit publishes after it.
-      - name: Require a commit of main that is not older than the deployed one
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 -I .github/registry-v2/live.py --publishable "$GITHUB_SHA"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        if: needs.assemble.outputs.snapshot != ''
+        id: signed
+        if: needs.sign.result == 'success'
+        continue-on-error: true
         with:
-          name: ${{ needs.assemble.outputs.snapshot }}
-          path: deployed-candidate
-      - name: Check the signed serial against the verified live deployment
+          name: ${{ needs.sign.outputs.signed }}
+          path: candidate
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        id: images
+        if: needs.sign.result == 'success'
+        continue-on-error: true
+        with:
+          name: ${{ needs.registry_v2.outputs.pages }}
+      - name: Authenticate the candidate or recover the last complete v2 snapshot, and check its serial against the deployed one
         id: guard
         env:
           GH_TOKEN: ${{ github.token }}
-          CARRIED: ${{ needs.assemble.outputs.carried }}
+          PREPARE: ${{ needs.registry_v2.result }}
+          SIGNED: ${{ steps.signed.outcome }}
+          IMAGES: ${{ steps.images.outcome }}
         run: |
           set -euo pipefail
-          if [[ -f registry/index-key.pub ]]; then
-            cargo build --locked --manifest-path bot/verifier/Cargo.toml \
-              --target-dir "$RUNNER_TEMP/index-verifier" --release
+          mkdir site
+          if [[ ! -f registry/index-key.pub ]]; then
+            if [[ "$PREPARE" != success ]]; then
+              echo 'v2_failed=true' >> "$GITHUB_OUTPUT"
+            fi
+          else
+            verifier="$RUNNER_TEMP/index-verifier/release/registry-bot"
+            if ! cargo build --locked --manifest-path bot/verifier/Cargo.toml \
+                --target-dir "$RUNNER_TEMP/index-verifier" --release; then
+              echo 'NO_AUTHENTICATED_V2_SNAPSHOT: the independent verifier is unavailable; preserving the existing Pages site.' >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
             args=()
-            if [[ "$CARRIED" == true ]]; then args=(--carried); fi
-            python3 -I .github/registry-v2/live.py --bot "$RUNNER_TEMP/index-verifier/release/registry-bot" \
-              --guard-deploy deployed-candidate "${args[@]}"
+            if [[ "$SIGNED" != success || "$IMAGES" != success ]]; then
+              args=(--candidate unavailable-v2-candidate)
+            fi
+            if ! python3 -I .github/registry-v2/live.py --bot "$verifier" --assemble site "${args[@]}"; then
+              echo 'NO_AUTHENTICATED_V2_SNAPSHOT: preserving the existing Pages site without deploying.' >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            echo "snapshot=v2-snapshot-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+            args=()
+            if grep -qx 'carried=true' "$GITHUB_OUTPUT"; then
+              args=(--carried)
+              echo 'v2_failed=true' >> "$GITHUB_OUTPUT"
+              echo 'The new catalogue failed. Deploying the previous authenticated snapshot again.' >> "$GITHUB_STEP_SUMMARY"
+            fi
+            python3 -I .github/registry-v2/live.py --bot "$verifier" --guard-deploy site/v2 "${args[@]}"
           fi
-          # The verification can span network requests. Do not deploy a commit that left main in the meantime.
+          # A merge while this run works does not stop it: the run publishes its own commit and the
+          # queued run for the newer commit publishes after it. Checked once, last, because the
+          # verification spans network requests: a commit that left main in the meantime is not deployed.
           python3 -I .github/registry-v2/live.py --publishable "$GITHUB_SHA"
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          name: github-pages-${{ github.run_attempt }}
+          path: site
+      # The next publish's guard and this run's confirm-live read the snapshot.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.guard.outputs.snapshot != ''
+        with:
+          name: ${{ steps.guard.outputs.snapshot }}
+          path: site/v2/
+          if-no-files-found: error
       - id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
         with:
-          artifact_name: ${{ needs.assemble.outputs.pages_artifact }}
+          artifact_name: github-pages-${{ github.run_attempt }}
 
   # Pages can report a deployment and still serve the previous files. Readers fetch one file,
   # so they never see a mixed pair; this makes a site that did not take the deployment a red run.
   confirm-live:
-    needs: [assemble, deploy]
-    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.assemble.outputs.snapshot != ''
+    needs: deploy
+    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.deploy.outputs.snapshot != ''
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -309,7 +274,7 @@ jobs:
           sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: ${{ needs.assemble.outputs.snapshot }}
+          name: ${{ needs.deploy.outputs.snapshot }}
           path: deployed
       - name: Wait until the site serves the deployed signed index
         run: |
@@ -338,8 +303,8 @@ jobs:
             -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$DEPLOY_ATTEMPT"
 
   report-v2-failure:
-    needs: [assemble, deploy]
-    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.assemble.outputs.v2_failed == 'true'
+    needs: deploy
+    if: always() && !cancelled() && needs.deploy.result == 'success' && needs.deploy.outputs.v2_failed == 'true'
     runs-on: ubuntu-latest
     permissions: {}
     steps:
