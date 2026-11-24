@@ -118,6 +118,13 @@ jobs:
           artifact-ids: ${{ needs.verify.outputs.source }}
           path: ${{ runner.temp }}/registry-release-source/
           digest-mismatch: error
+      # The patch library of a mod with `[[native.mixin]]` rows links the game, which links udev and ALSA on Linux.
+      - name: Install the system libraries the game links on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev
       - name: Use the signed mod tool against the package's pinned SDK
         shell: bash
         env:
