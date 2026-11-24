@@ -54,9 +54,9 @@ jobs:
     # the source it was built from (`git ls-tree <commit> -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum`).
     # The release's notes give all three; a newer tool is a pull request that changes them.
     env:
-      REGISTRY_TOOL_TAG: ""
-      REGISTRY_TOOL_SHA256: ""
-      REGISTRY_TOOL_SOURCE: ""
+      REGISTRY_TOOL_TAG: registry-tools-ea3560f9ba4449ef750bc7e0f08d32b669fc60bb
+      REGISTRY_TOOL_SHA256: 976d8c7516b895c253773946396c1b47fbae52796dec41060ecc8bc0ab2b3b94
+      REGISTRY_TOOL_SOURCE: 49a79393439c871fadaab6590607f9e669fe30301eb80d360f36cb356e9e5a60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
