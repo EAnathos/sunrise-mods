@@ -1,0 +1,19 @@
+version = "0.1.2"
+kind = "native-mod"
+tag = "v0.1.2"
+published = "2026-11-24T04:33:36Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/Flo-bot-png/shulker-tooltip/releases/download/v0.1.2/shulker_tooltip-0.1.2.smod"
+size = 17194
+sha256 = "227ea7bd85988b7ff2065caa5f056cfa5aafffe133fa72af7e6166402be8c3fc"
+attestation = "https://github.com/Flo-bot-png/shulker-tooltip/releases/download/v0.1.2/shulker_tooltip-0.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Flo-bot-png/shulker-tooltip/releases/download/v0.1.2/shulker_tooltip-0.1.2.page.tar"
+size = 697856
+sha256 = "54416e1d46dedc1cc661bb0860eb2819c6b7740ef3e048bcc54f1aa249a82ef8"
+attestation = "https://github.com/Flo-bot-png/shulker-tooltip/releases/download/v0.1.2/shulker_tooltip-0.1.2.page.tar.sigstore.json"
