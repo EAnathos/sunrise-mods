@@ -1,6 +1,6 @@
 name: refresh offered game builds
 
-# Started every half hour by timer.yml.
+# Started every ten minutes by timer.yml.
 on:
   workflow_dispatch:
 
