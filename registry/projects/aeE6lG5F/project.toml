@@ -1,0 +1,9 @@
+id = "aeE6lG5F"
+slug = "tconstruct"
+mod = "tconstruct"
+kind = "native-mod"
+owners = ["Joeypc6"]
+repository = 1469846339
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
