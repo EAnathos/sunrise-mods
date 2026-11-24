@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::Deserialize;
 
@@ -7,14 +7,12 @@ use crate::{
     index_signature,
 };
 
-pub const KEY: &str = "registry/index-key.pub";
 // Existing Sunrise mod tool's sdk_fetch::SMALL.
 pub const SMALL: u64 = 16 << 20;
 
 #[derive(Deserialize)]
 pub struct Catalog {
     schema: u8,
-    pub serial: u64,
     #[serde(default)]
     pub builds: Vec<Build>,
 }
@@ -28,21 +26,6 @@ pub fn verify(path: &Path, sig: &Path, key: &Path) -> Result<Catalog, String> {
     }
     builds::validate(index.builds.iter().map(|build| (&build.id, &build.commit)))?;
     Ok(index)
-}
-
-pub fn sibling_signature(path: &Path) -> PathBuf {
-    let mut name = path.as_os_str().to_owned();
-    name.push(".minisig");
-    PathBuf::from(name)
-}
-
-pub fn require_new_serial(serial: u64, previous: u64) -> Result<(), String> {
-    if serial <= previous {
-        return Err(format!(
-            "publish serial {serial} must be greater than live serial {previous}"
-        ));
-    }
-    Ok(())
 }
 
 #[cfg(test)]

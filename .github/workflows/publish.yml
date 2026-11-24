@@ -28,8 +28,6 @@ jobs:
       - uses: ./.github/actions/registry-tool
       - name: Generate and validate the v2 catalogue
         id: prepare
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           bot=target/release/registry-bot
@@ -43,14 +41,7 @@ jobs:
           # is judged or downloaded here: the index is assembled from main and those verdicts,
           # and refused when a listed release has no current verdict on an offered build.
           python3 -I .github/registry-v2/fit_store.py read
-          after=()
-          # Live unavailability does not prevent generation. Deploy checks the retained
-          # snapshot for the last keyed deployment as well as live Pages.
-          if python3 -I .github/registry-v2/live.py --bot "$bot" --out v2-previous \
-              && [[ -f v2-previous/index.json ]]; then
-            after=(--after v2-previous/index.json)
-          fi
-          "$bot" index . --serial "$serial" --out v2-stage --generated-fit "${after[@]}"
+          "$bot" index . --serial "$serial" --out v2-stage --generated-fit
           tar -C v2-stage -cf "$RUNNER_TEMP/v2-pages.tar" pages
           echo "sha256=$(sha256sum < v2-stage/index.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
           echo "unsigned=unsigned-v2-index-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
