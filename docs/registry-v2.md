@@ -353,6 +353,18 @@ one, and a closed, unmerged one while its `release/<project>/<version>` branch s
 does not recreate it. Drafts never count; signed prereleases can count.
 Observation and publication failures appear in the watch summary.
 
+### Moving a project to another repository
+
+A project moves by an ordinary reviewed pull request: it changes `repository` and `path` in
+`project.toml`, lists the package in the new repository's file and takes it out of the old one's.
+Release rows are left as they are, each naming the repository it was signed from.
+
+For every project whose `repository` changes, the pull request's check looks both repositories up
+by ID and writes into its summary whether they belong to the same GitHub account, compared by the
+account's numeric ID. A move to another account is allowed and is marked **DIFFERENT OWNER**, so
+the reviewer sees it; players who have the project installed are then asked to confirm the new
+owner. The check fails only when a repository cannot be looked up.
+
 ### Refusing or withdrawing a release
 
 Closing a release PR without merging does one of two things, decided by its branch:
