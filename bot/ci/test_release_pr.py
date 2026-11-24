@@ -246,6 +246,39 @@ class ReleasePRTests(unittest.TestCase):
         gh.assert_called_once_with("workflow", "run", release.WORKFLOW, "--repo", REPO,
                                    "--ref", "main", "-f", "pr=11", "-f", f"head={SHA}")
 
+    def test_a_check_stopped_by_an_unavailable_download_is_dispatched_once_more(self):
+        title = {"display_title": f"Registry release PR 10 at {SHA}"}
+        for description, runs, again in ((release.UNAVAILABLE, [title], True), (release.UNAVAILABLE, [title, title], False),
+                                         ("Release checks failed or did not complete", [title], False)):
+            with self.subTest(description=description, runs=len(runs)):
+                status = {"context": release.STATUS, "state": "failure", "description": description}
+                api = Mock(return_value={"object": {"sha": "0" * 40}, "statuses": [status]})
+                with patch.dict(os.environ, GITHUB_STEP_SUMMARY=str(self.folder / "summary.md")), \
+                     patch.object(release, "api", api), patch.object(release, "rows", listing([pull()])), \
+                     patch.object(release, "git", return_value=SHA.encode()), patch.object(release, "gh") as gh, \
+                     patch.object(release, "dispatch_runs", return_value=runs):
+                    release.publish(self.folder)
+                self.assertEqual(gh.call_count, int(again))
+
+    def test_registry_bot_stopping_at_an_unavailable_download_is_passed_to_the_report(self):
+        output = self.folder / "output"
+        for code, written in ((release.UNAVAILABLE_EXIT, "unavailable=true\n"), (1, "")):
+            output.write_text("")
+            with patch.dict(os.environ, GITHUB_OUTPUT=str(output), REGISTRY_BOT="registry-bot"), \
+                 patch.object(release.subprocess, "run", return_value=Mock(returncode=code)), \
+                 self.assertRaisesRegex(ValueError, f"exit {code}"):
+                release.bot("release-fit")
+            self.assertEqual(output.read_text(), written)
+
+    def test_an_unavailable_download_is_reported_apart_from_a_failed_check(self):
+        jobs = self.report_jobs()
+        jobs["verify"] = {"result": "failure", "outputs": {"attempt": "1", "unavailable": "true"}}
+        jobs["build"]["result"] = jobs["scanner"]["result"] = "skipped"
+        jobs["scanner"]["outputs"] = {}
+        posts = self.run_report(jobs, downloaded="false")
+        self.assertIn("**Not checked**", posts[-2]["body"])
+        self.assertEqual((posts[-1]["state"], posts[-1]["description"]), ("failure", release.UNAVAILABLE))
+
     def report_jobs(self, attempt="1"):
         path = self.folder / "summary.zip"
         with zipfile.ZipFile(path, "w") as archive:
