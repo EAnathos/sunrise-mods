@@ -289,7 +289,7 @@ The [two-provider fixture](../bot/tests/fixtures/two-ports/registry/) and
 ## The watcher and release PR checks
 
 `watch.yml` polls every 10 minutes and can also be started manually on `main`. GitHub's own schedule
-events rarely arrive, so `timer.yml` starts it: each timer run starts the watcher, waits half an hour and
+events rarely arrive, so `timer.yml` starts it: each timer run starts the watcher, waits ten minutes and
 starts the next timer run, and a push to `main` restarts a chain that has stopped. It looks up each
 repository by its numeric GitHub ID. A rename opens a separate maintenance PR for that repository's file;
 it does not change project IDs or rewrite old release URLs. At registration the watcher considers
