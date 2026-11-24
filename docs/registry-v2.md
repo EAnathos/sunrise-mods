@@ -264,13 +264,16 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
   does not sign or deploy anything.
 - `registry-bot verify-index <index> <sig> --key <pub>` checks the exact bytes and the index schema.
 
-The publish workflow runs `registry-bot` as released by `registry-tools.yml`, which builds it from a
-commit of `main` on every change to its source and publishes it as `registry-tools-<commit>`.
-`publish.yml` names that tag, the binary's SHA-256 and the digest of its source
-(`git ls-tree <commit> -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum`); the release's notes
-give all three, and moving to a newer tool is a pull request that changes them. A download that does
-not match the SHA-256 fails the run. When the source on `main` is not the pinned one, the run builds
-the tool from source instead, with a warning, so it never runs a tool that disagrees with the code.
+Every workflow gets `registry-bot` through `.github/actions/registry-tool`. `registry-tools.yml`
+builds the tool from `main` on every change to its source and publishes it as
+`registry-tool-<digest>`, where the digest is
+`git ls-tree <commit> -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum`. The release carries the
+binary and `PIN`, one line naming that digest and the binary's SHA-256, with an attestation that
+`registry-tools.yml` wrote it on `main`. A run computes the digest of its own checkout, downloads that
+release, verifies the attestation and both values in `PIN`, and fails if any of them is wrong. When
+the release does not exist (a pull request that changes the tool, or the minutes after such a merge
+while the release is built) the run builds the tool from its checkout, so it never runs a tool that
+disagrees with the code.
 
 The publish workflow uses the current UTC epoch second as the next serial. Signing and deployment
 both require a commit of `main` that is not older than the deployed one, so a merge during a publish

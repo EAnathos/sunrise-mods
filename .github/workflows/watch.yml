@@ -23,11 +23,12 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - uses: ./.github/actions/registry-tool
       - name: Observe GitHub releases without executing their contents
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cargo run --locked --manifest-path bot/Cargo.toml -- watch . "$GITHUB_REPOSITORY" "$RUNNER_TEMP/watch"
+          target/release/registry-bot watch . "$GITHUB_REPOSITORY" "$RUNNER_TEMP/watch"
           cat "$RUNNER_TEMP/watch/watch.md" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

@@ -1,0 +1,37 @@
+name: Get the v2 registry tool
+description: >-
+  Puts registry-bot at target/release/registry-bot. It is the binary registry-tools.yml released
+  from main for exactly the checkout's tool source, or a build of the checkout when no such
+  release exists: a run never uses a tool that disagrees with the code it checked out.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        bot=target/release/registry-bot
+        # A release is named by the digest of the source it was built from, so a change to the
+        # tool is picked up as soon as registry-tools.yml has released it, with nothing to edit.
+        source=$(git ls-tree HEAD -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum | cut -d' ' -f1)
+        tag=registry-tool-$source
+        released=$RUNNER_TEMP/registry-tool
+        if gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$released" \
+            --pattern registry-bot --pattern PIN 2> "$RUNNER_TEMP/registry-tool.log"; then
+          # PIN names the source digest and the binary's SHA-256. Only registry-tools.yml on main
+          # can have attested it, so a release asset cannot be swapped for another build.
+          gh attestation verify "$released/PIN" --repo "$GITHUB_REPOSITORY" --source-ref refs/heads/main \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/registry-tools.yml" > /dev/null
+          [[ "$(cat "$released/PIN")" == "$source  $(sha256sum < "$released/registry-bot" | cut -d' ' -f1)" ]]
+          mkdir -p "$(dirname "$bot")"
+          install -m 755 "$released/registry-bot" "$bot"
+          echo "Ran the released tool $tag." >> "$GITHUB_STEP_SUMMARY"
+        elif grep -Fxq 'release not found' "$RUNNER_TEMP/registry-tool.log"; then
+          echo "Built the tool from source: $tag is not released." >> "$GITHUB_STEP_SUMMARY"
+          cargo build --locked --manifest-path bot/Cargo.toml --target-dir target --release
+        else
+          cat "$RUNNER_TEMP/registry-tool.log" >&2
+          exit 1
+        fi
