@@ -1,0 +1,9 @@
+id = "YSxjWaGS"
+slug = "sunny_ultimine"
+mod = "sunny_ultimine"
+kind = "native-mod"
+owners = ["mathewneves"]
+repository = 1469102490
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
