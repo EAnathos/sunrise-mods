@@ -1,0 +1,9 @@
+id = "Rpuu0og0"
+slug = "hostilenetworks"
+mod = "hostilenetworks"
+kind = "native-mod"
+owners = ["Joeypc6"]
+repository = 1469846273
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
