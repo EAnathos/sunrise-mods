@@ -931,8 +931,11 @@ mod tests {
                 Repo::Named(name) if name.as_str().eq_ignore_ascii_case(OLD) => (555, OLD),
                 _ => return Err("unexpected repository lookup".into()),
             };
-            serde_json::from_value(serde_json::json!({"id":id,"full_name":name,"private":false}))
-                .map_err(|e| e.to_string())
+            serde_json::from_value(serde_json::json!({
+                "id": id, "full_name": name, "private": false,
+                "owner": {"id": 1, "login": name.split_once('/').unwrap().0},
+            }))
+            .map_err(|e| e.to_string())
         }
 
         fn releases(&self, repo: Repo<'_>) -> Result<Vec<github::Release>, String> {
