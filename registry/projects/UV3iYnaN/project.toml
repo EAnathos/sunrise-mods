@@ -1,0 +1,9 @@
+id = "UV3iYnaN"
+slug = "crops-love-rain"
+mod = "cropsloverain"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "cropsloverain"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"

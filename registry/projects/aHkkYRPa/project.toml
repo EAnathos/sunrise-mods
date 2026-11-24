@@ -1,0 +1,9 @@
+id = "aHkkYRPa"
+slug = "appleskin"
+mod = "appleskin"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468944988
+path = "native/appleskin"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
