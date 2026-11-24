@@ -1,0 +1,19 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "securecrops/v0.5.1"
+published = "2026-11-24T11:57:07Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/securecrops/v0.5.1/securecrops-0.5.1.smod"
+size = 28392
+sha256 = "15e61c30221b19b06933a316cfe29ce2604a8c48b3613921b42ce9ad9e84ecb2"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/securecrops/v0.5.1/securecrops-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/securecrops/v0.5.1/securecrops-0.5.1.page.tar"
+size = 986624
+sha256 = "db200da46ee5331213c324a31756a423a20b082c8e7d701e1dd33c9db4dabb9a"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/securecrops/v0.5.1/securecrops-0.5.1.page.tar.sigstore.json"
