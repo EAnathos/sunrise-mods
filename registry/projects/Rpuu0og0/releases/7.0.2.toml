@@ -1,0 +1,33 @@
+version = "7.0.2"
+kind = "native-mod"
+tag = "v7.0.2"
+published = "2026-11-24T08:32:55Z"
+sunrise = "dev-2026-11-24-f8aa80e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+
+[file]
+url = "https://github.com/Joeypc6/HostileNeuralNetworks-Sunrise/releases/download/v7.0.2/hostilenetworks-7.0.2.smod"
+size = 278042
+sha256 = "b9d63ac8e51e99a43b25aa53af438679306c1ec99f7a283f1d31efcd7ed60ee6"
+attestation = "https://github.com/Joeypc6/HostileNeuralNetworks-Sunrise/releases/download/v7.0.2/hostilenetworks-7.0.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Joeypc6/HostileNeuralNetworks-Sunrise/releases/download/v7.0.2/hostilenetworks-7.0.2.page.tar"
+size = 3537408
+sha256 = "20c062c0b9054ceebba6ef29c2b6d8dfe48ec53641cbe804d623d56dee0a0fac"
+attestation = "https://github.com/Joeypc6/HostileNeuralNetworks-Sunrise/releases/download/v7.0.2/hostilenetworks-7.0.2.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "guideme"
+version = "^0.1"
+required = false
+
+[[dependencies]]
+mod = "jade"
+version = "^26"
+required = false
+
+[[dependencies]]
+mod = "jei"
+version = "^0.5"
+required = false
