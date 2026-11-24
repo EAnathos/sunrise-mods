@@ -1,8 +1,11 @@
 name: registry-tools
 
-# Builds the v2 registry tool from a commit of main whenever its source changes, and publishes it
-# as the release `registry-tool-<digest of that source>`. Every workflow gets the tool through
-# .github/actions/registry-tool, which looks for the release of the source it checked out.
+# Builds the v2 registry's two binaries from a commit of main whenever their source changes: the
+# tool (registry-bot) as the release `registry-tool-<digest of its source>`, and the independent
+# index verifier as `registry-verifier-<digest of its source>`. Every workflow gets them through
+# .github/actions/registry-tool, which looks for the release of the source it checked out. They
+# are separate builds and releases, so a broken tool build cannot keep publish from the verifier
+# its recovery needs.
 on:
   push:
     branches: [main]
@@ -10,6 +13,7 @@ on:
       - 'bot/Cargo.toml'
       - 'bot/Cargo.lock'
       - 'bot/src/**'
+      - 'bot/verifier/**'
       - '.github/workflows/registry-tools.yml'
   workflow_dispatch:
 
@@ -19,30 +23,47 @@ jobs:
   release:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: registry-tool
+            title: Registry tool
+            sources: bot/Cargo.toml bot/Cargo.lock bot/src
+            manifest: bot/Cargo.toml
+          - name: registry-verifier
+            title: Registry index verifier
+            sources: bot/verifier bot/src/index_signature.rs
+            manifest: bot/verifier/Cargo.toml
     permissions:
       contents: write
       id-token: write
       attestations: write
+    env:
+      NAME: ${{ matrix.name }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
       # A tag names one source's build: an existing one is never replaced.
-      - name: Stop if this source's tool is released
+      - name: Stop if this source's binary is released
         id: existing
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCES: ${{ matrix.sources }}
         run: |
           # The same digest .github/actions/registry-tool computes from its checkout.
-          source=$(git ls-tree HEAD -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum | cut -d' ' -f1)
+          source=$(git ls-tree HEAD -- $SOURCES | sha256sum | cut -d' ' -f1)
           echo "source=$source" >> "$GITHUB_OUTPUT"
-          if gh release view "registry-tool-$source" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "registry-tool-$source is already released." >> "$GITHUB_STEP_SUMMARY"
+          if gh release view "$NAME-$source" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$NAME-$source is already released." >> "$GITHUB_STEP_SUMMARY"
             echo 'released=true' >> "$GITHUB_OUTPUT"
           fi
-      - name: Build the v2 registry tool
+      - name: Build the binary
         if: steps.existing.outputs.released != 'true'
-        run: cargo build --locked --manifest-path bot/Cargo.toml --target-dir target --release
+        env:
+          MANIFEST: ${{ matrix.manifest }}
+        run: cargo build --locked --manifest-path "$MANIFEST" --target-dir target --release
       - name: Stage the binary and its pin
         if: steps.existing.outputs.released != 'true'
         env:
@@ -64,7 +85,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE: ${{ steps.existing.outputs.source }}
+          TITLE: ${{ matrix.title }}
         run: |
-          gh release create "registry-tool-$SOURCE" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --latest=false --title "Registry tool ${SOURCE:0:12}" --notes-file notes.md \
+          gh release create "$NAME-$SOURCE" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --latest=false --title "$TITLE ${SOURCE:0:12}" --notes-file notes.md \
             dist/registry-bot dist/PIN
