@@ -1,0 +1,19 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "rightclickharvest/v0.5.2"
+published = "2026-11-24T11:49:57Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/rightclickharvest/v0.5.2/rightclickharvest-0.5.2.smod"
+size = 119001
+sha256 = "e120baa78e0e192de9e54f468ed739075765c8efc9354ba2bba244058122c5fd"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/rightclickharvest/v0.5.2/rightclickharvest-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/rightclickharvest/v0.5.2/rightclickharvest-0.5.2.page.tar"
+size = 932864
+sha256 = "9ede572a77d1dc6d6a5419a00ddd22662c932c7557f5e14c0b5e5dcd50187548"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/rightclickharvest/v0.5.2/rightclickharvest-0.5.2.page.tar.sigstore.json"
