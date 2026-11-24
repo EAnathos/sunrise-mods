@@ -1,0 +1,5 @@
+name = "arismoko/horizon-rust-mods"
+
+[[package]]
+path = "native/appleskin"
+project = "aHkkYRPa"
