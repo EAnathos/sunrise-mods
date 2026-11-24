@@ -1,0 +1,9 @@
+id = "1QHmH7em"
+slug = "universal-bone-meal"
+mod = "universalbonemeal"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "universalbonemeal"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"

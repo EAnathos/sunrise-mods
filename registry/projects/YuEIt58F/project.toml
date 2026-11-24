@@ -1,0 +1,9 @@
+id = "YuEIt58F"
+slug = "better-than-mending"
+mod = "betterthanmending"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "betterthanmending"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"

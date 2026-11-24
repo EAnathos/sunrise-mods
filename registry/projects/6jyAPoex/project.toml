@@ -1,0 +1,9 @@
+id = "6jyAPoex"
+slug = "minecraft-accelerated"
+mod = "mcaccel"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "mcaccel"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
