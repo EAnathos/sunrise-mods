@@ -8,7 +8,7 @@ use percent_encoding::percent_decode_str;
 use semver::Version;
 
 use crate::{
-    builds::{self, Build},
+    builds::{self, Offered},
     schema::*,
     tree::{Entry, Tree},
 };
@@ -24,7 +24,7 @@ pub struct Registry {
     pub projects: BTreeMap<ProjectId, ProjectEntry>,
     pub collections: BTreeMap<ProjectId, CollectionEntry>,
     pub fits: BTreeMap<ProjectId, BTreeMap<Version, FitRelease>>,
-    pub builds: Vec<Build>,
+    pub builds: Vec<Offered>,
     pub revoked: Vec<Revocation>,
 }
 
@@ -338,13 +338,17 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
                 let mut contents = tree.list(&fit_path);
                 let builds_path = fit_path.join("builds.json");
                 match contents.remove(OsStr::new("builds.json")) {
-                    Some(Entry::File) => match builds::read(&checkout.join(&builds_path)) {
-                        Ok(rows) => builds = rows,
-                        Err(message) => tree.problem(&builds_path, message),
-                    },
+                    Some(Entry::File) => {
+                        match builds::read(&checkout.join(&builds_path), |build: &Offered| {
+                            (&build.id, &build.commit)
+                        }) {
+                            Ok(rows) => builds = rows,
+                            Err(message) => tree.problem(&builds_path, message),
+                        }
+                    }
                     _ => tree.problem(&builds_path, "expected the generated offered-build list"),
                 }
-                fits = read_fits(&mut tree, &fit_path, contents, &projects, &builds);
+                fits = read_fits(&mut tree, &fit_path, contents);
             }
             _ => tree.problem(&fit_path, "expected the generated fit directory"),
         }
@@ -733,15 +737,15 @@ fn read_page(
     Some(page)
 }
 
+/// Reads the stored verdicts as written. A row for a release, project or build that is gone is
+/// not a problem here: the judging run drops it, and [`crate::fit::complete`] decides whether
+/// what is listed has its verdicts.
 fn read_fits(
     tree: &mut Tree<'_>,
     dir: &Path,
     contents: crate::tree::Entries,
-    projects: &BTreeMap<ProjectId, ProjectEntry>,
-    builds: &[Build],
 ) -> BTreeMap<ProjectId, BTreeMap<Version, FitRelease>> {
     let mut fits = BTreeMap::new();
-    let offered: BTreeSet<_> = builds.iter().map(|build| &build.id).collect();
     for (name, entry) in contents {
         let file = dir.join(name);
         let id = file
@@ -758,32 +762,17 @@ fn read_fits(
         let Some(fit) = tree.toml::<Fit>(&file, Some(entry)) else {
             continue;
         };
-        let Some(project) = projects.get(&id) else {
-            tree.problem(&file, "fit file names an unregistered project");
-            continue;
-        };
         let mut releases = BTreeMap::new();
         for row in fit.release {
-            if !project.releases.contains_key(&row.version) {
+            if let Some(build) = row.fits.keys().find(|b| row.does_not_fit.contains_key(*b)) {
                 tree.problem(
                     &file,
-                    format!("fit row names an unknown release {}", row.version),
+                    format!(
+                        "{} both fits and does not fit {}",
+                        row.version,
+                        build.as_str()
+                    ),
                 );
-            }
-            let mut seen = BTreeSet::new();
-            for build in row.fits.iter().chain(&row.does_not_fit) {
-                if !offered.contains(build) {
-                    tree.problem(
-                        &file,
-                        format!("fit row names an unoffered build {}", build.as_str()),
-                    );
-                }
-                if !seen.insert(build) {
-                    tree.problem(
-                        &file,
-                        format!("duplicate build in fit verdicts for {}", row.version),
-                    );
-                }
             }
             let version = row.version.clone();
             if releases.insert(version.clone(), row).is_some() {

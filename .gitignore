@@ -1,2 +1,4 @@
 /site/
 /registry/fit/
+__pycache__/
+*.pyc

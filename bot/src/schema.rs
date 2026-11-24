@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use sunrise_mod_package::index::stable_tag;
@@ -392,9 +394,15 @@ pub struct Fit {
 #[serde(deny_unknown_fields)]
 pub struct FitRelease {
     pub version: Version,
-    pub fits: Vec<BuildName>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub does_not_fit: Vec<BuildName>,
+    /// The release's package the verdicts were judged from.
+    pub package: Sha256,
+    /// [`crate::fit::RULES`] when they were judged.
+    pub rules: u32,
+    /// Each build the release fits, with the digest of the surface it was judged against.
+    #[serde(default)]
+    pub fits: BTreeMap<BuildName, Sha256>,
+    #[serde(default)]
+    pub does_not_fit: BTreeMap<BuildName, Sha256>,
 }
 
 #[derive(Deserialize)]

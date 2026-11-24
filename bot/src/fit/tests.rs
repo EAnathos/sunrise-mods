@@ -1,5 +1,7 @@
 use super::*;
-use std::{io, slice::from_ref};
+use std::io;
+
+use crate::schema::BuildName;
 
 fn scratch() -> tempfile::TempDir {
     let target = Path::new(env!("CARGO_MANIFEST_DIR")).join("../target");
@@ -14,67 +16,125 @@ fn fixture() -> &'static Path {
     ))
 }
 
-fn generated(tree: &Path, id: &str) -> Fit {
+fn offered(build: &Build, surface: &str) -> Offered {
+    Offered {
+        id: build.id.clone(),
+        commit: build.commit.clone(),
+        surface: Sha256::parse(surface.repeat(64)).unwrap(),
+    }
+}
+
+/// A checkout of the fixture registry with `registry/fit` as last written.
+fn judged(target: &Path) -> Registry {
+    let checkout = target.join("checkout");
+    copy(&fixture().join("registry"), &checkout.join("registry"));
+    copy(
+        &fixture().join("generated-fit"),
+        &checkout.join("registry/fit"),
+    );
+    registry::load_generated(&checkout).unwrap()
+}
+
+fn copy(from: &Path, to: &Path) {
+    fs::create_dir_all(to).unwrap();
+    for entry in fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
+fn candidates(registry: &Registry) -> Vec<Build> {
+    registry
+        .builds
+        .iter()
+        .map(|build| Build {
+            id: build.id.clone(),
+            commit: build.commit.clone(),
+        })
+        .collect()
+}
+
+fn written(tree: &Path, id: &str) -> Fit {
     toml::from_str(&fs::read_to_string(tree.join(format!("{id}.toml"))).unwrap()).unwrap()
 }
 
+/// Answers from a table; a build's surface is `9…9` unless the table says it is unreadable.
 #[derive(Default)]
 struct Recorded {
     calls: Vec<(Sha256, BuildName)>,
+    unreadable: Vec<BuildName>,
     responses: BTreeMap<(Sha256, BuildName), Result<bool, String>>,
 }
 
 impl Judge for Recorded {
-    fn judge(&mut self, asset: &Asset, build: &Build) -> Result<bool, String> {
-        let key = (asset.sha256.clone(), build.id.clone());
+    fn surface(&mut self, build: &Build) -> Result<Option<Sha256>, String> {
+        Ok((!self.unreadable.contains(&build.id)).then(|| offered(build, "9").surface))
+    }
+
+    fn judge(&mut self, release: &Release, build: &Offered) -> Result<bool, String> {
+        let key = (release.file.sha256.clone(), build.id.clone());
         self.calls.push(key.clone());
         self.responses.get(&key).cloned().unwrap_or(Ok(false))
     }
 }
 
 #[test]
-fn cache_reuses_only_known_cells_and_recomputes_a_replaced_build() {
-    let old = registry::load(fixture()).unwrap();
-    let bytes = fs::read(fixture().join("index.json")).unwrap();
-    let known = cache(serde_json::from_slice(&bytes).unwrap()).unwrap();
-    let first = old
-        .projects
-        .values()
-        .next()
-        .unwrap()
-        .releases
-        .values()
-        .next()
-        .unwrap();
-    let hash = first.file.sha256.clone();
-    let mut builds = builds::read(&fixture().join("generated-fit/builds.json")).unwrap();
-    let name = builds[1].id.clone();
-    builds[1].commit = Commit::parse("f".repeat(40)).unwrap();
+fn current_verdicts_are_kept_and_only_stale_cells_are_judged() {
     let target = scratch();
+    let mut registry = judged(target.path());
+    let builds = candidates(&registry);
     let output = target.path().join("fit");
     let mut judge = Recorded::default();
-    write_rows(&old, &builds, known, &mut judge, &output).unwrap();
-    let row = &generated(&output, "Ab3dE9xQ").release[0];
-    assert_eq!(row.fits.as_slice(), from_ref(&builds[0].id));
+    write_rows(&registry, &builds, &mut judge, &output).unwrap();
+    assert!(judge.calls.is_empty());
     assert_eq!(
-        row.does_not_fit,
-        [builds[1].id.clone(), builds[2].id.clone()]
+        fs::read(output.join("Ab3dE9xQ.toml")).unwrap(),
+        fs::read(fixture().join("generated-fit/Ab3dE9xQ.toml")).unwrap()
     );
-    assert_eq!(judge.calls.len(), old.projects.len() * builds.len() - 1);
-    assert!(!judge.calls.contains(&(hash.clone(), builds[0].id.clone())));
-    assert!(judge.calls.contains(&(hash, name)));
+
+    // A build that moved to another commit is a new build: its surface is read again and
+    // every release is judged on it. A release whose package changed is judged on every build.
+    let mut moved = builds.clone();
+    moved[1].commit = Commit::parse("f".repeat(40)).unwrap();
+    let changed = Sha256::parse("c".repeat(64)).unwrap();
+    let second = registry.projects.values_mut().nth(1).unwrap();
+    second.releases.values_mut().next().unwrap().file.sha256 = changed.clone();
+    judge
+        .responses
+        .insert((changed.clone(), moved[0].id.clone()), Ok(true));
+    write_rows(&registry, &moved, &mut judge, &output).unwrap();
+    let first = registry.projects.values().next().unwrap();
+    let kept = first.releases.values().next().unwrap().file.sha256.clone();
+    let mut expected = vec![(kept, moved[1].id.clone())];
+    expected.extend(
+        moved
+            .iter()
+            .map(|build| (changed.clone(), build.id.clone())),
+    );
+    assert_eq!(judge.calls, expected);
+    let row = &written(&output, "Ab3dE9xQ").release[0];
+    assert_eq!(row.fits.keys().collect::<Vec<_>>(), [&moved[0].id]);
+    assert_eq!(
+        row.does_not_fit[&moved[1].id],
+        offered(&moved[1], "9").surface
+    );
+    let row = &written(&output, "Zz91kLmN").release[0];
+    assert_eq!((row.package.clone(), row.rules), (changed, RULES));
+    assert_eq!(row.fits.keys().collect::<Vec<_>>(), [&moved[0].id]);
 }
 
 #[test]
-fn failed_cell_is_omitted_and_retried_while_known_negative_is_cached() {
-    let old = registry::load(fixture()).unwrap();
-    let builds = builds::read(&fixture().join("generated-fit/builds.json")).unwrap();
-    let build = &builds[0];
-    let hash = old
-        .projects
-        .values()
-        .next()
-        .unwrap()
+fn a_cell_that_cannot_be_judged_fails_the_run_and_stores_nothing() {
+    let target = scratch();
+    let registry = registry::load(fixture()).unwrap();
+    let builds = candidates(&judged(target.path()));
+    let release = registry.projects.values().next().unwrap();
+    let hash = release
         .releases
         .values()
         .next()
@@ -82,53 +142,41 @@ fn failed_cell_is_omitted_and_retried_while_known_negative_is_cached() {
         .file
         .sha256
         .clone();
-    let failed = (hash, build.id.clone());
-    let target = scratch();
-    let output = target.path().join("first");
     let mut judge = Recorded::default();
-    judge
-        .responses
-        .insert(failed.clone(), Err("recorded missing surface".into()));
-    write_rows(&old, from_ref(build), Cells::new(), &mut judge, &output).unwrap();
-    let row = &generated(&output, "Ab3dE9xQ").release[0];
-    assert!(row.fits.is_empty() && row.does_not_fit.is_empty());
-    let row = &generated(&output, "Zz91kLmN").release[0];
-    assert_eq!(row.does_not_fit.as_slice(), from_ref(&build.id));
-
-    let second_project = old
-        .projects
-        .values()
-        .nth(1)
-        .unwrap()
-        .releases
-        .values()
-        .next()
-        .unwrap();
-    let index = serde_json::json!({"schema":2,"serial":42,"builds":[build], "projects":[
-        {"releases":[{"file":{"sha256":failed.0}, "fits":[], "does_not_fit":[]}]},
-        {"releases":[{"file":{"sha256":second_project.file.sha256}, "fits":[], "does_not_fit":row.does_not_fit}]}
-    ]});
-    judge.calls.clear();
-    judge.responses.insert(failed.clone(), Ok(true));
-    let second = target.path().join("second");
-    write_rows(
-        &old,
-        from_ref(build),
-        cache(serde_json::from_value(index).unwrap()).unwrap(),
-        &mut judge,
-        &second,
-    )
-    .unwrap();
-    assert_eq!(judge.calls, [failed]);
-    assert_eq!(
-        generated(&second, "Ab3dE9xQ").release[0].fits.as_slice(),
-        from_ref(&build.id)
+    judge.responses.insert(
+        (hash, builds[2].id.clone()),
+        Err("recorded missing surface".into()),
     );
+    let output = target.path().join("fit");
+    let error = write_rows(&registry, &builds, &mut judge, &output).unwrap_err();
     assert_eq!(
-        generated(&second, "Zz91kLmN").release[0]
-            .does_not_fit
-            .as_slice(),
-        from_ref(&build.id)
+        error,
+        "cannot judge:\nAb3dE9xQ 1.2.0 on dev-2026-11-23-abcdef0: recorded missing surface"
+    );
+    assert!(!output.exists());
+}
+
+#[test]
+fn a_build_with_an_unreadable_surface_is_not_offered() {
+    let target = scratch();
+    let registry = registry::load(fixture()).unwrap();
+    let builds = candidates(&judged(target.path()));
+    let mut judge = Recorded {
+        unreadable: vec![builds[0].id.clone()],
+        ..Recorded::default()
+    };
+    let output = target.path().join("fit");
+    write_rows(&registry, &builds, &mut judge, &output).unwrap();
+    let stored: Vec<Offered> = builds::read(&output.join("builds.json"), |b: &Offered| {
+        (&b.id, &b.commit)
+    })
+    .unwrap();
+    assert_eq!(stored, [offered(&builds[1], "9"), offered(&builds[2], "9")]);
+    assert!(judge.calls.iter().all(|(_, build)| build != &builds[0].id));
+    let row = &written(&output, "Ab3dE9xQ").release[0];
+    assert_eq!(
+        row.does_not_fit.keys().collect::<Vec<_>>(),
+        [&builds[1].id, &builds[2].id]
     );
 }
 
@@ -163,7 +211,7 @@ fn package_download_checks_hash_before_reading_the_archive() {
 }
 
 #[test]
-fn legacy_missing_surface_record_is_omitted_and_retried() {
+fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
     use std::cell::Cell;
 
     struct PackageDownload<'a> {
@@ -219,42 +267,40 @@ fn legacy_missing_surface_record_is_omitted_and_retried() {
         .values_mut()
         .next()
         .unwrap();
-    let hash = Sha256::parse(sha256_hex(&body)).unwrap();
     release.file.size = body.len() as u64;
-    release.file.sha256 = hash.clone();
-    let builds = builds::read(&fixture().join("generated-fit/builds.json")).unwrap();
-    let build = &builds[0];
+    release.file.sha256 = Sha256::parse(sha256_hex(&body)).unwrap();
+    let release = &*release;
     let target = scratch();
+    let builds = candidates(&judged(target.path()));
+    let build = offered(&builds[0], "1");
     let requests = Cell::new(0);
-    let mut cells = Cells::new();
-    for attempt in 1..=2 {
-        let mut tool = Tool {
-            root: target.path(),
-            downloads: PackageDownload {
-                body: &body,
-                requests: &requests,
-            },
-            packages: BTreeMap::new(),
-            sdks: BTreeMap::from([(
-                build.commit.clone(),
-                Ok(Rc::new(Sdk {
-                    content_api: Manifest::parse(&manifest).unwrap().api,
-                    game: "26.3".into(),
-                    surface_bytes: vec![],
-                    surface: Ok(surface()),
-                })),
-            )]),
-        };
-        let output = target.path().join(format!("attempt-{attempt}"));
-        write_rows(&registry, from_ref(build), cells, &mut tool, &output).unwrap();
-        let generated = generated(&output, "Ab3dE9xQ");
-        let row = &generated.release[0];
-        assert!(row.fits.is_empty() && row.does_not_fit.is_empty());
-        assert_eq!(requests.get(), attempt);
-        let index = serde_json::json!({"schema":2,"serial":41,"builds":[build], "projects":[
-            {"releases":[{"file":{"sha256":hash}, "fits":row.fits, "does_not_fit":row.does_not_fit}]}
-        ]});
-        cells = cache(serde_json::from_value(index).unwrap()).unwrap();
-        assert!(cells.is_empty());
-    }
+    let mut tool = Tool {
+        root: target.path(),
+        downloads: PackageDownload {
+            body: &body,
+            requests: &requests,
+        },
+        packages: BTreeMap::new(),
+        sdks: BTreeMap::from([(
+            build.commit.clone(),
+            Ok(Rc::new(Sdk {
+                content_api: Manifest::parse(&manifest).unwrap().api,
+                game: "26.3".into(),
+                surface_bytes: vec![],
+                surface: Ok(surface()),
+            })),
+        )]),
+    };
+    // The build was offered with another surface than the one now published for its commit.
+    assert!(
+        tool.judge(release, &build)
+            .unwrap_err()
+            .contains("not the one")
+    );
+    let build = Offered {
+        surface: Sha256::parse(sha256_hex(&[])).unwrap(),
+        ..build
+    };
+    assert_eq!(tool.judge(release, &build), Err(report.deferred.unwrap()));
+    assert_eq!(requests.get(), 1);
 }

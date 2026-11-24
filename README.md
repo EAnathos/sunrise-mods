@@ -79,8 +79,9 @@ What a listed project agrees to is in [MOD-POLICY.md](MOD-POLICY.md).
 - **`Check registry release PR`** verifies a release pull request: hashes, attestations, the scanner and a
   build. A person or agent then reviews it ([REVIEWING.md](REVIEWING.md)).
 - **`registry-v2`** checks every pull request that changes the registry or the bot.
-- **`publish`** runs on every push to `main`, and every three hours to refresh the offered builds. It builds,
-  signs and deploys the index.
+- **`judge fits`** runs on every push to `main`, and by hand after an SDK is published. It works out which
+  game builds each release fits, stores the verdicts on the `registry-fit` branch and starts `publish`.
+- **`publish`** assembles, signs and deploys the index.
 - **`register-issue`** answers a Register issue with a registration pull request.
 - **`dco`**: every commit carries a `Signed-off-by:` line for its author.
 

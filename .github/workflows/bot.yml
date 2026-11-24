@@ -77,6 +77,7 @@ jobs:
         run: |
           cargo build --locked --manifest-path bot/verifier/Cargo.toml --target-dir "$RUNNER_TEMP/registry-index-verifier"
           python3 -B .github/registry-v2/test_publish.py
+          python3 -B .github/registry-v2/test_fit_store.py
       - name: Dry watch of an empty registry (no network)
         working-directory: .
         run: |

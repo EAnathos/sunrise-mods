@@ -6,14 +6,14 @@ use std::path::Path;
 use semver::Version;
 use serde::Serialize;
 
-use crate::{builds::Build, registry::Registry, schema::*};
+use crate::{builds::Build, fit, registry::Registry, schema::*};
 
 #[derive(Serialize)]
 struct Index<'a> {
     schema: u8,
     serial: u64,
     generated: &'a str,
-    builds: &'a [Build],
+    builds: Vec<Build>,
     categories: &'a [Category],
     projects: Vec<IndexProject<'a>>,
     collections: Vec<IndexCollection<'a>>,
@@ -74,9 +74,9 @@ struct IndexRelease<'a> {
     published: &'a str,
     sunrise: &'a BuildName,
     workflow: &'a SignerWorkflowRef,
-    fits: &'a [BuildName],
-    #[serde(skip_serializing_if = "<[BuildName]>::is_empty")]
-    does_not_fit: &'a [BuildName],
+    fits: Vec<&'a BuildName>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    does_not_fit: Vec<&'a BuildName>,
     file: &'a Asset,
     dependencies: &'a [Dependency],
 }
@@ -161,13 +161,21 @@ pub fn write(
                     .values()
                     .map(|release| {
                         let row = fit.and_then(|rows| rows.get(&release.version));
+                        let verdicts = |fits| {
+                            registry
+                                .builds
+                                .iter()
+                                .filter(|build| fit::verdict(row, release, build) == Some(fits))
+                                .map(|build| &build.id)
+                                .collect()
+                        };
                         IndexRelease {
                             version: &release.version,
                             published: release.published.date(),
                             sunrise: &release.sunrise,
                             workflow: &release.workflow,
-                            fits: row.map_or(&[], |row| row.fits.as_slice()),
-                            does_not_fit: row.map_or(&[], |row| row.does_not_fit.as_slice()),
+                            fits: verdicts(true),
+                            does_not_fit: verdicts(false),
                             file: &release.file,
                             dependencies: &release.dependencies,
                         }
@@ -213,7 +221,14 @@ pub fn write(
         schema: 2,
         serial,
         generated,
-        builds: &registry.builds,
+        builds: registry
+            .builds
+            .iter()
+            .map(|build| Build {
+                id: build.id.clone(),
+                commit: build.commit.clone(),
+            })
+            .collect(),
         categories: &registry.categories,
         projects,
         collections,

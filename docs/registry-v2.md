@@ -148,22 +148,31 @@ owned by different accounts, so the file stores no publisher. Only that publishe
 request that adds, changes or deletes a collection must be opened by a login listed in `owners` of
 every member, before and after the change, as `owners` stands on the base commit.
 
-### `registry/fit/<project>.toml`
+### Fit verdicts: `registry/fit/`
 
-CI generates `registry/fit/` at publish time; it is never committed. The checkout checker rejects
-it outside the test fixtures. The directory contains `builds.json` and one TOML file per project
-with releases. Each `[[release]]` row has the existing release `version`, `fits` (exact build IDs
-known to fit), and optionally `does_not_fit` (exact build IDs known not to fit). A missing verdict
-means the comparison could not be made and will not be reused on the next publish.
+Whether a release fits a game build is judged by one job, `fit.yml`, and stored on the
+`registry-fit` branch, which holds `registry/fit/` and nothing else. `main` never contains that
+directory: the checkout checker rejects it there, and a release pull request may only add its release
+row and page. `.github/registry-v2/fit_store.py` is the only code that knows where the verdicts are
+kept; it refuses a branch that holds any other file or a commit the job did not make.
 
-Offered builds are every published `26.3-<semver>` stable release and up to the ten newest builds
-with a published SDK surface from each of Nightly and Dev. Releases identify Nightlies by their
-exact build IDs rather than by the rolling GitHub tag. The fit process verifies the package's size
-and SHA-256 and the SDK's signed metadata and surface. It uses Sunrise's shared surface library
-for native API comparisons and does not build or run packages. A deferred comparison, an unavailable
-comparison, or a cross-build comparison requiring game-code evidence is left unknown. Definitive
-verdicts are reused by package SHA-256 and exact build ID and commit, only from the previously
-published signed index.
+`builds.json` lists the offered builds as `{ id, commit, surface }`, where `surface` is the SHA-256 of
+the build's signed `surface.json`. Each `<project>.toml` has one `[[release]]` row per release:
+`version`, `package` (the SHA-256 of the package the row was judged from), `rules` (the version of the
+judging rules, `RULES` in `bot/src/fit.rs`), and the tables `fits` and `does_not_fit`, each mapping a
+build ID to the surface digest it was judged against. A verdict is current only when all three inputs
+match the release row on `main`, the offered build and the tool; anything else is judged again, so a
+change to the rules raises `RULES`. Rows for a build that is no longer offered are ignored.
+
+`fit.yml` runs on every push to `main` and by hand after an SDK is published. A push is judged on
+the builds already offered. A hand dispatch also looks for builds to offer: every published
+`26.3-<semver>` stable release and up to the ten newest builds with a published SDK surface from each
+of Nightly and Dev, named by exact build ID. A build whose surface this tool cannot read is not
+offered. The job verifies each package's size and SHA-256 and the SDK's signed metadata and surface,
+and uses Sunrise's shared surface library for the API comparison; it does not build or run packages.
+A native mod with `[native.*]` rows fits only the build it was made for. A cell that cannot be judged
+fails the run and stores nothing: an unknown is never recorded as "does not fit". When the job
+succeeds it starts `publish.yml`.
 
 ### `registry/revoked.toml`
 
@@ -209,9 +218,9 @@ The author's original filename is not published.
 
 Each project's `releases` array contains rows with `version`, `published`, `sunrise`, `workflow`,
 `fits`, `file`, and `dependencies`. The release's `workflow` is an exact signer ref, not the project's
-bare workflow path. `fits` is an array of exact build IDs; missing IDs do not fit for discovery.
-The optional `does_not_fit` array lets the publisher distinguish a known negative verdict from an
-unavailable comparison when reusing the index as its cache. Readers filter using `fits` only.
+bare workflow path. `fits` is an array of exact build IDs and `does_not_fit` (left out when empty) the rest: every
+release has a verdict on every offered build, and the generator refuses to write an index otherwise.
+Readers filter using `fits` only.
 `file` contains
 `url`, `size`, `sha256`, and `attestation`. Each dependency carries `mod`, `version`, `project` and `required`.
 `version` is the semver requirement the provider's release must satisfy; a `null` `project` means
@@ -254,12 +263,12 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
   line, and exits nonzero for an invalid tree.
 - `registry-bot builds --out <file>` lists the offered game builds from GitHub. For authenticated
   API access, pass the usual GitHub CLI token in its environment.
-- `registry-bot fit <checkout> --builds <file> [--cache <previous index.json>] --out <dir>` writes
-  the generated fit directory. The optional cache must have its `.minisig` beside it, valid for
-  `registry/index-key.pub` in the checkout.
+- `registry-bot fit <checkout> [--builds <file>]` brings `registry/fit/` in the checkout up to date,
+  judging only what has no current verdict. With `--builds` the offered builds become the readable
+  ones in that list; without it they stay as they are.
 - `registry-bot index <checkout> --serial <n> --out <dir>` validates the same tree and stages
-  `index.json` and the exact referenced images under `pages/`. Use `--generated-fit` to consume CI
-  fit output from `registry/fit/`; add `--after <previous index.json>` to verify the previous signed
+  `index.json` and the exact referenced images under `pages/`. Use `--generated-fit` to read the
+  verdicts in `registry/fit/`, which must then be current for every release on every offered build; add `--after <previous index.json>` to verify the previous signed
   index and require a greater serial. The command uses the current UTC time for `generated` and
   does not sign or deploy anything.
 - `registry-bot verify-index <index> <sig> --key <pub>` checks the exact bytes and the index schema.
@@ -288,9 +297,8 @@ last complete signed snapshot, from Pages first or from the last successful depl
 artifact. It deploys that snapshot again and reports the failure. If neither source can be
 recovered it reports `NO_AUTHENTICATED_V2_SNAPSHOT`, and if the deployed serial cannot be
 established it reports `V2_DEPLOYED_SERIAL_UNKNOWN`; either way the entire site is left unchanged. Without a committed public key, the publish does not contact
-the v2 services and publishes no index. A separate
-workflow, started every ten minutes by `timer.yml`, detects new offered builds and requests a publish on `main` without
-committing generated files.
+the v2 services and publishes no index. Publishing downloads and judges
+nothing: it is started by `fit.yml` and assembles the index from `main` and the stored verdicts.
 
 The [two-provider fixture](../bot/tests/fixtures/two-ports/registry/) and
 [its golden index](../bot/tests/fixtures/two-ports/index.json) show two projects for a single in-game ID.

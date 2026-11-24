@@ -1,14 +1,17 @@
 [
   {
     "id": "26.3-0.1.0",
-    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "surface": "1111111111111111111111111111111111111111111111111111111111111111"
   },
   {
     "id": "26.3-0.1.1",
-    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "surface": "2222222222222222222222222222222222222222222222222222222222222222"
   },
   {
     "id": "dev-2026-11-23-abcdef0",
-    "commit": "abcdef0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "commit": "abcdef0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "surface": "3333333333333333333333333333333333333333333333333333333333333333"
   }
 ]

@@ -17,7 +17,8 @@ REPO = HERE.parent.parent
 PORTS = REPO / "bot/tests/fixtures/two-ports"
 FIXTURES = HERE / "fixtures"
 KEY = FIXTURES / "index-key.pub"
-OLDER = (PORTS / "index.json").read_bytes()
+# The bytes the fixture signatures were made over: an index of the two-ports registry.
+OLDER = (FIXTURES / "older.json").read_bytes()
 NEWER = OLDER.replace(b'"serial": 41,', b'"serial": 42,', 1)
 BODIES = {"older": OLDER, "newer": NEWER, "equal-different": OLDER + b"\n"}
 
