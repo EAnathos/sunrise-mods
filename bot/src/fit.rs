@@ -453,6 +453,12 @@ impl<D: Download> Judge for Tool<'_, D> {
                 Ok(made_for.surface_bytes.clone())
             }),
         )?;
+        // A cell the bot cannot judge fails the run, never a stored guess: the build it was made
+        // for could not complete the list's hook versions, or an entry only the compile can judge
+        // is left.
+        if let Some(why) = judged.unpinned.or(judged.deferred) {
+            return Err(why);
+        }
         // The verdict the launcher builds by (`Verdict::usable`): a mod whose package cannot show
         // it fits works on the build it was made for only.
         let fits = judged.verdict.usable();

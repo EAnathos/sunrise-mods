@@ -1,5 +1,5 @@
 use super::*;
-use std::io;
+use std::{io, slice::from_ref};
 
 use crate::schema::BuildName;
 
@@ -248,7 +248,7 @@ fn package_download_checks_hash_before_reading_the_archive() {
 }
 
 #[test]
-fn an_entry_only_the_compile_can_judge_is_a_note_beside_a_fit() {
+fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
     use std::cell::Cell;
 
     struct PackageDownload<'a> {
@@ -277,12 +277,8 @@ fn an_entry_only_the_compile_can_judge_is_a_note_beside_a_fit() {
             vec![],
         )
     };
-    assert!(
-        table
-            .fits(table.entries.iter(), &surface())
-            .deferred
-            .is_some()
-    );
+    let report = table.fits(table.entries.iter(), &surface());
+    assert!(report.deferred.is_some());
     let pin = table.made_for;
     let manifest = format!(
         "id='wayfinder'\nname='Wayfinder'\nversion='1.2.0'\n[native]\ngame='26.3'\nsunrise='{pin}'\n"
@@ -341,7 +337,167 @@ fn an_entry_only_the_compile_can_judge_is_a_note_beside_a_fit() {
         surface: Sha256::parse(sha256_hex(&[])).unwrap(),
         ..build
     };
-    // The launcher builds it too: the entry is shown beside the verdict, never a refusal.
-    assert_eq!(tool.judge(release, &build), Ok(true));
+    assert_eq!(tool.judge(release, &build), Err(report.deferred.unwrap()));
     assert_eq!(requests.get(), 1);
+}
+
+/// A mixin target as a build's function index holds it.
+const TARGET: &str = "sunrise_client::game::f";
+/// The build a native mod in these tests was made for, another than the one it is judged on.
+const MADE_FOR: &str = "dddddddddddddddddddddddddddddddddddddddd";
+
+/// The build data of `commit`: the function index holds [`TARGET`] with `body`.
+fn build_data(dir: &Path, commit: &Commit, body: &str) -> Data {
+    let header = serde_json::json!({"schema": 1, "build": {"commit": commit.as_str()}});
+    for (file, body) in [
+        (
+            "functions.json",
+            serde_json::json!({"crates": {}, "refused": {}, "functions": {TARGET: {
+                "module": "sunrise_client::game", "file": "crates/sunrise-client/src/game.rs",
+                "span": [0, 1], "signature_hash": "sig", "sha256": body,
+            }}}),
+        ),
+        ("internals.json", serde_json::json!({"internals": []})),
+        ("loops.json", serde_json::json!({"loops": []})),
+    ] {
+        let mut document = header.clone();
+        document
+            .as_object_mut()
+            .unwrap()
+            .extend(body.as_object().unwrap().clone());
+        fs::write(dir.join(file), document.to_string()).unwrap();
+    }
+    Data::read(dir, commit.as_str()).unwrap()
+}
+
+/// Whether the bot stores as fitting a native mod made for [`MADE_FOR`] whose package holds
+/// `manifest` (after its `[native]` table) and `files`, judged on the fixture's first build
+/// with `surface` (a `surface.json`) and, when given, the build data `body` makes. Only the
+/// package can be downloaded.
+fn stored(
+    native: &str,
+    files: &[(&str, &[u8])],
+    surface: serde_json::Value,
+    body: Option<&str>,
+) -> Result<bool, String> {
+    struct PackageOnly(Vec<u8>);
+    impl Download for PackageOnly {
+        fn get(&self, url: &str, file: &Path, _limit: u64) -> Result<(), String> {
+            if !url.ends_with(".smod") {
+                return Err(format!("{url}: download not found (HTTP 404)"));
+            }
+            fs::write(file, &self.0).map_err(|e| e.to_string())
+        }
+    }
+
+    let manifest = format!(
+        "id='wayfinder'\nname='Wayfinder'\nversion='1.2.0'\n[native]\ngame='26.3'\nsunrise='{MADE_FOR}'\n{native}"
+    );
+    let mut all = vec![
+        ("Cargo.toml", &b"[package]\nname='wayfinder'\n"[..]),
+        ("src/lib.rs", b"pub fn read_map() {}\n"),
+    ];
+    all.extend_from_slice(files);
+    let body_bytes = Package::write_files(&manifest, &all).unwrap();
+    let target = scratch();
+    let mut registry = judged(target.path());
+    registry.projects.retain(|id, _| id.as_str() == "Ab3dE9xQ");
+    let project = registry.projects.values_mut().next().unwrap();
+    let first = project.releases.pop_first().unwrap();
+    project.releases = BTreeMap::from([first]);
+    let release = project.releases.values_mut().next().unwrap();
+    release.file.size = body_bytes.len() as u64;
+    release.file.sha256 = Sha256::parse(sha256_hex(&body_bytes)).unwrap();
+    registry.fits.clear();
+    let build = candidates(&registry).remove(0);
+    // A new build: its surface is the one the tool reads.
+    registry.builds.clear();
+    let surface_bytes = surface.to_string().into_bytes();
+    let data = body.map(|body| {
+        let dir = target.path().join("build-data");
+        fs::create_dir_all(&dir).unwrap();
+        (
+            build.commit.clone(),
+            Ok(Rc::new(build_data(&dir, &build.commit, body))),
+        )
+    });
+    let mut tool = Tool {
+        root: target.path(),
+        downloads: PackageOnly(body_bytes),
+        packages: BTreeMap::new(),
+        sdks: BTreeMap::from([(
+            build.commit.clone(),
+            Ok(Rc::new(Sdk {
+                index: index(&build.commit, Manifest::parse(&manifest).unwrap().api),
+                surface: Ok(Rc::new(Surface::read(&surface_bytes).unwrap())),
+                surface_bytes,
+            })),
+        )]),
+        data: data.into_iter().collect(),
+    };
+    let output = target.path().join("fit");
+    write_rows(&registry, from_ref(&build), &mut tool, &output)?;
+    let row = written(&output, "Ab3dE9xQ").release.remove(0);
+    assert_eq!(row.rules, RULES);
+    let (fits, does_not_fit) = (
+        row.fits.contains_key(&build.id),
+        row.does_not_fit.contains_key(&build.id),
+    );
+    assert!(fits != does_not_fit, "one verdict per cell");
+    Ok(fits)
+}
+
+fn empty_surface() -> serde_json::Value {
+    serde_json::json!({"schema": mod_surface::SCHEMA, "hash": "s"})
+}
+
+#[test]
+fn a_package_whose_list_cannot_show_it_fits_is_stored_as_not_fitting() {
+    // No list: it works on the build it was made for only, as the launcher builds it.
+    assert_eq!(stored("", &[], empty_surface(), None), Ok(false));
+}
+
+#[test]
+fn game_code_off_its_pin_is_compared_with_the_build_data() {
+    let native = format!(
+        "mixins='{}'\n[[native.mixin]]\nid='m'\ntarget='{TARGET}'\nkind='HEAD'\nhelper='src/m.rs'\n",
+        "e".repeat(40)
+    );
+    let list = serde_json::json!({
+        "schema": USES_SCHEMA, "made_for": MADE_FOR,
+        "entries": [{"id": format!("game:fn:{TARGET}"), "hash": "sig:body"}],
+    })
+    .to_string();
+    let files: &[(&str, &[u8])] = &[("src/m.rs", b"{}"), (USES_FILE, list.as_bytes())];
+    assert_eq!(
+        stored(&native, files, empty_surface(), Some("body")),
+        Ok(true)
+    );
+    // A replacement written for the old body could undo what the game changed in it.
+    assert_eq!(
+        stored(&native, files, empty_surface(), Some("another body")),
+        Ok(false)
+    );
+}
+
+#[test]
+fn hook_versions_the_build_it_was_made_for_cannot_give_fail_the_run() {
+    let list = serde_json::json!({
+        "schema": 1, "made_for": MADE_FOR,
+        "entries": [{"id": "hook:joined", "hash": "h1"}],
+    })
+    .to_string();
+    let surface = serde_json::json!({
+        "schema": mod_surface::SCHEMA, "hash": "s",
+        "hooks": [{
+            "id": "hook:joined", "hash": "h1", "engine": {"target": "t"}, "call": "c",
+            "version": 1, "side": "server", "contract": "listen", "cancellable": false,
+            "arguments": [],
+        }],
+    });
+    let error = stored("", &[(USES_FILE, list.as_bytes())], surface, None).unwrap_err();
+    assert!(
+        error.contains("cannot judge") && error.contains(MADE_FOR),
+        "{error}"
+    );
 }
