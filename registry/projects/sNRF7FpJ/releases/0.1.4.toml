@@ -1,0 +1,19 @@
+version = "0.1.4"
+kind = "native-mod"
+tag = "v0.1.4"
+published = "2026-11-24T08:49:39Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/GeorgeDev22/sunrise-motion-blur/releases/download/v0.1.4/motion_blur-0.1.4.smod"
+size = 36797
+sha256 = "ab72fdf8a6418cfa0e291872257d4178d52fed8ecf204e2747c22b52d8b691aa"
+attestation = "https://github.com/GeorgeDev22/sunrise-motion-blur/releases/download/v0.1.4/motion_blur-0.1.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/GeorgeDev22/sunrise-motion-blur/releases/download/v0.1.4/motion_blur-0.1.4.page.tar"
+size = 379904
+sha256 = "b84b1679d16e54f47ca92a2436ea4b2ec211764c59e2d819f9607aaaefbc93d7"
+attestation = "https://github.com/GeorgeDev22/sunrise-motion-blur/releases/download/v0.1.4/motion_blur-0.1.4.page.tar.sigstore.json"
