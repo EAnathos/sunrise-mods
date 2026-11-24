@@ -1,7 +1,8 @@
 name: judge fits
 
-# The one writer of fit verdicts. Every push to main is judged here and then published; a hand
-# dispatch after an SDK is published also looks for new game builds to offer.
+# The one writer of fit verdicts. Every push to main is judged here and then published. A dispatch
+# also looks for new game builds to offer, and publishes only when that changed what is stored:
+# timer.yml dispatches this whenever Sunrise has a release the stored list does not name.
 on:
   push:
     branches: [main]
@@ -29,20 +30,24 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/registry-tool
       - name: Judge the releases that have no current verdict
+        id: judge
         run: |
           set -euo pipefail
           bot=target/release/registry-bot
           python3 -I .github/registry-v2/fit_store.py read --optional
-          candidates=()
+          considered=()
           # A push changes releases, not game builds: it is judged on the builds already offered.
           if [[ "$GITHUB_EVENT_NAME" != push || ! -f registry/fit/builds.json ]]; then
-            "$bot" builds --out "$RUNNER_TEMP/candidates.json"
-            candidates=(--builds "$RUNNER_TEMP/candidates.json")
+            "$bot" builds --out "$RUNNER_TEMP/considered.json"
+            considered=(--builds "$RUNNER_TEMP/considered.json")
           fi
-          "$bot" fit . "${candidates[@]}"
+          "$bot" fit . "${considered[@]}"
           python3 -I .github/registry-v2/fit_store.py write "Judge fits for $GITHUB_SHA"
-      # A newer push has its own run of this job, which publishes it once it is judged.
+      # A newer push has its own run of this job, which publishes it once it is judged. A push
+      # can change what the index says without changing a verdict (a project's details, a pause,
+      # a takedown, a collection), so it always publishes.
       - name: Publish main
+        if: github.event_name == 'push' || steps.judge.outputs.changed == 'true'
         run: |
           set -euo pipefail
           head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)

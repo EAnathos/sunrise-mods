@@ -65,12 +65,20 @@ fn offered_builds_keep_every_stable_and_ten_newest_with_surfaces_per_channel() {
         }
     }
     // Deliberately not in newest-first order, like a GitHub list sorted by creation time.
-    let selected = select(&Recorded {
+    let considered = select(&Recorded {
         list: json!(rows),
         tags,
         signed: BTreeMap::new(),
     })
     .unwrap();
+    let mut selected: Vec<_> = considered
+        .iter()
+        .filter_map(|row| match &row.outcome {
+            Outcome::Offered(build) => Some(build),
+            Outcome::Declined(_) => None,
+        })
+        .collect();
+    selected.sort_unstable_by(|a, b| a.id.cmp(&b.id));
     for (channel, offset) in [("nightly", 0), ("dev", 100)] {
         let wanted: Vec<_> = (3..=12)
             .map(|i| format!("{channel}-2026-11-{i:02}-{:07x}", i + offset))
@@ -88,6 +96,23 @@ fn offered_builds_keep_every_stable_and_ten_newest_with_surfaces_per_channel() {
             .filter(|row| row.id.as_str().starts_with("26.3-"))
             .count(),
         14
+    );
+    // Every published release with an SDK descriptor is accounted for, so the timer asks about
+    // each only once. The draft is not: it is new when it is published.
+    let declined = |tag: &str| {
+        let row = considered.iter().find(|row| row.tag == tag).unwrap();
+        match &row.outcome {
+            Outcome::Declined(why) => why.clone(),
+            Outcome::Offered(build) => panic!("{tag} offered as {}", build.id.as_str()),
+        }
+    };
+    assert!(declined("nightly-2026-11-02").contains("ten newest"));
+    assert!(declined("dev-2026-11-14-0000072").contains("no SDK release"));
+    assert!(declined(&format!("sdk-{:07x}{}", 14, "0".repeat(33))).contains("not a game build"));
+    assert!(
+        !considered
+            .iter()
+            .any(|row| row.tag == "dev-2026-11-13-0000071")
     );
 }
 
@@ -120,7 +145,8 @@ fn build_whose_signed_descriptor_names_another_commit_is_refused() {
             )]),
             signed: BTreeMap::from([(id.clone(), signed.to_owned())]),
         };
-        assert_eq!(select(&source(&moved_to)).unwrap().len(), 1);
+        let considered = select(&source(&moved_to)).unwrap();
+        assert!(matches!(&considered[..], [row] if matches!(row.outcome, Outcome::Offered(_))));
         let error = select(&source(&made_from)).unwrap_err();
         assert!(error.contains("names another commit"), "{error}");
     }

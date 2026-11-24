@@ -164,15 +164,24 @@ build ID to the surface digest it was judged against. A verdict is current only 
 match the release row on `main`, the offered build and the tool; anything else is judged again, so a
 change to the rules raises `RULES`. Rows for a build that is no longer offered are ignored.
 
-`fit.yml` runs on every push to `main` and by hand after an SDK is published. A push is judged on
-the builds already offered. A hand dispatch also looks for builds to offer: every published
+`fit.yml` runs on every push to `main` and by dispatch. A push is judged on the builds already
+offered. A dispatch also looks for builds to offer: every published
 `26.3-<semver>` stable release and up to the ten newest builds with a published SDK surface from each
 of Nightly and Dev, named by exact build ID. A build whose surface this tool cannot read is not
 offered. The job verifies each package's size and SHA-256 and the SDK's signed metadata and surface,
 and uses Sunrise's shared surface library for the API comparison; it does not build or run packages.
 A native mod with `[native.*]` rows fits only the build it was made for. A cell that cannot be judged
 fails the run and stores nothing: an unknown is never recorded as "does not fit". When the job
-succeeds it starts `publish.yml`.
+succeeds it starts `publish.yml`; a dispatched run whose write left the store unchanged does not.
+
+Nobody has to dispatch it when Sunrise publishes a build. A run that looks for builds also stores
+`registry/fit/considered.json`: every published Sunrise release that carries `sdk.json` (game
+builds and SDKs), by tag and target commit, with the build it is offered as or the reason it is
+not. Each `timer.yml` run lists Sunrise's releases and dispatches `fit.yml` when one of them is
+not in that list. An SDK is published before its game build, so the SDK is considered and declined
+first and the game release dispatches again when it appears. The timer holds no build policy and
+never fails on this look: an API error is a warning and the next run looks again. Running
+`timer.yml` by hand with `force` dispatches `fit.yml` regardless.
 
 The release check judges a proposed release the same way on the builds offered at that moment
 (`registry-bot release-fit`) and shows the result in its report, so a reviewer sees where the release
@@ -266,11 +275,12 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
 
 - `registry-bot check <checkout>` validates a local tree, reports file and reason on each diagnostic
   line, and exits nonzero for an invalid tree.
-- `registry-bot builds --out <file>` lists the offered game builds from GitHub. For authenticated
-  API access, pass the usual GitHub CLI token in its environment.
+- `registry-bot builds --out <file>` lists the Sunrise releases that carry `sdk.json` from GitHub,
+  each with the build it is offered as or why it is not. For authenticated API access, pass the
+  usual GitHub CLI token in its environment.
 - `registry-bot fit <checkout> [--builds <file>]` brings `registry/fit/` in the checkout up to date,
   judging only what has no current verdict. With `--builds` the offered builds become the readable
-  ones in that list; without it they stay as they are.
+  ones in that list, which is stored as `considered.json`; without it both stay as they are.
 - `registry-bot release-fit <builds.json> <release.toml> --out <file>` judges one release row on each
   build in a stored `builds.json` and writes the build IDs it fits and does not fit, storing nothing.
 - `registry-bot index <checkout> --serial <n> --out <dir>` validates the same tree and stages

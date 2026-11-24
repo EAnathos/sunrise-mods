@@ -4,6 +4,10 @@ name: registry timer
 # it, waits ten minutes and starts the next run of this workflow. A push to main or a schedule event
 # that does arrive starts the chain again if it has stopped; the concurrency group keeps it to one chain,
 # because a waiting run is replaced by a newer one. Cancelling a run stops the chain.
+#
+# Each run also asks whether Sunrise has published a release the judging job has not looked at,
+# and starts the judging job when it has. That job owns the offered-build policy; this one only
+# compares names.
 
 on:
   push:
@@ -11,6 +15,11 @@ on:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: Start the judging job whether or not Sunrise has a new release.
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -36,3 +45,38 @@ jobs:
       - name: Start the next run
         if: ${{ !cancelled() }}
         run: gh workflow run timer.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+  builds:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      # Game builds and SDKs are the Sunrise releases that carry an SDK descriptor. A failure
+      # here (GitHub's API, a rate limit, an unreadable answer) is only a missed look: the next
+      # run looks again, and nothing else waits for this job.
+      - name: Look for Sunrise releases the judging job has not considered
+        id: look
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python3 -I .github/registry-v2/fit_store.py read --optional
+          [[ -f registry/fit/considered.json ]] || echo '[]' > registry/fit/considered.json
+          gh api 'repos/sunrise-org/sunrise/releases?per_page=100' > "$RUNNER_TEMP/releases.json"
+          new=$(jq -r --slurpfile considered registry/fit/considered.json \
+            -f .github/registry-v2/new_releases.jq "$RUNNER_TEMP/releases.json")
+          echo "${new:-No new Sunrise release.}" >> "$GITHUB_STEP_SUMMARY"
+          echo "new=$(wc -w <<< "$new")" >> "$GITHUB_OUTPUT"
+      - name: Warn that this run could not look
+        if: steps.look.outcome == 'failure'
+        run: echo "::warning::Could not look for new Sunrise releases; the next run looks again."
+      - name: Start the judging job
+        if: steps.look.outputs.new > 0 || inputs.force
+        continue-on-error: true
+        run: gh workflow run fit.yml --repo "$GITHUB_REPOSITORY" --ref main

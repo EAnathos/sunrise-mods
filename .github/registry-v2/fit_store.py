@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Where the fit verdicts and the offered-build list are kept: the `registry-fit` branch.
+"""Where the fit verdicts, the offered-build list and the list of considered Sunrise releases
+are kept: the `registry-fit` branch.
 
 `read` puts the branch's `registry/fit/` into the checkout; `write` commits the checkout's
-`registry/fit/` to the branch. Nothing else in the registry knows where they are kept.
+`registry/fit/` to the branch and, in a workflow, sets the step output `changed`. Nothing else in the registry knows where they are kept.
 """
 import os
 import re
@@ -12,7 +13,7 @@ import tempfile
 
 BRANCH = "registry-fit"
 REF = f"refs/remotes/origin/{BRANCH}"
-FILE = re.compile(r"registry/fit/(builds\.json|[0-9A-Za-z]{8}\.toml)", re.ASCII)
+FILE = re.compile(r"registry/fit/((builds|considered)\.json|[0-9A-Za-z]{8}\.toml)", re.ASCII)
 BOT = "41898282+github-actions[bot]@users.noreply.github.com"
 
 
@@ -55,7 +56,11 @@ def write(message):
         # registry/fit is ignored on main, where nothing commits it.
         git("add", "--force", "--", "registry/fit", env=env)
         tree = git("write-tree", env=env).strip()
-    if parent and git("rev-parse", f"{parent}^{{tree}}").strip() == tree:
+    changed = not parent or git("rev-parse", f"{parent}^{{tree}}").strip() != tree
+    if output := os.environ.get("GITHUB_OUTPUT"):
+        with open(output, "a") as file:
+            file.write(f"changed={str(changed).lower()}\n")
+    if not changed:
         print("The stored verdicts are current.")
         return
     identity = {f"GIT_{role}_{field}": value for role in ("AUTHOR", "COMMITTER")
