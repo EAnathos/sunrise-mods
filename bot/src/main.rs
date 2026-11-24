@@ -26,7 +26,7 @@ const USAGE: &str = "usage: registry-bot check <checkout>
        registry-bot stay-listed <base checkout> <head checkout>
        registry-bot verify-release <checkout> <registry-owner/repo> <project> <release.toml> <out>
        registry-bot builds --out <file>
-       registry-bot fit <checkout> [--builds <candidates file>]
+       registry-bot fit <checkout> [--builds <file written by builds>]
        registry-bot release-fit <builds.json> <release.toml> --out <file>
        registry-bot verify-index <index> <sig> --key <pub>";
 

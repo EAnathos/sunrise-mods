@@ -348,6 +348,13 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
                     }
                     _ => tree.problem(&builds_path, "expected the generated offered-build list"),
                 }
+                // The judging job's own record of the Sunrise releases it has looked at.
+                if contents.remove(OsStr::new(crate::fit::CONSIDERED)) == Some(Entry::Directory) {
+                    tree.problem(
+                        &fit_path.join(crate::fit::CONSIDERED),
+                        "expected a regular file",
+                    );
+                }
                 fits = read_fits(&mut tree, &fit_path, contents);
             }
             _ => tree.problem(&fit_path, "expected the generated fit directory"),

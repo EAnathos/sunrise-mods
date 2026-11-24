@@ -17,6 +17,7 @@ use crate::{
 
 pub const SUNRISE: &str = "sunrise-org/sunrise";
 const SURFACE: &str = "surface.json";
+const SDK: &str = "sdk.json";
 // Registry v2's offered-build policy: ten published builds with a surface per rolling channel.
 const ROLLING_BUILDS: usize = 10;
 
@@ -35,6 +36,26 @@ pub struct Offered {
     pub commit: Commit,
     /// SHA-256 of the build's signed `surface.json`.
     pub surface: Sha256,
+}
+
+/// A published Sunrise release that carries an SDK descriptor, and what the offered-build policy
+/// made of it. The judging job stores these, so the timer can tell a release nobody has looked
+/// at from one that was looked at and declined.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Considered {
+    pub tag: String,
+    /// The release's target as GitHub lists it. A rolling tag that moves is a new release.
+    pub target: String,
+    pub outcome: Outcome,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Outcome {
+    Offered(Build),
+    /// Why the release is not an offered build.
+    Declined(String),
 }
 
 #[derive(Deserialize)]
@@ -126,7 +147,7 @@ impl Releases for Github {
     }
 }
 
-fn select(source: &impl Releases) -> Result<Vec<Build>, String> {
+fn select(source: &impl Releases) -> Result<Vec<Considered>, String> {
     let releases = source.releases()?;
     let has_surface: BTreeSet<_> = releases
         .iter()
@@ -138,6 +159,7 @@ fn select(source: &impl Releases) -> Result<Vec<Build>, String> {
     let mut nightly = Vec::new();
     let mut dev = Vec::new();
     let mut tags = None;
+    let mut declined = BTreeMap::new();
     for release in &releases {
         let tag = &release.tag_name;
         if release.draft {
@@ -168,9 +190,18 @@ fn select(source: &impl Releases) -> Result<Vec<Build>, String> {
         } else if is_build(Channel::Dev, tag) {
             (Channel::Dev, &mut dev)
         } else {
+            declined.insert(tag.as_str(), "not a game build");
             continue;
         };
-        if !release.prerelease || !has_surface.contains(release.target_commitish.as_str()) {
+        if !release.prerelease {
+            declined.insert(tag.as_str(), "a Dev or Nightly build must be a prerelease");
+            continue;
+        }
+        if !has_surface.contains(release.target_commitish.as_str()) {
+            declined.insert(
+                tag.as_str(),
+                "no SDK release with a surface.json is published for its commit",
+            );
             continue;
         }
         let commit = Commit::parse(release.target_commitish.clone())?;
@@ -213,15 +244,20 @@ fn select(source: &impl Releases) -> Result<Vec<Build>, String> {
     for list in [&mut nightly, &mut dev] {
         list.sort_unstable_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.0.id.cmp(&b.1.0.id)));
         let mut seen = BTreeSet::new();
-        stable.extend(
-            list.drain(..)
-                .filter_map(|(_, row)| seen.insert(row.0.id.clone()).then_some(row))
-                .take(ROLLING_BUILDS),
-        );
+        for (_, row) in list.drain(..) {
+            let tag = row.1.tag_name.as_str();
+            if !seen.insert(row.0.id.clone()) {
+                declined.insert(tag, "a newer release is the same build");
+            } else if seen.len() > ROLLING_BUILDS {
+                declined.insert(tag, "older than the ten newest builds of its channel");
+            } else {
+                stable.push(row);
+            }
+        }
     }
     // A tag, target commit or title is only where to look. What ties a build ID to its commit is
     // the game release's own signature over the `sdk.json` that names the commit.
-    let mut builds = Vec::new();
+    let mut offered = BTreeMap::new();
     for (build, release, channel) in stable {
         let id = build.id.as_str();
         let signed = source
@@ -232,20 +268,43 @@ fn select(source: &impl Releases) -> Result<Vec<Build>, String> {
                 "build {id}: the release's signed SDK descriptor names another commit"
             ));
         }
-        builds.push(build);
+        offered.insert(release.tag_name.as_str(), build);
     }
-    builds.sort_unstable_by(|a, b| a.id.cmp(&b.id));
-    validate(builds.iter().map(|build| (&build.id, &build.commit)))?;
-    Ok(builds)
+    validate(offered.values().map(|build| (&build.id, &build.commit)))?;
+    let mut considered: Vec<_> = releases
+        .iter()
+        .filter(|r| !r.draft)
+        .filter_map(|release| {
+            let tag = release.tag_name.as_str();
+            let outcome = match offered.remove(tag) {
+                Some(build) => Outcome::Offered(build),
+                // The timer asks about exactly the releases that carry an SDK descriptor.
+                None if release.assets.iter().any(|asset| asset.name == SDK) => {
+                    Outcome::Declined(declined[tag].to_owned())
+                }
+                None => return None,
+            };
+            Some(Considered {
+                tag: tag.to_owned(),
+                target: release.target_commitish.clone(),
+                outcome,
+            })
+        })
+        .collect();
+    considered.sort_unstable_by(|a, b| (&a.tag, &a.target).cmp(&(&b.tag, &b.target)));
+    Ok(considered)
 }
 
+/// Writes every release the policy considered, offered or declined, to `out`.
 pub fn discover(out: &Path) -> Result<(), String> {
-    let builds = select(&Github)?;
-    println!("Offered Sunrise builds:");
-    for build in &builds {
-        println!("  {} {}", build.id.as_str(), build.commit.as_str());
+    let considered = select(&Github)?;
+    for row in &considered {
+        match &row.outcome {
+            Outcome::Offered(build) => println!("{}: offering {}", row.tag, build.id.as_str()),
+            Outcome::Declined(why) => println!("{}: {why}", row.tag),
+        }
     }
-    write(out, &builds)
+    write(out, &considered)
 }
 
 pub fn write(path: &Path, builds: &[impl Serialize]) -> Result<(), String> {

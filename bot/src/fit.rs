@@ -20,7 +20,7 @@ use sunrise_native_build::{
 use sunrise_release_sign::{SIGNATURE, SUMS, check, sdk_digest, sha256_hex, trusted_keys_for};
 
 use crate::{
-    builds::{self, Build, Offered, SUNRISE},
+    builds::{self, Build, Considered, Offered, Outcome, SUNRISE},
     escape,
     registry::{self, Registry},
     schema::{Asset, BuildName, Commit, Fit, FitRelease, Release, Sha256},
@@ -32,6 +32,8 @@ const SURFACE: &str = "surface.json";
 /// [`Tool::judge`] answers, the pinned Sunrise crates it compares with included: every stored
 /// verdict is then judged again.
 pub const RULES: u32 = 2;
+/// The stored list of considered Sunrise releases, beside the verdicts.
+pub const CONSIDERED: &str = "considered.json";
 /// The most the build data may unpack to: its files at the mod tool's bound for one
 /// (`cargo-sunrise-mod`'s `BUILD_DATA_LIMIT`).
 const BUILD_DATA_LIMIT: u64 = 4 * (256 << 20);
@@ -88,7 +90,7 @@ fn write_rows(
     candidates: &[Build],
     judge: &mut impl Judge,
     out: &Path,
-) -> Result<(), String> {
+) -> Result<Vec<Offered>, String> {
     let mut builds = Vec::new();
     for build in candidates {
         let surface = match registry
@@ -166,21 +168,40 @@ fn write_rows(
         let text = toml::to_string(&results).map_err(|e| e.to_string())?;
         fs::write(out.join(format!("{}.toml", id.as_str())), text).map_err(|e| e.to_string())?;
     }
-    Ok(())
+    Ok(builds)
 }
 
-/// Brings `registry/fit` in the checkout up to date. Without a candidate list the offered builds
-/// stay as they are.
-pub fn run(checkout: &Path, candidates: Option<&Path>) -> Result<(), String> {
+/// Brings `registry/fit` in the checkout up to date. Without a list of considered releases
+/// (`registry-bot builds`) the offered builds and the stored list stay as they are; with one, the
+/// list is stored with what became of each release.
+pub fn run(checkout: &Path, considered: Option<&Path>) -> Result<(), String> {
     let out = checkout.join("registry/fit");
+    let stored = out.join(CONSIDERED);
     let load = if out.exists() {
         registry::load_generated
     } else {
         registry::load
     };
     let registry = load(checkout).map_err(|errors| errors.join("\n"))?;
-    let candidates = match candidates {
-        Some(path) => builds::read(path, |build: &Build| (&build.id, &build.commit))?,
+    let mut rows: Option<Vec<Considered>> = match considered {
+        Some(path) => {
+            let bytes = fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+            Some(serde_json::from_slice(&bytes).map_err(|e| e.to_string())?)
+        }
+        None => None,
+    };
+    let kept = match &rows {
+        None if stored.exists() => Some(fs::read(&stored).map_err(|e| e.to_string())?),
+        _ => None,
+    };
+    let mut candidates: Vec<Build> = match &rows {
+        Some(rows) => rows
+            .iter()
+            .filter_map(|row| match &row.outcome {
+                Outcome::Offered(build) => Some(build.clone()),
+                Outcome::Declined(_) => None,
+            })
+            .collect(),
         None => registry
             .builds
             .iter()
@@ -190,9 +211,11 @@ pub fn run(checkout: &Path, candidates: Option<&Path>) -> Result<(), String> {
             })
             .collect(),
     };
+    builds::validate(candidates.iter().map(|build| (&build.id, &build.commit)))?;
+    candidates.sort_unstable_by(|a, b| a.id.cmp(&b.id));
     let temp = tempfile::tempdir().map_err(|e| e.to_string())?;
     let scratch = temp.path().canonicalize().map_err(|e| e.to_string())?;
-    write_rows(
+    let offered = write_rows(
         &registry,
         &candidates,
         &mut Tool {
@@ -203,7 +226,21 @@ pub fn run(checkout: &Path, candidates: Option<&Path>) -> Result<(), String> {
             data: BTreeMap::new(),
         },
         &out,
-    )
+    )?;
+    if let Some(rows) = &mut rows {
+        for row in rows.iter_mut() {
+            if let Outcome::Offered(build) = &row.outcome
+                && !offered.iter().any(|kept| kept.id == build.id)
+            {
+                row.outcome = Outcome::Declined("this tool cannot read its surface".to_owned());
+            }
+        }
+        return builds::write(&stored, rows);
+    }
+    match kept {
+        Some(bytes) => fs::write(&stored, bytes).map_err(|e| e.to_string()),
+        None => Ok(()),
+    }
 }
 
 /// What the judging job will store for one release: the offered builds it fits and the rest.
