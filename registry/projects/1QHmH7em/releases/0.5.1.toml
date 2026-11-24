@@ -1,0 +1,19 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "universalbonemeal/v0.5.1"
+published = "2026-11-24T11:58:04Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/universalbonemeal/v0.5.1/universalbonemeal-0.5.1.smod"
+size = 34269
+sha256 = "1a17e01e26fc49248386af1d8d4e19f3450cec33dc2c8b8ee7da4d2d275af39c"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/universalbonemeal/v0.5.1/universalbonemeal-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/universalbonemeal/v0.5.1/universalbonemeal-0.5.1.page.tar"
+size = 736768
+sha256 = "2210a0c390bd2b1b379298717e51c9bd3daba736f80594e696004015775a420f"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/universalbonemeal/v0.5.1/universalbonemeal-0.5.1.page.tar.sigstore.json"
