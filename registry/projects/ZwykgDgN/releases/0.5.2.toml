@@ -1,0 +1,19 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "carryon/v0.5.2"
+published = "2026-11-24T08:27:14Z"
+sunrise = "dev-2026-11-24-f8aa80e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/carryon/v0.5.2/carryon-0.5.2.smod"
+size = 133962
+sha256 = "1d18de814c2e12e6a110e7b90341a98e69e2a7d8ea2ae6caf11321c7428555df"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/carryon/v0.5.2/carryon-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/carryon/v0.5.2/carryon-0.5.2.page.tar"
+size = 384000
+sha256 = "c750b7fabe8a44d1f60802ef22323f437ed424964c6ccc3efd8756e49da43198"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/carryon/v0.5.2/carryon-0.5.2.page.tar.sigstore.json"
