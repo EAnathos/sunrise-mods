@@ -14,8 +14,8 @@ use crate::{
     registry::{self, ProjectEntry, Registry},
     release_payload::{self, Payload},
     schema::{
-        self, Asset, HttpsUrl, PackagePath, ProjectId, PublishedAt, Release, RepositoryName,
-        Sha256, SignerWorkflowRef, Text,
+        self, Asset, HttpsUrl, PackagePath, ProjectId, PublishedAt, Release, RepositoryId,
+        RepositoryName, Sha256, SignerWorkflowRef, Text,
     },
 };
 
@@ -157,6 +157,7 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
                 let request = Request {
                     github,
                     entry,
+                    repository_id: repository,
                     repository: &repo.name,
                     workflow: &workflow,
                     release: candidate.release,
@@ -288,6 +289,7 @@ pub fn check(
     let request = Request {
         github,
         entry,
+        repository_id: live.id,
         repository: &live.name,
         workflow,
         release: candidate.release,
@@ -326,13 +328,32 @@ pub fn check(
     let Some(previous) = approved.map(|approved| approved.row) else {
         return Ok(());
     };
-    let Some(live) = downloadable(entry, previous, &releases) else {
+    // The last approved release is where it was signed, which a project that moved since no
+    // longer names.
+    let moved;
+    let (home, releases) = if previous.repository == live.id {
+        (&live, &releases)
+    } else {
+        let home = github.repository(Repo::Registered(previous.repository))?;
+        if home.id != previous.repository || home.private {
+            return Err(
+                "the last approved release's repository is no longer public or has the wrong ID"
+                    .into(),
+            );
+        }
+        let releases = github.releases(Repo::Registered(home.id))?;
+        moved = (home, releases);
+        (&moved.0, &moved.1)
+    };
+    let Some(release) = downloadable(entry, previous, releases) else {
         // Nothing is left to compare against. The new release is verified in full above,
         // so it still goes to review, and the report says the comparison is missing.
         return fs::write(out.join("previous-unavailable"), "").map_err(|e| e.to_string());
     };
     let request = Request {
-        release: live,
+        repository_id: home.id,
+        repository: &home.name,
+        release,
         version: &previous.version,
         ..request
     };
@@ -453,6 +474,9 @@ fn write_release(
 struct Request<'a> {
     github: &'a dyn GitHub,
     entry: &'a ProjectEntry,
+    /// The repository the release is signed from: the project's for a proposed release, the
+    /// row's own for an approved one, which a project that moved since no longer names.
+    repository_id: RepositoryId,
     repository: &'a RepositoryName,
     workflow: &'a str,
     release: &'a github::Release,
@@ -462,10 +486,7 @@ struct Request<'a> {
 impl Request<'_> {
     fn tag_commit(&self) -> Result<String, Observation> {
         self.github
-            .tag_commit(
-                Repo::Registered(self.entry.project.repository),
-                &self.release.tag_name,
-            )
+            .tag_commit(Repo::Registered(self.repository_id), &self.release.tag_name)
             .map_err(Observation::Unknown)
     }
 }
@@ -558,7 +579,7 @@ fn asset(
     claim: Option<Claim<'_>>,
 ) -> Result<(Asset, SignerWorkflowRef), Observation> {
     let tag = &request.release.tag_name;
-    let repo = request.entry.project.repository;
+    let repo = request.repository_id;
     let name = format!(
         "{}-{}.{suffix}",
         request.entry.project.mod_id.as_str(),
@@ -708,7 +729,7 @@ fn prepared(
         sunrise,
         workflow: assets.workflow,
         // Both attestations were verified against this ID (`asset`).
-        repository: Some(request.entry.project.repository),
+        repository: request.repository_id,
         file: assets.package,
         page: assets.page,
         dependencies: payload.dependencies.clone(),
@@ -1009,6 +1030,7 @@ mod tests {
         let request = Request {
             github: &github,
             entry,
+            repository_id: entry.project.repository,
             repository: &RepositoryName::parse(CURRENT.into()).unwrap(),
             workflow: schema::RELEASE_WORKFLOW,
             release: &release,
@@ -1020,6 +1042,30 @@ mod tests {
             github.verified_commits.borrow().as_slice(),
             ["a".repeat(40), "a".repeat(40)]
         );
+    }
+
+    #[test]
+    fn a_release_is_verified_against_the_repository_it_was_signed_from_after_the_project_moved() {
+        let mut registry = load(Path::new(FIXTURE)).unwrap();
+        let entry = registry
+            .projects
+            .get_mut(&ProjectId::parse("Ab3dE9xQ".into()).unwrap())
+            .unwrap();
+        let signed_from = entry.project.repository;
+        // The fake answers, and verifies attestations, only for the repository that signed.
+        entry.project.repository = serde_json::from_str("555").unwrap();
+        let work = tempfile::tempdir().unwrap();
+        let release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
+        let request = Request {
+            github: &Recorded::default(),
+            entry,
+            repository_id: signed_from,
+            repository: &RepositoryName::parse(CURRENT.into()).unwrap(),
+            workflow: schema::RELEASE_WORKFLOW,
+            release: &release,
+            version: &Version::new(1, 2, 0),
+        };
+        release_assets(&request, work.path(), None).unwrap();
     }
 
     #[test]
@@ -1037,6 +1083,7 @@ mod tests {
             let request = Request {
                 github: &github,
                 entry,
+                repository_id: entry.project.repository,
                 repository: &repo,
                 workflow: schema::RELEASE_WORKFLOW,
                 release: &release,
@@ -1114,6 +1161,7 @@ mod tests {
             let request = Request {
                 github: &github,
                 entry,
+                repository_id: entry.project.repository,
                 repository: &repo,
                 workflow: schema::RELEASE_WORKFLOW,
                 release: &release,
