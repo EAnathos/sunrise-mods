@@ -284,6 +284,13 @@ the release does not exist (a pull request that changes the tool, or the minutes
 while the release is built) the run builds the tool from its checkout, so it never runs a tool that
 disagrees with the code.
 
+The independent index verifier (`bot/verifier`) is released the same way, as
+`registry-verifier-<digest>` with the digest
+`git ls-tree <commit> -- bot/verifier bot/src/index_signature.rs | sha256sum`, and publish's `stage`
+and `confirm-live` jobs get it through the same action with `name: registry-verifier`. It stays its
+own build and release, so a tool that does not build cannot keep a publish from recovering the last
+signed snapshot.
+
 The publish workflow uses the current UTC epoch second as the next serial. Signing and deployment
 both require a commit of `main` that is not older than the deployed one, so a merge during a publish
 does not stop it and a rerun of an old publish cannot bring back old content under a new serial. Immediately before publishing, deployment compares the

@@ -1,8 +1,15 @@
-name: Get the v2 registry tool
+name: Get a v2 registry tool
 description: >-
-  Puts registry-bot at target/release/registry-bot. It is the binary registry-tools.yml released
-  from main for exactly the checkout's tool source, or a build of the checkout when no such
-  release exists: a run never uses a tool that disagrees with the code it checked out.
+  Puts a registry binary where its callers run it: registry-bot at target/release/registry-bot,
+  or the independent index verifier at $RUNNER_TEMP/index-verifier/release/registry-bot. It is
+  the binary registry-tools.yml released from main for exactly the checkout's source of it, or a
+  build of the checkout when no such release exists: a run never uses a binary that disagrees
+  with the code it checked out.
+
+inputs:
+  name:
+    description: registry-tool (the generator and checker) or registry-verifier (the index verifier).
+    default: registry-tool
 
 runs:
   using: composite
@@ -10,16 +17,25 @@ runs:
     - shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        NAME: ${{ inputs.name }}
       run: |
         set -euo pipefail
-        bot=target/release/registry-bot
+        # The same sources registry-tools.yml names for each binary.
+        case "$NAME" in
+          registry-tool)
+            sources=(bot/Cargo.toml bot/Cargo.lock bot/src) manifest=bot/Cargo.toml out=target ;;
+          registry-verifier)
+            sources=(bot/verifier bot/src/index_signature.rs) manifest=bot/verifier/Cargo.toml
+            out=$RUNNER_TEMP/index-verifier ;;
+        esac
+        bot=$out/release/registry-bot
         # A release is named by the digest of the source it was built from, so a change to the
-        # tool is picked up as soon as registry-tools.yml has released it, with nothing to edit.
-        source=$(git ls-tree HEAD -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum | cut -d' ' -f1)
-        tag=registry-tool-$source
-        released=$RUNNER_TEMP/registry-tool
+        # source is picked up as soon as registry-tools.yml has released it, with nothing to edit.
+        source=$(git ls-tree HEAD -- "${sources[@]}" | sha256sum | cut -d' ' -f1)
+        tag=$NAME-$source
+        released=$RUNNER_TEMP/$NAME
         if gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$released" \
-            --pattern registry-bot --pattern PIN 2> "$RUNNER_TEMP/registry-tool.log"; then
+            --pattern registry-bot --pattern PIN 2> "$RUNNER_TEMP/$NAME.log"; then
           # PIN names the source digest and the binary's SHA-256. Only registry-tools.yml on main
           # can have attested it, so a release asset cannot be swapped for another build.
           gh attestation verify "$released/PIN" --repo "$GITHUB_REPOSITORY" --source-ref refs/heads/main \
@@ -27,11 +43,11 @@ runs:
           [[ "$(cat "$released/PIN")" == "$source  $(sha256sum < "$released/registry-bot" | cut -d' ' -f1)" ]]
           mkdir -p "$(dirname "$bot")"
           install -m 755 "$released/registry-bot" "$bot"
-          echo "Ran the released tool $tag." >> "$GITHUB_STEP_SUMMARY"
-        elif grep -Fxq 'release not found' "$RUNNER_TEMP/registry-tool.log"; then
-          echo "Built the tool from source: $tag is not released." >> "$GITHUB_STEP_SUMMARY"
-          cargo build --locked --manifest-path bot/Cargo.toml --target-dir target --release
+          echo "Ran the released $tag." >> "$GITHUB_STEP_SUMMARY"
+        elif grep -Fxq 'release not found' "$RUNNER_TEMP/$NAME.log"; then
+          echo "Built from source: $tag is not released." >> "$GITHUB_STEP_SUMMARY"
+          cargo build --locked --manifest-path "$manifest" --target-dir "$out" --release
         else
-          cat "$RUNNER_TEMP/registry-tool.log" >&2
+          cat "$RUNNER_TEMP/$NAME.log" >&2
           exit 1
         fi

@@ -69,13 +69,15 @@ jobs:
         env:
           AUTHOR: ${{ github.event.pull_request.user.login }}
         run: target/release/registry-bot collection-author base . "$AUTHOR"
+      - uses: ./.github/actions/registry-tool
+        with:
+          name: registry-verifier
       - name: Exercise signed Pages publication and recovery fixtures
         working-directory: .
         env:
           REGISTRY_BOT: ${{ github.workspace }}/target/release/registry-bot
-          REGISTRY_VERIFIER: ${{ runner.temp }}/registry-index-verifier/debug/registry-bot
+          REGISTRY_VERIFIER: ${{ runner.temp }}/index-verifier/release/registry-bot
         run: |
-          cargo build --locked --manifest-path bot/verifier/Cargo.toml --target-dir "$RUNNER_TEMP/registry-index-verifier"
           python3 -B .github/registry-v2/test_publish.py
           python3 -B .github/registry-v2/test_fit_store.py
       - name: Dry watch of an empty registry (no network)
