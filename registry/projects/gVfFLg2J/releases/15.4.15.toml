@@ -4,6 +4,7 @@ tag = "v15.4.15"
 published = "2026-11-24T08:26:55Z"
 sunrise = "dev-2026-11-24-f8aa80e"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468450230
 
 [file]
 url = "https://github.com/Joeypc6/AE2-Sunrise/releases/download/v15.4.15/ae2-15.4.15.smod"

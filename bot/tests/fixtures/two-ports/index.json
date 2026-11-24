@@ -76,6 +76,7 @@
           "published": "2026-11-23",
           "sunrise": "26.3-0.1.0",
           "workflow": "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1",
+          "repository": 123456789,
           "fits": [
             "26.3-0.1.0",
             "26.3-0.1.1"
@@ -138,6 +139,7 @@
           "published": "2026-11-23",
           "sunrise": "nightly-2026-11-23-abcdef0",
           "workflow": "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1",
+          "repository": 987654321,
           "fits": [],
           "does_not_fit": [
             "26.3-0.1.0",

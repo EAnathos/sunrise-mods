@@ -74,8 +74,7 @@ struct IndexRelease<'a> {
     published: &'a str,
     sunrise: &'a BuildName,
     workflow: &'a SignerWorkflowRef,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    repository: Option<RepositoryId>,
+    repository: RepositoryId,
     fits: Vec<&'a BuildName>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     does_not_fit: Vec<&'a BuildName>,

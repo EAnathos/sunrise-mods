@@ -81,7 +81,7 @@ earlier release files, so every listed release has the project's kind. The earli
 | `published` | GitHub's publication time of the release, in UTC to the second (`2026-11-23T06:55:18Z`). The index publishes only its date. |
 | `sunrise` | The stable tag (for example `26.3-0.1.0`) or exact Nightly/Dev build ID (`<channel>-<YYYY-MM-DD>-<commit>`) the package was made for. A rolling channel name is not a build ID. |
 | `workflow` | Exact signer workflow ref recorded by the attestation: the project's workflow path followed by `@refs/tags/release-v<number>`. Existing releases keep their ref when `release-workflow.toml` selects a new tag. |
-| `repository` | Numeric ID of the repository the release was signed from. The bot writes the project's repository when it proposes the release; a later move of the project leaves the row as it is. A row from before the field has none. |
+| `repository` | Numeric ID of the repository the release was signed from. The bot writes the project's repository when it proposes the release; a later move of the project leaves the row as it is. |
 | `[file]` | The `.smod` asset. Native mods ship source and a lockfile, not a binary. |
 | `[page]` | The separate page bundle. It is not part of the install or the published index. |
 | `[[dependencies]]` | Optional list. Each entry names a `mod` slot, the `version` requirement on its provider (semver, as written in the mod's manifest), and whether it is `required`. An optional `project` pins a specific registered provider of that in-game ID. |
@@ -232,7 +232,7 @@ the exact served bytes, in lowercase hexadecimal, and the extension is from the 
 The author's original filename is not published.
 
 Each project's `releases` array contains rows with `version`, `published`, `sunrise`, `workflow`,
-`repository` (the row's, left out when the row has none),
+`repository`,
 `fits`, `file`, and `dependencies`. The release's `workflow` is an exact signer ref, not the project's
 bare workflow path. `fits` is an array of exact build IDs and `does_not_fit` (left out when empty) the rest: every
 release has a verdict on every offered build, and the generator refuses to write an index otherwise.
@@ -267,8 +267,9 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
    number or from the `sunrise` field alone.
 6. Treat `id` as the project identity, `slug` as the page address, and `mod` as a slot. No array order
    chooses a provider. Enable at most one provider per slot in a profile and never switch it silently.
-7. Check each file's hash and verify its attestation against the registered repository ID and
-   that release's exact `workflow` ref. On install the launcher does this for the `.smod`. Remember
+7. Check each file's hash and verify its attestation against that release's own `repository` ID
+   and exact `workflow` ref; an index from before the field has none on a row, and the project's
+   repository ID stands in. On install the launcher does this for the `.smod`. Remember
    the registered repository and workflow path per project; use the approved ref for each release.
    Verifying the catalogue is not a substitute for verifying the package.
 8. Verify each icon and screenshot against the SHA-256 in its filename before displaying it.

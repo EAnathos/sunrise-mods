@@ -4,6 +4,7 @@ tag = "v26.3.11"
 published = "2026-11-24T18:08:35Z"
 sunrise = "dev-2026-11-24-3d34bbe"
 workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1469611296
 
 [file]
 url = "https://github.com/arismoko/Jade-Sunrise/releases/download/v26.3.11/jade-26.3.11.smod"

@@ -311,8 +311,7 @@ pub struct Release {
     pub workflow: SignerWorkflowRef,
     /// The repository the release was signed from: the project's when the release was proposed.
     /// A later move of the project to another repository leaves it as it is.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub repository: Option<RepositoryId>,
+    pub repository: RepositoryId,
     pub file: Asset,
     pub page: Asset,
     #[serde(default)]
