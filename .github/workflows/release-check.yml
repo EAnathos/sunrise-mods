@@ -72,16 +72,14 @@ jobs:
         id: source
         with:
           name: release-source-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/release-checked/source/
-          include-hidden-files: true
+          path: ${{ runner.temp }}/release-checked/upload/source/release.tar
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: previous
         if: steps.verify.outputs.previous == 'true'
         with:
           name: release-previous-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/release-checked/previous/
-          include-hidden-files: true
+          path: ${{ runner.temp }}/release-checked/upload/previous/release.tar
           if-no-files-found: error
 
   build:
@@ -116,8 +114,14 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.verify.outputs.source }}
-          path: ${{ runner.temp }}/registry-release-source/
+          path: ${{ runner.temp }}/registry-release-archive/
           digest-mismatch: error
+      - name: Unpack the verified source
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir registry-release-source
+          tar -xf registry-release-archive/release.tar -C registry-release-source
       # The patch library of a mod with `[[native.mixin]]` rows links the game, which links udev and ALSA on Linux.
       - name: Install the system libraries the game links on Linux
         if: runner.os == 'Linux'

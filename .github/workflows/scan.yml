@@ -83,6 +83,14 @@ jobs:
         with:
           artifact-ids: ${{ inputs.previous-artifact }}
           path: ${{ runner.temp }}/scan-input/previous
+      - name: Unpack the release archives
+        if: inputs.source-artifact != ''
+        working-directory: ${{ runner.temp }}/scan-input
+        run: |
+          for release in *; do
+            tar -xf "$release/release.tar" -C "$release"
+            rm "$release/release.tar"
+          done
       - name: Scan without running release code
         id: scan
         shell: bash

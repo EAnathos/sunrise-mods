@@ -166,6 +166,12 @@ def verify(out):
     cells = json.loads((out / "fit.json").read_text(encoding="utf-8"))
     fit = "; ".join(f"{label} {', '.join(builds)}" for label, builds in
                     (("fits", cells["fits"]), ("does not fit", cells["does_not_fit"])) if builds) or "none is offered"
+    # Each release goes to the later jobs as one archive. As an artifact of loose files, a release of tens of
+    # thousands of files cannot be downloaded on Windows.
+    for release in ("source", "previous"):
+        if (out / release).is_dir():
+            (out / "upload" / release).mkdir(parents=True)
+            subprocess.run(["tar", "-cf", out / "upload" / release / "release.tar", "-C", out / release, "."], check=True)
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
         print("previous=" + str((out / "previous").is_dir()).lower(), file=stream)
         print("comparison=" + ("missing" if (out / "previous-unavailable").exists() else "available"), file=stream)
