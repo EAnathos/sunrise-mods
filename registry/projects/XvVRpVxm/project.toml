@@ -1,0 +1,9 @@
+id = "XvVRpVxm"
+slug = "jade-arismoko"
+mod = "jade"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1469611296
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
