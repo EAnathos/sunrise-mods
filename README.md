@@ -36,8 +36,7 @@ Sunrise's mod registry. It lists the projects whose releases the launcher's Disc
    Each project's ID is its `project` in `registry/repositories/<repository ID>.toml`. Every member must be in a
    repository owned by the same GitHub account, and the pull request's author must be listed in `owners` of every
    member. Discover shows the collection once two of its members have a reviewed release, one of them ticked by
-   default; it then shows the
-   members only inside the collection, and a search still finds each by name.
+   default; it then shows the members only inside the collection, and a search still finds each by name.
    [Group your mods into a collection](https://github.com/sunrise-org/sunrise/blob/main/docs/modding/src/how-to/collections.md)
    walks through it.
 
