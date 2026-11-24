@@ -1,0 +1,9 @@
+id = "5aDdjlZ2"
+slug = "safe-spawn"
+mod = "safespawn"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "safespawn"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"

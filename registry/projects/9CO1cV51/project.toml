@@ -1,0 +1,9 @@
+id = "9CO1cV51"
+slug = "secure-crops"
+mod = "securecrops"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "securecrops"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"

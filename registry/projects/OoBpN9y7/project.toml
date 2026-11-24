@@ -1,0 +1,9 @@
+id = "OoBpN9y7"
+slug = "dis-enchanting-table"
+mod = "disenchanting_table"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468944919
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-24"
