@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use sunrise_mod_package::index::stable_tag;
+pub use sunrise_mod_package::manifest::JarRef;
 use sunrise_release_sign::{Channel, is_build};
 use time::{
     Date, OffsetDateTime, format_description::well_known::Rfc3339, macros::format_description,
@@ -316,6 +317,10 @@ pub struct Release {
     pub page: Asset,
     #[serde(default)]
     pub dependencies: Vec<Dependency>,
+    /// The original Java jars the package's manifest lists as `[[jar]]`, in manifest order. The
+    /// registry stores only these references, never a jar.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub jars: Vec<JarRef>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq)]
