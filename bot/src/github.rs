@@ -268,12 +268,24 @@ fn gh(args: &[&str]) -> Result<Vec<u8>, String> {
         .output()
         .map_err(|e| format!("gh: {e}"))?;
     if output.status.success() {
-        Ok(output.stdout)
+        return Ok(output.stdout);
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stderr = stderr.trim();
+    // What `gh` prints when GitHub or the connection failed, not the request: `HTTP 502` and the
+    // other 5xx statuses, and the Go network errors. A 4xx or a refused attestation has neither.
+    let server_error = stderr.match_indices("HTTP 5").any(|(at, found)| {
+        let status = &stderr.as_bytes()[at + found.len()..];
+        status.len() >= 2 && status[..2].iter().all(u8::is_ascii_digit)
+    });
+    if server_error
+        || BROKEN_GH_CONNECTION
+            .iter()
+            .any(|text| stderr.contains(text))
+    {
+        Err(format!("{UNAVAILABLE}: gh: {stderr}"))
     } else {
-        Err(format!(
-            "gh: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ))
+        Err(format!("gh: {stderr}"))
     }
 }
 
@@ -281,37 +293,92 @@ fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String> {
     serde_json::from_slice(bytes).map_err(|e| format!("GitHub JSON: {e}"))
 }
 
+/// Starts the message of a download or a `gh` call that failed for a reason that is not the
+/// release's: the server answered 5xx, or the connection timed out or broke. `main` turns it
+/// into [`UNAVAILABLE_EXIT`], so a caller can tell "could not check" from "checked and refused".
+pub const UNAVAILABLE: &str = "GitHub unavailable";
+
+/// Go's texts for a connection that timed out, was refused or reset, or never resolved, as
+/// `gh` passes them on (`net`, `net/http`, `context` and `crypto/tls` errors).
+const BROKEN_GH_CONNECTION: [&str; 6] = [
+    "i/o timeout",
+    "context deadline exceeded",
+    "TLS handshake timeout",
+    "connection reset by peer",
+    "connection refused",
+    "no such host",
+];
+
+/// `EX_TEMPFAIL` of BSD `sysexits.h`: a temporary failure, the caller is invited to retry.
+pub const UNAVAILABLE_EXIT: u8 = 75;
+
+/// curl exit codes that say nothing about the file (curl's manual, "EXIT CODES"): 5 and 6 could
+/// not resolve the proxy or host, 7 could not connect, 18 partial file, 28 timeout, 35 TLS
+/// handshake, 52 empty reply, 55 and 56 failed to send or receive, 92 HTTP/2 stream error.
+const BROKEN_CONNECTION: [i32; 10] = [5, 6, 7, 18, 28, 35, 52, 55, 56, 92];
+
+/// The waits before the second, third and fourth attempt, in seconds: curl's own `--retry`
+/// starts at one second and doubles. curl's `--retry` itself is not used because it also
+/// retries HTTP 408 and 429, and leaves a broken connection alone unless every error,
+/// 404 included, is retried.
+const RETRY_WAITS: [u64; 3] = [1, 2, 4];
+
 pub fn download(url: &str, dest: &Path, limit: u64) -> Result<(), String> {
     if limit == 0 {
         return Err("empty release asset".into());
     }
-    // All callers pass a canonical GitHub release URL. HTTPS redirects are needed for GitHub's
-    // CDN and repository renames. curl never gets an authorization header or an author's options.
-    let output = Command::new("curl")
-        .args([
-            "--disable",
-            "--proto",
-            "=https",
-            "--proto-redir",
-            "=https",
-            "--fail",
-            "--silent",
-            "--show-error",
-            "--location",
-            "--max-filesize",
-        ])
-        .arg(limit.to_string())
-        .arg("--output")
-        .arg(dest)
-        .arg("--url")
-        .arg(url)
-        .output()
-        .map_err(|e| format!("curl: {e}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "download failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
+    let mut waits = RETRY_WAITS.into_iter();
+    loop {
+        // All callers pass a canonical GitHub release URL. HTTPS redirects are needed for
+        // GitHub's CDN and repository renames. curl never gets an authorization header or an
+        // author's options.
+        let output = Command::new("curl")
+            .args([
+                "--disable",
+                "--proto",
+                "=https",
+                "--proto-redir",
+                "=https",
+                "--fail",
+                "--silent",
+                "--show-error",
+                "--location",
+                "--globoff",
+                "--write-out",
+                "%{http_code}",
+                "--max-filesize",
+            ])
+            .arg(limit.to_string())
+            .arg("--output")
+            .arg(dest)
+            .arg("--url")
+            .arg(url)
+            .output()
+            .map_err(|e| format!("curl: {e}"))?;
+        if output.status.success() {
+            break;
+        }
+        let http = String::from_utf8_lossy(&output.stdout);
+        if http == "404" {
+            return Err("download not found (HTTP 404)".into());
+        }
+        let reason = String::from_utf8_lossy(&output.stderr);
+        let reason = reason.trim();
+        let passing = http.starts_with('5')
+            || output
+                .status
+                .code()
+                .is_some_and(|code| BROKEN_CONNECTION.contains(&code));
+        if !passing {
+            return Err(format!("download failed: {reason}"));
+        }
+        let Some(wait) = waits.next() else {
+            return Err(format!(
+                "{UNAVAILABLE}: download failed {} times: {reason}",
+                RETRY_WAITS.len() + 1
+            ));
+        };
+        std::thread::sleep(std::time::Duration::from_secs(wait));
     }
     if fs::metadata(dest).map_err(|e| e.to_string())?.len() > limit {
         return Err("download exceeds its size limit".into());

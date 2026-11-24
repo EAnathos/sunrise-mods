@@ -1423,3 +1423,83 @@ fn a_listed_project_keeps_a_release_unless_the_change_pauses_it() {
     );
     assert!(stay_listed().status.success());
 }
+
+/// `curl` on the child's `PATH` is a script that fails every transfer with the HTTP status it
+/// is given, and counts how often it is started.
+#[test]
+fn a_server_error_is_retried_and_ends_apart_from_a_refusal_while_a_client_error_is_final() {
+    use std::os::unix::fs::PermissionsExt;
+    let checkout = checkout();
+    let bin = checkout.path().join("bin");
+    fs::create_dir(&bin).unwrap();
+    let curl = bin.join("curl");
+    fs::write(
+        &curl,
+        "#!/bin/sh\nread -r http < \"$0.http\"\nprintf %s \"$http\"\necho >> \"$0.calls\"\nexit 22\n",
+    )
+    .unwrap();
+    fs::set_permissions(&curl, fs::Permissions::from_mode(0o755)).unwrap();
+    let builds = checkout.path().join("builds.json");
+    fs::write(
+        &builds,
+        r#"[{"id":"26.3-0.1.0","commit":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","surface":"1111111111111111111111111111111111111111111111111111111111111111"}]"#,
+    )
+    .unwrap();
+    // Exit 75 is `EX_TEMPFAIL`, which the release check reads as "could not check".
+    for (http, starts, exit, message) in [
+        ("504", 4, 75, "GitHub unavailable: download failed 4 times"),
+        ("403", 1, 1, "download failed"),
+    ] {
+        fs::write(bin.join("curl.http"), http).unwrap();
+        let calls = bin.join("curl.calls");
+        fs::write(&calls, "").unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_registry-bot"))
+            .current_dir(checkout.path())
+            .env("PATH", &bin)
+            .args(["release-fit", "builds.json", RELEASE, "--out", "fit.json"])
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(exit), "{http}: {stderr}");
+        assert!(stderr.contains(message), "{http}: {stderr}");
+        assert_eq!(fs::read_to_string(calls).unwrap().lines().count(), starts);
+    }
+}
+
+/// `gh` on the child's `PATH` is a script that fails with the message it is given.
+#[test]
+fn a_github_server_error_ends_a_release_check_apart_from_a_refusal() {
+    use std::os::unix::fs::PermissionsExt;
+    let checkout = checkout();
+    let bin = checkout.path().join("bin");
+    fs::create_dir(&bin).unwrap();
+    let gh = bin.join("gh");
+    fs::write(
+        &gh,
+        "#!/bin/sh\nread -r message < \"$0.message\"\necho \"$message\" >&2\nexit 1\n",
+    )
+    .unwrap();
+    fs::set_permissions(&gh, fs::Permissions::from_mode(0o755)).unwrap();
+    for (message, exit) in [
+        ("gh: Bad Gateway (HTTP 502)", 75),
+        ("gh: Not Found (HTTP 404)", 1),
+    ] {
+        fs::write(bin.join("gh.message"), message).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_registry-bot"))
+            .current_dir(checkout.path())
+            .env("PATH", &bin)
+            .args([
+                "verify-release",
+                ".",
+                "sunrise-org/sunrise-mods",
+                "Ab3dE9xQ",
+                RELEASE,
+                "out",
+            ])
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(exit), "{stderr}");
+        assert!(stderr.contains(message), "{stderr}");
+    }
+}

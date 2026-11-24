@@ -2,6 +2,7 @@
 
 Never checks out a PR or runs code from one. PR inputs go to Git/GitHub as data.
 """
+import collections
 import hashlib
 import json
 import os
@@ -27,6 +28,12 @@ BOT = "github-actions[bot]"
 STATUS = "registry-v2/release-check"
 WORKFLOW = "release-check.yml"
 NOT_A_RELEASE = "release-not-applicable.yml"
+# The status description of a check that could not finish because GitHub or the connection failed. It says
+# nothing about the release: the watcher runs such a check once more, and a reader of the status (a reviewer,
+# the merger) tells it from a refusal by this text.
+UNAVAILABLE = "Not checked: GitHub failed. Not a verdict on the release"
+# registry-bot's exit for it (`UNAVAILABLE_EXIT` in bot/src/github.rs).
+UNAVAILABLE_EXIT = 75
 MAIN = "refs/heads/main"
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -118,6 +125,15 @@ def pending():
     set_status(sha, "pending", "Checking release")
 
 
+def bot(*args):
+    """Runs registry-bot, and tells the report job when it stopped because GitHub was unavailable."""
+    code = subprocess.run([os.environ["REGISTRY_BOT"], *args], cwd=ROOT).returncode
+    if code == UNAVAILABLE_EXIT:
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+            print("unavailable=true", file=stream)
+    require(code == 0, f"registry-bot {args[0]} failed (exit {code})")
+
+
 def verify(out):
     number, sha, branch = dispatch()
     git("fetch", "--no-tags", "origin", f"refs/pull/{number}/head")
@@ -152,8 +168,7 @@ def verify(out):
     out.mkdir()
     claim = out / "claim.toml"
     claim.write_bytes(git("cat-file", "blob", actual[row]))
-    subprocess.run([os.environ["REGISTRY_BOT"], "verify-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, out],
-                   cwd=ROOT, check=True)
+    bot("verify-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, out)
     regenerated = out / "expected"
     expected = {p.relative_to(regenerated).as_posix(): git("hash-object", "--no-filters", p).decode().strip()
                 for p in regenerated.rglob("*") if p.is_file()}
@@ -161,8 +176,7 @@ def verify(out):
     # What the judging job will store for this release once it is merged, for the reviewer to see now. Nothing is
     # kept. A build the release cannot be judged on fails this check instead of every publish after the merge.
     subprocess.run([sys.executable, "-I", ROOT / ".github/registry-v2/fit_store.py", "read"], cwd=ROOT, check=True)
-    subprocess.run([os.environ["REGISTRY_BOT"], "release-fit", ROOT / "registry/fit/builds.json", claim, "--out", out / "fit.json"],
-                   cwd=ROOT, check=True)
+    bot("release-fit", ROOT / "registry/fit/builds.json", claim, "--out", out / "fit.json")
     cells = json.loads((out / "fit.json").read_text(encoding="utf-8"))
     fit = "; ".join(f"{label} {', '.join(builds)}" for label, builds in
                     (("fits", cells["fits"]), ("does not fit", cells["does_not_fit"])) if builds) or "none is offered"
@@ -329,8 +343,11 @@ def publish(generated):
                 title = f"Registry release PR {number} at {sha}"
                 if dispatched is None:
                     # Listed once for every open release PR, not once per PR.
-                    dispatched = {run["display_title"] for run in dispatch_runs()}
-                if title not in dispatched:
+                    dispatched = collections.Counter(run["display_title"] for run in dispatch_runs())
+                # A head is checked once, and once more when that check stopped because GitHub was unavailable.
+                if dispatched[title] == 0 or dispatched[title] == 1 and any(
+                        status["context"] == STATUS and status["description"] == UNAVAILABLE
+                        for status in api(f"commits/{sha}/status")["statuses"]):
                     gh("workflow", "run", WORKFLOW, "--repo", repo, "--ref", "main", "-f", f"pr={number}", "-f", f"head={sha}")
             except (OSError, ValueError) as error:
                 print(f"- Could not dispatch release check for #{safe(number)}: {safe(error)}", file=summary)
@@ -375,7 +392,13 @@ def report(folder):
     success = False
     description = "Release checks failed or did not complete"
     try:
-        if not current or os.environ["REPORT_DOWNLOADED"] != "true":
+        verified = jobs.get("verify", {}).get("outputs", {})
+        if verified.get("attempt") == attempt and verified.get("unavailable") == "true":
+            description = UNAVAILABLE
+            body += ("\n**Not checked**: GitHub answered with a server error or the connection failed, so this "
+                     "says nothing about the release. The check runs once more by itself; after that, use "
+                     "**Rerun all jobs**.\n")
+        elif not current or os.environ["REPORT_DOWNLOADED"] != "true":
             description = "Rerun all jobs"
             body += "\n**Rerun all jobs**: no scanner report was available from this attempt.\n"
         else:

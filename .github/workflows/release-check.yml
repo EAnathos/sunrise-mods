@@ -52,6 +52,7 @@ jobs:
       source: ${{ steps.source.outputs.artifact-id }}
       previous: ${{ steps.previous.outputs.artifact-id }}
       comparison: ${{ steps.verify.outputs.comparison }}
+      unavailable: ${{ steps.verify.outputs.unavailable }}
       fit: ${{ steps.verify.outputs.fit }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
