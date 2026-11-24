@@ -1,0 +1,38 @@
+version = "4.4.13"
+kind = "native-mod"
+tag = "v4.4.13"
+published = "2026-11-24T17:07:52Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+
+[file]
+url = "https://github.com/arismoko/IronFurnaces-Sunrise/releases/download/v4.4.13/ironfurnaces-4.4.13.smod"
+size = 501576
+sha256 = "a37dd4a353a314cf76d88bc929aeceb31e04dcb3f3404ae4ed387d53c2ef5d5a"
+attestation = "https://github.com/arismoko/IronFurnaces-Sunrise/releases/download/v4.4.13/ironfurnaces-4.4.13.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/IronFurnaces-Sunrise/releases/download/v4.4.13/ironfurnaces-4.4.13.page.tar"
+size = 829440
+sha256 = "83d6db44e8234da93d32ea45588198f3f3165c0c81bfe3204f29a1970c1c75b9"
+attestation = "https://github.com/arismoko/IronFurnaces-Sunrise/releases/download/v4.4.13/ironfurnaces-4.4.13.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "ae2"
+version = "^15.4.13"
+required = false
+
+[[dependencies]]
+mod = "guideme"
+version = "^0.1"
+required = false
+
+[[dependencies]]
+mod = "jei"
+version = "^0.5"
+required = false
+
+[[dependencies]]
+mod = "machine_work"
+version = "^0.1"
+required = false
