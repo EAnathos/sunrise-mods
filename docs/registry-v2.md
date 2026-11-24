@@ -145,9 +145,11 @@ has at least two different members and at least one selected by default.
 
 **Every member belongs to one publisher.** A project's publisher is the GitHub account that owns the
 repository it is registered to. The checker refuses a collection whose members' repositories are
-owned by different accounts, so the file stores no publisher. Only that publisher curates it: a pull
-request that adds, changes or deletes a collection must be opened by a login listed in `owners` of
-every member, before and after the change, as `owners` stands on the base commit.
+owned by different accounts, so the file stores no publisher. The publisher curates it, and so may
+the registry's maintainers: a pull request that adds, changes or deletes a collection must be opened
+by a login listed in `owners` of every member, before and after the change, as `owners` stands on
+the base commit, or by a person with write access to this repository. A maintainer's collection is
+merged by hand after review, and the publisher may still edit or remove it.
 
 ### Fit verdicts: `registry/fit/`
 
