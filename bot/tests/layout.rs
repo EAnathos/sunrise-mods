@@ -390,6 +390,33 @@ fn release_requires_its_exact_versioned_signer_workflow() {
 }
 
 #[test]
+fn release_row_names_the_repository_it_was_signed_from_whatever_the_project_names_now() {
+    const SIGNER: &str = "workflow = \"sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1\"\n";
+    // The project has since moved: no repository file lists 555 any more.
+    let temp = checkout();
+    replace(
+        temp.path(),
+        RELEASE,
+        SIGNER,
+        &format!("{SIGNER}repository = 555\n"),
+    );
+    assert_eq!(
+        index(temp.path())["projects"][0]["releases"][0]["repository"],
+        555
+    );
+    for (id, expected) in [("0", "invalid value"), ("\"555\"", "invalid type")] {
+        let temp = checkout();
+        replace(
+            temp.path(),
+            RELEASE,
+            SIGNER,
+            &format!("{SIGNER}repository = {id}\n"),
+        );
+        rejected(temp.path(), RELEASE, expected);
+    }
+}
+
+#[test]
 fn release_assets_match_github_tag_and_asset_names_even_after_rename() {
     for (old, new, field) in [
         (
