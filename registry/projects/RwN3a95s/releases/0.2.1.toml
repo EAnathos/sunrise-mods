@@ -1,0 +1,24 @@
+version = "0.2.1"
+kind = "native-mod"
+tag = "storm_spirits/v0.2.1"
+published = "2026-11-24T20:17:34Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/storm_spirits/v0.2.1/storm_spirits-0.2.1.smod"
+size = 197701
+sha256 = "bd3799febc6a707f245337cf73d9a66728b24c550922e4c5f8a2867b9b5b0f3d"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/storm_spirits/v0.2.1/storm_spirits-0.2.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/storm_spirits/v0.2.1/storm_spirits-0.2.1.page.tar"
+size = 31744
+sha256 = "4098989563eaa6b152077cf2ea77c5adf99206f04dde8b17a991eac0027419e6"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/storm_spirits/v0.2.1/storm_spirits-0.2.1.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.3.5"
+required = true
