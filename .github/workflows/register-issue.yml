@@ -18,10 +18,13 @@ jobs:
   register:
     # The register form's title; `if` is evaluated by Actions, never by a shell.
     # The opener's own event on an open issue: someone else's edit or reopening registers nothing.
+    # Only the run the event started: a re-run would carry the opener's identity for whoever asked for it,
+    # against an issue that may have been edited since. The registry refuses a re-run's token as well.
     if: >-
       startsWith(github.event.issue.title, 'Register ')
       && github.event.issue.state == 'open'
       && github.event.sender.id == github.event.issue.user.id
+      && github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
