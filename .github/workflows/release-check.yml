@@ -58,15 +58,14 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Build the trusted registry checker
-        run: cargo build --locked --manifest-path bot/Cargo.toml --target-dir "$RUNNER_TEMP/registry-checker"
+      - uses: ./.github/actions/registry-tool
       - name: Verify PR scope, signatures, package and page without checking out the PR
         id: verify
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ inputs.pr }}
           PR_HEAD: ${{ inputs.head }}
-          REGISTRY_BOT: ${{ runner.temp }}/registry-checker/debug/registry-bot
+          REGISTRY_BOT: ${{ github.workspace }}/target/release/registry-bot
         run: python3 -I bot/ci/release_pr.py verify "$RUNNER_TEMP/release-checked"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: source

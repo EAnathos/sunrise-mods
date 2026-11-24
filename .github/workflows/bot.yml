@@ -7,6 +7,7 @@ on:
       - 'registry/**'
       - '.github/registry-v2/**'
       - '.github/workflows/bot.yml'
+      - '.github/actions/registry-tool/**'
       - '.github/workflows/publish.yml'
   push:
     branches: [main]
@@ -15,10 +16,12 @@ on:
       - 'registry/**'
       - '.github/registry-v2/**'
       - '.github/workflows/bot.yml'
+      - '.github/actions/registry-tool/**'
       - '.github/workflows/publish.yml'
 
 permissions:
   contents: read
+  attestations: read
 
 jobs:
   bot:
@@ -31,15 +34,25 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          # The commit and its first parent: the pull request's base, or main before the push.
+          fetch-depth: 2
           persist-credentials: false
       - name: Test the release PR scripts
         run: python3 -I -m unittest discover -s ci -p 'test_release*.py'
-      - run: cargo fmt --check
-      - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: cargo test --locked
+      # The tool's own checks run only on a change to the tool or its tests.
+      - id: bot
+        run: git diff --quiet HEAD^1 HEAD -- . || echo 'changed=true' >> "$GITHUB_OUTPUT"
+      - if: steps.bot.outputs.changed == 'true'
+        run: cargo fmt --check
+      - if: steps.bot.outputs.changed == 'true'
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - if: steps.bot.outputs.changed == 'true'
+        run: cargo test --locked
+      # The released tool when this checkout's tool source is main's, a build of it otherwise.
+      - uses: ./.github/actions/registry-tool
       - name: Check the v2 registry
         working-directory: .
-        run: cargo run --locked --manifest-path bot/Cargo.toml -- check .
+        run: target/release/registry-bot check .
       - if: github.event_name == 'pull_request'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -49,17 +62,17 @@ jobs:
       - name: A listed project keeps a release
         if: github.event_name == 'pull_request'
         working-directory: .
-        run: cargo run --locked --manifest-path bot/Cargo.toml -- stay-listed base .
+        run: target/release/registry-bot stay-listed base .
       - name: Only the owner of its mods changes a collection
         if: github.event_name == 'pull_request'
         working-directory: .
         env:
           AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: cargo run --locked --manifest-path bot/Cargo.toml -- collection-author base . "$AUTHOR"
+        run: target/release/registry-bot collection-author base . "$AUTHOR"
       - name: Exercise signed Pages publication and recovery fixtures
         working-directory: .
         env:
-          REGISTRY_BOT: ${{ github.workspace }}/target/debug/registry-bot
+          REGISTRY_BOT: ${{ github.workspace }}/target/release/registry-bot
           REGISTRY_VERIFIER: ${{ runner.temp }}/registry-index-verifier/debug/registry-bot
         run: |
           cargo build --locked --manifest-path bot/verifier/Cargo.toml --target-dir "$RUNNER_TEMP/registry-index-verifier"
@@ -72,5 +85,5 @@ jobs:
           cp registry/{categories,release-workflow}.toml "$empty/registry/"
           mkdir "$empty/registry/repositories"
           printf 'revoked = []\n' > "$empty/registry/revoked.toml"
-          cargo run --locked --manifest-path bot/Cargo.toml -- watch "$empty" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/dry-watch"
+          target/release/registry-bot watch "$empty" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/dry-watch"
           grep -Fx 'No repositories are registered.' "$RUNNER_TEMP/dry-watch/watch.md"

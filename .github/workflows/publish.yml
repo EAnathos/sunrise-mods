@@ -19,41 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      attestations: read
     outputs:
       unsigned: ${{ steps.prepare.outputs.unsigned }}
       pages: ${{ steps.prepare.outputs.pages }}
       sha256: ${{ steps.prepare.outputs.sha256 }}
-    # The tool registry-tools.yml released from main: its tag, the binary's sha256, and the digest of
-    # the source it was built from (`git ls-tree <commit> -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum`).
-    # The release's notes give all three; a newer tool is a pull request that changes them.
-    env:
-      REGISTRY_TOOL_TAG: registry-tools-ea3560f9ba4449ef750bc7e0f08d32b669fc60bb
-      REGISTRY_TOOL_SHA256: 976d8c7516b895c253773946396c1b47fbae52796dec41060ecc8bc0ab2b3b94
-      REGISTRY_TOOL_SOURCE: 49a79393439c871fadaab6590607f9e669fe30301eb80d360f36cb356e9e5a60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      # The released binary runs only when main's tool source is the source it was built from.
-      # Otherwise it would disagree with the code, so the run builds the tool as before and says so.
-      - name: Get the v2 registry tool
-        run: |
-          set -euo pipefail
-          bot=target/release/registry-bot
-          source=$(git ls-tree HEAD -- bot/Cargo.toml bot/Cargo.lock bot/src | sha256sum | cut -d' ' -f1)
-          if [[ "$source" == "$REGISTRY_TOOL_SOURCE" ]]; then
-            [[ "$REGISTRY_TOOL_SHA256" =~ ^[0-9a-f]{64}$ ]]
-            mkdir -p "$(dirname "$bot")"
-            curl --disable --proto '=https' --proto-redir '=https' -fsSL -o "$bot" \
-              "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$REGISTRY_TOOL_TAG/registry-bot"
-            echo "$REGISTRY_TOOL_SHA256  $bot" | sha256sum --check --strict -
-            chmod 755 "$bot"
-            echo "Ran the released tool $REGISTRY_TOOL_TAG." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "::warning::The tool source on main ($source) is not the pinned release's; building it. Pin a registry-tools release of this commit in publish.yml."
-            echo "Built the tool from source: main's tool source is not the pinned release's." >> "$GITHUB_STEP_SUMMARY"
-            cargo build --locked --manifest-path bot/Cargo.toml --target-dir target --release
-          fi
+      - uses: ./.github/actions/registry-tool
       - name: Generate and validate the v2 catalogue
         id: prepare
         env:
