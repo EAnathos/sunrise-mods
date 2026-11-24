@@ -1,5 +1,11 @@
 //! Read-only GitHub boundary for release observation and attestation verification.
-use std::{collections::BTreeSet, fs, path::Path, process::Command};
+use std::{
+    collections::BTreeSet,
+    fs,
+    path::Path,
+    process::Command,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use serde::{Deserialize, de::DeserializeOwned};
@@ -283,6 +289,7 @@ fn gh(args: &[&str]) -> Result<Vec<u8>, String> {
             .iter()
             .any(|text| stderr.contains(text))
     {
+        WAS_UNAVAILABLE.store(true, Ordering::Relaxed);
         Err(format!("{UNAVAILABLE}: gh: {stderr}"))
     } else {
         Err(format!("gh: {stderr}"))
@@ -294,9 +301,18 @@ fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String> {
 }
 
 /// Starts the message of a download or a `gh` call that failed for a reason that is not the
-/// release's: the server answered 5xx, or the connection timed out or broke. `main` turns it
-/// into [`UNAVAILABLE_EXIT`], so a caller can tell "could not check" from "checked and refused".
-pub const UNAVAILABLE: &str = "GitHub unavailable";
+/// release's: the server answered 5xx, or the connection timed out or broke.
+const UNAVAILABLE: &str = "GitHub unavailable";
+
+/// Set when such a failure happened in this process. A run that then fails exits with
+/// [`UNAVAILABLE_EXIT`], so a caller can tell "could not check" from "checked and refused".
+/// It is a flag and not a search of the error text, which carries tag names, file names and
+/// GitHub's own messages: none of them can make a refusal look unchecked.
+static WAS_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
+
+pub fn was_unavailable() -> bool {
+    WAS_UNAVAILABLE.load(Ordering::Relaxed)
+}
 
 /// Go's texts for a connection that timed out, was refused or reset, or never resolved, as
 /// `gh` passes them on (`net`, `net/http`, `context` and `crypto/tls` errors).
@@ -373,6 +389,7 @@ pub fn download(url: &str, dest: &Path, limit: u64) -> Result<(), String> {
             return Err(format!("download failed: {reason}"));
         }
         let Some(wait) = waits.next() else {
+            WAS_UNAVAILABLE.store(true, Ordering::Relaxed);
             return Err(format!(
                 "{UNAVAILABLE}: download failed {} times: {reason}",
                 RETRY_WAITS.len() + 1

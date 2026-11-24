@@ -1483,6 +1483,8 @@ fn a_github_server_error_ends_a_release_check_apart_from_a_refusal() {
     for (message, exit) in [
         ("gh: Bad Gateway (HTTP 502)", 75),
         ("gh: Not Found (HTTP 404)", 1),
+        // Text in a refusal cannot make it look unchecked.
+        ("gh: GitHub unavailable: no release tagged so (HTTP 404)", 1),
     ] {
         fs::write(bin.join("gh.message"), message).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_registry-bot"))
