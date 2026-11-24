@@ -137,7 +137,7 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
                 .projects
                 .get(id)
                 .ok_or("registered project is missing")?;
-            if entry.project.paused || has_open_release(&branches.open, id) {
+            if entry.project.paused || has_open_release(&branches.waiting, id) {
                 continue;
             }
             let approved = latest_approved(entry);

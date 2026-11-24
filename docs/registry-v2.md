@@ -341,8 +341,11 @@ times in the committed release rows, not from what the author's repository shows
 release down does not stop the watcher. The same order selects the previous approved package for the
 scanner. When its tag, package or attestation is no longer published, a fully verified new release
 still goes to review: the scan has nothing to compare against and the release check's comment says so.
-Taking a package down never lifts a takedown in `revoked.toml`. A project has
-at most one open release PR, and an existing bot PR makes that version handled: an open one, a merged
+Taking a package down never lifts a takedown in `revoked.toml`. An open
+release PR holds its project's later releases back until it is merged or closed, unless its release
+check failed: the author's fix for a failed check is a later release, which gets its own PR while
+the failed one is still open. Close the failed one once it is superseded. An existing bot PR makes
+that version handled: an open one, a merged
 one, and a closed, unmerged one while its `release/<project>/<version>` branch still exists. The watcher
 does not recreate it. Drafts never count; signed prereleases can count.
 Observation and publication failures appear in the watch summary.
