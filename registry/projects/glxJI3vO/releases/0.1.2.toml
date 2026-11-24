@@ -1,0 +1,19 @@
+version = "0.1.2"
+kind = "native-mod"
+tag = "v0.1.2"
+published = "2026-11-24T05:07:38Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/Flo-bot-png/sunrise-tweaks/releases/download/v0.1.2/sunrise_tweaks-0.1.2.smod"
+size = 42978
+sha256 = "0b4c11fed85de8c18ffda515f61deeccff175bfebfca376f559b179197ee933b"
+attestation = "https://github.com/Flo-bot-png/sunrise-tweaks/releases/download/v0.1.2/sunrise_tweaks-0.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Flo-bot-png/sunrise-tweaks/releases/download/v0.1.2/sunrise_tweaks-0.1.2.page.tar"
+size = 1760256
+sha256 = "a84ec59c2312bb5d8054743cfbefef874fc297c3221aa99ba716910f48defe16"
+attestation = "https://github.com/Flo-bot-png/sunrise-tweaks/releases/download/v0.1.2/sunrise_tweaks-0.1.2.page.tar.sigstore.json"
