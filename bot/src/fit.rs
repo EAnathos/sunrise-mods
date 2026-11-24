@@ -2,7 +2,6 @@ use std::{
     collections::{BTreeMap, btree_map::Entry},
     fs,
     path::{Path, PathBuf},
-    process::Command,
     rc::Rc,
 };
 
@@ -312,41 +311,7 @@ impl Download for Https {
             .unwrap_or(Path::new("."));
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         let temp = tempfile::NamedTempFile::new_in(parent).map_err(|e| e.to_string())?;
-        let response = Command::new("curl")
-            .args([
-                "--disable",
-                "--silent",
-                "--fail",
-                "--location",
-                "--globoff",
-                "--proto",
-                "=https",
-                "--proto-redir",
-                "=https",
-                "--write-out",
-                "%{http_code}",
-                "--max-filesize",
-            ])
-            .arg(limit.to_string())
-            .arg("--output")
-            .arg(temp.path())
-            .arg("--")
-            .arg(url)
-            .output()
-            .map_err(|e| format!("cannot start curl: {e}"))?;
-        if response.status.code() == Some(22) && response.stdout == b"404" {
-            return Err("download not found (HTTP 404)".into());
-        }
-        if !response.status.success() || response.stdout != b"200" {
-            return Err(format!(
-                "download failed: curl {}, HTTP {}",
-                response.status,
-                String::from_utf8_lossy(&response.stdout)
-            ));
-        }
-        if temp.as_file().metadata().map_err(|e| e.to_string())?.len() > limit {
-            return Err("download exceeds the size limit".into());
-        }
+        crate::github::download(url, temp.path(), limit)?;
         temp.persist(file).map_err(|e| e.to_string())?;
         Ok(())
     }

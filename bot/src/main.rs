@@ -112,8 +112,18 @@ fn main() -> ExitCode {
             } else {
                 eprintln!("{}", escape(&error));
             }
-            ExitCode::FAILURE
+            failure(&error)
         }
+    }
+}
+
+/// A run that could not finish because a download stayed unavailable exits apart from one
+/// that reached a refusal.
+fn failure(error: &str) -> ExitCode {
+    if error.contains(github::UNAVAILABLE) {
+        ExitCode::from(github::UNAVAILABLE_EXIT)
+    } else {
+        ExitCode::FAILURE
     }
 }
 
@@ -183,7 +193,7 @@ fn finished(result: Result<(), String>) -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("{}", watch::diagnostic(&error));
-            ExitCode::FAILURE
+            failure(&error)
         }
     }
 }
