@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -160,6 +161,50 @@ class ReleasePRTests(unittest.TestCase):
             if expected:
                 gh.assert_called_once_with("workflow", "run", release.NOT_A_RELEASE, "--repo", REPO,
                                            "--ref", "main", "-f", "pr=12")
+
+    def test_main_moving_during_observation_withholds_only_what_it_changed(self):
+        origin, generated = self.folder / "origin", self.folder / "watch"
+        git = lambda *args: subprocess.run(("git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", *args),
+                                           cwd=origin, check=True, capture_output=True).stdout
+
+        def commit(path, text):
+            (origin / path).parent.mkdir(parents=True, exist_ok=True)
+            (origin / path).write_text(text)
+            git("add", "--", path)
+            git("commit", "-q", "-m", path)
+            return git("rev-parse", "HEAD").decode().strip()
+
+        origin.mkdir()
+        git("init", "-q", "-b", "main")
+        git("remote", "add", "origin", str(origin))
+        held = "registry/repositories/7.toml"
+        base = commit(held, 'name = "example/held"\n[[package]]\nproject = "Cc3dE9xQ"\n')
+        for project in ("Ab3dE9xQ", "Bb3dE9xQ", "Cc3dE9xQ"):
+            (generated / "releases" / project / "1.0.0").mkdir(parents=True)
+        (generated / "rename/registry/repositories").mkdir(parents=True)
+        (generated / "rename" / held).write_text("")
+        moves = (("docs/registry-v2.md", "text\n", {"Ab3dE9xQ", "Bb3dE9xQ", "Cc3dE9xQ", "rename"}),
+                 ("registry/projects/Bb3dE9xQ/project.toml", "paused = true\n", {"Ab3dE9xQ", "Cc3dE9xQ", "rename"}),
+                 (held, 'name = "example/held"\n[[package]]\nproject = "Cc3dE9xQ"\npath = "a"\n', {"Ab3dE9xQ", "Bb3dE9xQ"}),
+                 ("bot/src/watch.rs", "\n", set()))
+        for path, text, expected in moves:
+            git("checkout", "-q", "main")
+            git("reset", "-q", "--hard", base)
+            live = commit(path, text)
+            git("checkout", "-q", "--detach", base)
+            summary = self.folder / "summary.md"
+            summary.write_text("")
+            with patch.dict(os.environ, GITHUB_STEP_SUMMARY=str(summary)), \
+                 patch.object(release, "api", return_value={"object": {"sha": live}}), \
+                 patch.object(release, "rows", listing([])), patch.object(release, "git", git), \
+                 patch.object(release, "open_pr") as open_pr:
+                release.publish(generated)
+            opened = {call.args[1].split("/")[1] if call.args[1].startswith("release/") else "rename"
+                      for call in open_pr.call_args_list}
+            self.assertEqual(opened, expected, path)
+            self.assertTrue(all(call.args[2] == base for call in open_pr.call_args_list))
+            withheld = {"Ab3dE9xQ", "Bb3dE9xQ", "Cc3dE9xQ", "rename"} - expected
+            self.assertEqual(summary.read_text().count(path), len(withheld) if expected else 1, path)
 
     def test_a_closed_release_pr_blocks_its_version_only_while_its_branch_exists(self):
         withdrawn, refused = "release/Ab3dE9xQ/1.0.0", "release/Bb3dE9xQ/1.0.0"
