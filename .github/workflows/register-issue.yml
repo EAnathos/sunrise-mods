@@ -17,7 +17,11 @@ concurrency:
 jobs:
   register:
     # The register form's title; `if` is evaluated by Actions, never by a shell.
-    if: startsWith(github.event.issue.title, 'Register ')
+    # The opener's own event on an open issue: someone else's edit or reopening registers nothing.
+    if: >-
+      startsWith(github.event.issue.title, 'Register ')
+      && github.event.issue.state == 'open'
+      && github.event.sender.id == github.event.issue.user.id
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -48,6 +52,7 @@ jobs:
             | {
                 repository_url: "The Repository field must hold one link of the form `https://github.com/<owner>/<repository>`. Edit the issue to fix it.",
                 package_folders: "Use one relative package folder per line, without repeats, colons, backslashes or parent folders (`..`). Edit the issue to fix it.",
+                form_size: "The issue names too many package folders for one registration. Edit the issue to name fewer.",
                 standing: "This account cannot register a mod right now.",
                 rate: "Too many requests from this account. Edit the issue later to try again.",
                 busy: "The registry is checking other requests. Edit the issue in a minute to try again.",
