@@ -1,0 +1,23 @@
+version = "26.3.10"
+kind = "native-mod"
+tag = "v26.3.10"
+published = "2026-11-24T15:29:23Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+
+[file]
+url = "https://github.com/arismoko/Jade-Sunrise/releases/download/v26.3.10/jade-26.3.10.smod"
+size = 302140
+sha256 = "0b087222f14990ac89d232d0f46ee5b3c1274221cbab4d081afa107b8c4ccfa1"
+attestation = "https://github.com/arismoko/Jade-Sunrise/releases/download/v26.3.10/jade-26.3.10.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/Jade-Sunrise/releases/download/v26.3.10/jade-26.3.10.page.tar"
+size = 726528
+sha256 = "40a85720f66e9994bd76cecf1c0b889440c85cb937fa299cc8b9d8a2ca60443c"
+attestation = "https://github.com/arismoko/Jade-Sunrise/releases/download/v26.3.10/jade-26.3.10.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "guideme"
+version = "^0.1"
+required = false
