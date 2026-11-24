@@ -127,6 +127,6 @@ if __name__ == "__main__":
                 subprocess.run(["cargo", "generate-lockfile", "--manifest-path", source / "Cargo.toml"], check=True)
                 shutil.rmtree(source / ".sunrise")
             case _:
-                raise ValueError("expected <folder> build|check|prepare-sdk, or <folder> template-fixture <commit>")
+                raise ValueError("expected <folder> build|prepare-sdk, or <folder> template-fixture <commit>")
     except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         sys.exit("release build: " + str(error).encode("unicode_escape").decode("ascii").replace("::", "%3A%3A").replace("##[", "%23%23%5B"))
