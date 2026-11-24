@@ -27,6 +27,10 @@ identity. Each `[[package]]` row gives the `path` of the folder holding `sunrise
 permanent `project` ID. Paths within a repository and project IDs are unique. Every package has
 exactly one `project.toml` and vice versa. An empty registry has an empty `repositories` folder.
 
+The registration service rewrites this file when a registered repository adds a package, and reads it
+strictly: a key added to this file's format must be taught to the service (sunny's
+`services/registry`) in the same change, or registration stops for that repository.
+
 ```toml
 name = "example/wayfinder"
 
