@@ -1,0 +1,23 @@
+version = "0.5.6"
+kind = "native-mod"
+tag = "v0.5.6"
+published = "2026-11-24T08:24:51Z"
+sunrise = "dev-2026-11-24-f8aa80e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+
+[file]
+url = "https://github.com/Joeypc6/JEI-Sunrise/releases/download/v0.5.6/jei-0.5.6.smod"
+size = 140361
+sha256 = "4801b6192c0c29251dc70433dcf0109f265ec1aa40133fb1fe15bbf30a7d5365"
+attestation = "https://github.com/Joeypc6/JEI-Sunrise/releases/download/v0.5.6/jei-0.5.6.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Joeypc6/JEI-Sunrise/releases/download/v0.5.6/jei-0.5.6.page.tar"
+size = 1563136
+sha256 = "05b7d456522a117040166d2026397431f2ebb49437b62e036bf6f9d358add20f"
+attestation = "https://github.com/Joeypc6/JEI-Sunrise/releases/download/v0.5.6/jei-0.5.6.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "guideme"
+version = "^0.1"
+required = false
