@@ -361,7 +361,6 @@ def guard_deploy(root, key, bot, carried):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
-    action.add_argument("--out", type=Path, help="fetch only the verified live index and signature")
     action.add_argument("--assemble", type=Path, metavar="SITE")
     action.add_argument("--guard-deploy", type=Path, metavar="SNAPSHOT")
     action.add_argument("--confirm-live", type=Path, metavar="SNAPSHOT")
@@ -378,12 +377,6 @@ def main():
     try:
         if args.publishable is not None:
             require_publishable(args.publishable)
-        elif args.out is not None:
-            if args.key.is_file():
-                with tempfile.TemporaryDirectory(dir=args.out.parent) as directory:
-                    root = Path(directory) / "live"
-                    if read_live(root, args.key, args.bot) is not None:
-                        shutil.move(root, args.out)
         elif args.assemble is not None:
             carried = assemble(args.assemble, args.candidate, args.pages, args.key, args.bot)
             with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:

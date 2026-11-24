@@ -20,7 +20,7 @@ use std::{
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 const USAGE: &str = "usage: registry-bot check <checkout>
-       registry-bot index <checkout> --serial <n> --out <dir> [--generated-fit] [--after <previous index.json>]
+       registry-bot index <checkout> --serial <n> --out <dir> [--generated-fit]
        registry-bot watch <checkout> <registry-owner/repo> <out>
        registry-bot collection-author <base checkout> <head checkout> <PR author login>
        registry-bot stay-listed <base checkout> <head checkout>
@@ -72,21 +72,12 @@ fn main() -> ExitCode {
                 eprintln!("--serial expects a nonnegative integer");
                 return ExitCode::from(2);
             };
-            let (generated_fit, previous) = match tail {
-                [] => (false, None),
-                [flag] if flag == "--generated-fit" => (true, None),
-                [flag, after, previous] if flag == "--generated-fit" && after == "--after" => {
-                    (true, Some(Path::new(previous)))
-                }
+            let generated_fit = match tail {
+                [] => false,
+                [flag] if flag == "--generated-fit" => true,
                 _ => return usage(),
             };
-            write_index(
-                Path::new(checkout),
-                serial,
-                Path::new(out),
-                generated_fit,
-                previous,
-            )
+            write_index(Path::new(checkout), serial, Path::new(out), generated_fit)
         }
         [command, out_flag, out] if command == "builds" && out_flag == "--out" => {
             builds::discover(Path::new(out))
@@ -130,16 +121,7 @@ fn write_index(
     serial: u64,
     out: &Path,
     generated_fit: bool,
-    previous: Option<&Path>,
 ) -> Result<(), String> {
-    if let Some(path) = previous {
-        let live = signed::verify(
-            path,
-            &signed::sibling_signature(path),
-            &checkout.join(signed::KEY),
-        )?;
-        signed::require_new_serial(serial, live.serial)?;
-    }
     let load = if generated_fit {
         registry::load_generated
     } else {

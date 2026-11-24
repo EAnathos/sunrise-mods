@@ -268,8 +268,8 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
   ones in that list; without it they stay as they are.
 - `registry-bot index <checkout> --serial <n> --out <dir>` validates the same tree and stages
   `index.json` and the exact referenced images under `pages/`. Use `--generated-fit` to read the
-  verdicts in `registry/fit/`, which must then be current for every release on every offered build; add `--after <previous index.json>` to verify the previous signed
-  index and require a greater serial. The command uses the current UTC time for `generated` and
+  verdicts in `registry/fit/`, which must then be current for every release on every offered build.
+  The command uses the current UTC time for `generated` and
   does not sign or deploy anything.
 - `registry-bot verify-index <index> <sig> --key <pub>` checks the exact bytes and the index schema.
 
