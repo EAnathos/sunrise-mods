@@ -1,0 +1,19 @@
+version = "0.4.2"
+kind = "native-mod"
+tag = "deepbore_quarry/v0.4.2"
+published = "2026-11-24T14:28:04Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/deepbore-quarry/releases/download/deepbore_quarry/v0.4.2/deepbore_quarry-0.4.2.smod"
+size = 65909
+sha256 = "5848c6186dc415b8568dcf67240139cc12144ad4b57122610d3070f31d6ccb20"
+attestation = "https://github.com/arismoko/deepbore-quarry/releases/download/deepbore_quarry/v0.4.2/deepbore_quarry-0.4.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/deepbore-quarry/releases/download/deepbore_quarry/v0.4.2/deepbore_quarry-0.4.2.page.tar"
+size = 472576
+sha256 = "c069fe407cbe10db3d5d61654c15331fb04078419af22b9a0363abbe3ad75658"
+attestation = "https://github.com/arismoko/deepbore-quarry/releases/download/deepbore_quarry/v0.4.2/deepbore_quarry-0.4.2.page.tar.sigstore.json"
