@@ -28,33 +28,39 @@ jobs:
           persist-credentials: false
       - name: Test the job summary preview and module file lookup
         run: python3 -I -m unittest discover -s scanner -p 'test_*.py'
+      - name: Archive the fixture releases as the release check does
+        run: |
+          for release in flags prior; do
+            mkdir -p "$RUNNER_TEMP/upload/$release"
+            tar -cf "$RUNNER_TEMP/upload/$release/release.tar" -C "scanner/tests/$release" .
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         id: flags
         with:
           name: fixture-flags-${{ github.run_attempt }}
-          path: scanner/tests/flags/
-          include-hidden-files: true
+          path: ${{ runner.temp }}/upload/flags/release.tar
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         id: prior
         with:
           name: fixture-prior-${{ github.run_attempt }}
-          path: scanner/tests/prior/
-          include-hidden-files: true
+          path: ${{ runner.temp }}/upload/prior/release.tar
           if-no-files-found: error
 
       - name: Generate a locked native template without shipping its SDK
         if: github.event_name == 'workflow_dispatch'
         env:
           SDK_COMMIT: ${{ inputs.native-template-build }}
-        run: python3 -I bot/ci/build_release.py "$RUNNER_TEMP/native_template" template-fixture "$SDK_COMMIT"
+        run: |
+          python3 -I bot/ci/build_release.py "$RUNNER_TEMP/native_template" template-fixture "$SDK_COMMIT"
+          mkdir -p "$RUNNER_TEMP/upload/native"
+          tar -cf "$RUNNER_TEMP/upload/native/release.tar" -C "$RUNNER_TEMP/native_template" .
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: native
         if: github.event_name == 'workflow_dispatch'
         with:
           name: fixture-native-template-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/native_template/
-          include-hidden-files: true
+          path: ${{ runner.temp }}/upload/native/release.tar
           if-no-files-found: error
 
   native-template:
