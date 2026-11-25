@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "armorhud/v0.5.3"
+published = "2026-11-25T14:33:03Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/armorhud/v0.5.3/armorhud-0.5.3.smod"
+size = 48022
+sha256 = "80b776adecf2171f6237e92a5e79958f8a19d0d90eb8a7649f3bb6e9b9bda414"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/armorhud/v0.5.3/armorhud-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/armorhud/v0.5.3/armorhud-0.5.3.page.tar"
+size = 512512
+sha256 = "b3e733bfccc20c4eedb2b39ca313040e9864021c540f91e46c0c5fcaca5edf14"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/armorhud/v0.5.3/armorhud-0.5.3.page.tar.sigstore.json"
