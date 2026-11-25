@@ -165,6 +165,12 @@ pub fn run(checkout: &Path, considered: Option<&Path>) -> Result<(), String> {
         None if stored.exists() => Some(fs::read(&stored).map_err(|e| e.to_string())?),
         _ => None,
     };
+    // The judging rewrites the folder, and what Modrinth last answered is not its to drop.
+    let unlisted = out.join(crate::jar::UNLISTED);
+    let jars = match unlisted.exists() {
+        true => Some(fs::read(&unlisted).map_err(|e| e.to_string())?),
+        false => None,
+    };
     let mut candidates: Vec<Build> = match &rows {
         Some(rows) => rows
             .iter()
@@ -198,6 +204,9 @@ pub fn run(checkout: &Path, considered: Option<&Path>) -> Result<(), String> {
         },
         &out,
     )?;
+    if let Some(bytes) = jars {
+        fs::write(&unlisted, bytes).map_err(|e| e.to_string())?;
+    }
     if let Some(rows) = &mut rows {
         for row in rows.iter_mut() {
             if let Outcome::Offered(build) = &row.outcome

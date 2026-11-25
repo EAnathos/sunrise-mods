@@ -252,6 +252,16 @@ fitting, so a pair appears only when no verdict still to come could change it. O
 dependencies are never considered. It is derived from the rows and stored verdicts each time the
 index is assembled and is stored nowhere. The registry bot and the launcher's install planner
 decide "satisfies" with the same code, the `sunrise-dependency-rule` crate.
+
+`jar_unavailable` (left out when empty) lists the release's `jars`, each as `{ id, version, sha512 }`,
+that Modrinth no longer lists: the release cannot be newly installed, and an installed copy whose
+jar is already on the player's machine is unaffected. The judging job asks Modrinth for every jar
+the release rows name in one request, without downloading any, and stores the SHA-512 of each one
+Modrinth's answer leaves out in `registry/fit/jars.json`; the index copies from there. Only that
+answer marks a jar or clears a mark: when Modrinth cannot be asked (a server error, a rate limit, a
+broken connection) the stored list stands. While any release names a jar, the registry timer starts
+the judging job on every tick, so a jar that disappears is marked, and one that returns is cleared,
+at the next tick.
 `file` contains
 `url`, `size`, `sha256`, and `attestation`. Each dependency carries `mod`, `version`, `project` and `required`.
 `version` is the semver requirement the provider's release must satisfy; a `null` `project` means

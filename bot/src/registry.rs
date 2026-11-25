@@ -29,6 +29,8 @@ pub struct Registry {
     pub collections: BTreeMap<ProjectId, CollectionEntry>,
     pub fits: BTreeMap<ProjectId, BTreeMap<Version, FitRelease>>,
     pub builds: Vec<Offered>,
+    /// The SHA-512 of each original jar Modrinth does not list, as the judging job stored them.
+    pub unlisted_jars: BTreeSet<String>,
     pub revoked: Vec<Revocation>,
 }
 
@@ -336,6 +338,7 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
     }
     let mut fits = BTreeMap::new();
     let mut builds = Vec::new();
+    let mut unlisted_jars = BTreeSet::new();
     if generated {
         match fit_dir {
             Some(Entry::Directory) => {
@@ -358,6 +361,18 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
                         &fit_path.join(crate::fit::CONSIDERED),
                         "expected a regular file",
                     );
+                }
+                // Absent until the judging job has first asked Modrinth.
+                if contents.remove(OsStr::new(crate::jar::UNLISTED)).is_some() {
+                    let path = fit_path.join(crate::jar::UNLISTED);
+                    match std::fs::read(checkout.join(&path))
+                        .map_err(|e| e.to_string())
+                        .and_then(|bytes: Vec<u8>| {
+                            serde_json::from_slice(&bytes).map_err(|e| e.to_string())
+                        }) {
+                        Ok(jars) => unlisted_jars = jars,
+                        Err(message) => tree.problem(&path, message),
+                    }
                 }
                 fits = read_fits(&mut tree, &fit_path, contents);
             }
@@ -382,6 +397,7 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
         collections,
         fits,
         builds,
+        unlisted_jars,
         revoked,
     })
 }

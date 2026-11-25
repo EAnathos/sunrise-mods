@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Where the fit verdicts, the offered-build list and the list of considered Sunrise releases
-are kept: the `registry-fit` branch.
+"""Where the fit verdicts, the offered-build list, the list of considered Sunrise releases and
+the list of original jars Modrinth does not list are kept: the `registry-fit` branch.
 
 `read` puts the branch's `registry/fit/` into the checkout; `write` commits the checkout's
 `registry/fit/` to the branch and, in a workflow, sets the step output `changed`. Nothing else in the registry knows where they are kept.
@@ -13,7 +13,7 @@ import tempfile
 
 BRANCH = "registry-fit"
 REF = f"refs/remotes/origin/{BRANCH}"
-FILE = re.compile(r"registry/fit/((builds|considered)\.json|[0-9A-Za-z]{8}\.toml)", re.ASCII)
+FILE = re.compile(r"registry/fit/((builds|considered|jars)\.json|[0-9A-Za-z]{8}\.toml)", re.ASCII)
 BOT = "41898282+github-actions[bot]@users.noreply.github.com"
 
 
