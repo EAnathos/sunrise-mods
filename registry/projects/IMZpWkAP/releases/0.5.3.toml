@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "comforts/v0.5.3"
+published = "2026-11-25T14:35:04Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/comforts/v0.5.3/comforts-0.5.3.smod"
+size = 260302
+sha256 = "746a655e427265c20fad24afa808ca90909f8f3daffa44a39872f233c6a821de"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/comforts/v0.5.3/comforts-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/comforts/v0.5.3/comforts-0.5.3.page.tar"
+size = 980992
+sha256 = "a6b686ce52bc77ecd333ced1c39f19f5fb81611155bce3ff2571440e0f073d27"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/comforts/v0.5.3/comforts-0.5.3.page.tar.sigstore.json"
