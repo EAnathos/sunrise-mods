@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "bridgingmod/v0.5.3"
+published = "2026-11-25T14:33:45Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/bridgingmod/v0.5.3/bridgingmod-0.5.3.smod"
+size = 90330
+sha256 = "3477a1b728997b452f593408f63028e72489e6a9ddc5395c1e9d5bba23314fe6"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/bridgingmod/v0.5.3/bridgingmod-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/bridgingmod/v0.5.3/bridgingmod-0.5.3.page.tar"
+size = 1729024
+sha256 = "3f291ab3c81bd82738950decc211716907660af4bea8a58800610eb2ea0cb9f9"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/bridgingmod/v0.5.3/bridgingmod-0.5.3.page.tar.sigstore.json"
