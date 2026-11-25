@@ -1,0 +1,20 @@
+version = "2.0.10"
+kind = "native-mod"
+tag = "v2.0.10"
+published = "2026-11-25T08:33:45Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300668
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/earshot/releases/download/v2.0.10/earshot-2.0.10.smod"
+size = 459909
+sha256 = "45d61d8a0ff2a98ea3ff12539f7bbf8599b56a05a799ef8abb0c79c55a9c510a"
+attestation = "https://github.com/arismoko/earshot/releases/download/v2.0.10/earshot-2.0.10.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/earshot/releases/download/v2.0.10/earshot-2.0.10.page.tar"
+size = 717312
+sha256 = "8f91edb5420f23a2dccae3cbb6f57a5bcdcc2155840aee69d17cfc94911763d8"
+attestation = "https://github.com/arismoko/earshot/releases/download/v2.0.10/earshot-2.0.10.page.tar.sigstore.json"
