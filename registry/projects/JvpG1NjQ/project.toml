@@ -1,0 +1,9 @@
+id = "JvpG1NjQ"
+slug = "mythic-upgrades"
+mod = "mythicupgrades"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "mythicupgrades"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-25"
