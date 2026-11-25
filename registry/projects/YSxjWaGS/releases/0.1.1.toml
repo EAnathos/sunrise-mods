@@ -1,0 +1,20 @@
+version = "0.1.1"
+kind = "native-mod"
+tag = "v0.1.1"
+published = "2026-11-25T02:50:34Z"
+sunrise = "dev-2026-11-22-7cfdf81"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1469102490
+dependencies = []
+
+[file]
+url = "https://github.com/mathewneves/sunny-ultimine/releases/download/v0.1.1/sunny_ultimine-0.1.1.smod"
+size = 358051
+sha256 = "fce062a2956f6bd0776252fb8206a3d19ea30a602f73dc476a25f546ec595a2a"
+attestation = "https://github.com/mathewneves/sunny-ultimine/releases/download/v0.1.1/sunny_ultimine-0.1.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/mathewneves/sunny-ultimine/releases/download/v0.1.1/sunny_ultimine-0.1.1.page.tar"
+size = 417792
+sha256 = "c7039fdf75a6072d64dc3f95f332e95e287d15b975f8a027976eae7714c0714f"
+attestation = "https://github.com/mathewneves/sunny-ultimine/releases/download/v0.1.1/sunny_ultimine-0.1.1.page.tar.sigstore.json"
