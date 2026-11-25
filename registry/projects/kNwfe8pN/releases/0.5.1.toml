@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "pickupnotifier/v0.5.1"
+published = "2026-11-25T02:25:12Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/pickupnotifier/v0.5.1/pickupnotifier-0.5.1.smod"
+size = 51498
+sha256 = "d772077cc56401896d991510c39e2d32a63b0606b13550273430c5fa5a761e22"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/pickupnotifier/v0.5.1/pickupnotifier-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/pickupnotifier/v0.5.1/pickupnotifier-0.5.1.page.tar"
+size = 706560
+sha256 = "b10822e7debc23698103e00ec86e315c4a73b180338c83e672791ae1364dfed0"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/pickupnotifier/v0.5.1/pickupnotifier-0.5.1.page.tar.sigstore.json"
