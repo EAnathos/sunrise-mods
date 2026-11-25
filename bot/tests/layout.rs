@@ -1499,3 +1499,58 @@ fn a_github_server_error_ends_a_release_check_apart_from_a_refusal() {
         assert!(stderr.contains(message), "{stderr}");
     }
 }
+
+/// `curl` on the child's `PATH` is a script that answers with the status in `curl.http` and,
+/// when that is 200, writes the one line of `curl.body` where `--output` names.
+#[test]
+fn a_jar_modrinth_does_not_list_is_marked_until_modrinth_lists_it_again() {
+    use std::os::unix::fs::PermissionsExt;
+    let checkout = fit_checkout();
+    let bin = checkout.path().join("bin");
+    fs::create_dir(&bin).unwrap();
+    let curl = bin.join("curl");
+    fs::write(
+        &curl,
+        "#!/bin/sh\nread -r http < \"$0.http\"\nprintf %s \"$http\"\n[ \"$http\" = 200 ] || exit 22\n\
+         while [ \"$1\" != --output ]; do shift; done\nread -r body < \"$0.body\"\nprintf %s \"$body\" > \"$2\"\n",
+    )
+    .unwrap();
+    fs::set_permissions(&curl, fs::Permissions::from_mode(0o755)).unwrap();
+    let sha512 = "ab".repeat(64);
+    let row = checkout.path().join(RELEASE);
+    let text = fs::read_to_string(&row).unwrap();
+    fs::write(
+        &row,
+        format!(
+            "{text}\n[[jars]]\nid = \"original\"\nversion = \"3.1.2\"\nsha512 = \"{sha512}\"\n"
+        ),
+    )
+    .unwrap();
+    let listed = serde_json::json!({&sha512: {"files": [{
+        "hashes": {"sha512": &sha512},
+        "url": "https://cdn.modrinth.com/data/original/original-3.1.2.jar",
+    }]}})
+    .to_string();
+    let marked = serde_json::json!([{"id": "original", "version": "3.1.2", "sha512": &sha512}]);
+    // Modrinth lists nothing; then it cannot be asked (exit 75) and the mark stands; then it
+    // lists the jar again.
+    for (http, body, exit, mark) in [
+        ("200", "{}", 0, Some(&marked)),
+        ("429", "", 75, Some(&marked)),
+        ("200", listed.as_str(), 0, None),
+    ] {
+        fs::write(bin.join("curl.http"), http).unwrap();
+        fs::write(bin.join("curl.body"), body).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_registry-bot"))
+            .current_dir(checkout.path())
+            .env("PATH", &bin)
+            .args(["jars", "."])
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(exit), "{http}: {stderr}");
+        let release = &index(checkout.path())["projects"][0]["releases"][0];
+        assert_eq!(release.get("jar_unavailable"), mark, "{http}");
+        fs::remove_dir_all(checkout.path().join("output")).unwrap();
+    }
+}

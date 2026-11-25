@@ -42,6 +42,9 @@ jobs:
             considered=(--builds "$RUNNER_TEMP/considered.json")
           fi
           "$bot" fit . "${considered[@]}"
+          # Which original jars Modrinth no longer lists. When Modrinth cannot be asked (exit 75,
+          # `UNAVAILABLE_EXIT` in bot/src/github.rs) the stored answer stands.
+          "$bot" jars . || { code=$?; [[ $code == 75 ]] || exit "$code"; echo "::warning::Could not ask Modrinth about original jars; the stored answer stands."; }
           python3 -I .github/registry-v2/fit_store.py write "Judge fits for $GITHUB_SHA"
       # publish.yml publishes every push by itself. This publish carries the verdicts stored
       # above, on whatever main is by now: what a newer push added is left unjudged in it until

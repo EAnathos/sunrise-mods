@@ -31,6 +31,7 @@ const USAGE: &str = "usage: registry-bot check <checkout>
        registry-bot verify-release <checkout> <registry-owner/repo> <project> <release.toml> <out>
        registry-bot builds --out <file>
        registry-bot fit <checkout> [--builds <file written by builds>]
+       registry-bot jars <checkout>
        registry-bot release-fit <builds.json> <release.toml> --out <file>
        registry-bot verify-index <index> <sig> --key <pub>";
 
@@ -98,6 +99,9 @@ fn main() -> ExitCode {
             if command == "fit" && builds_flag == "--builds" =>
         {
             fit::run(Path::new(checkout), Some(Path::new(builds)))
+        }
+        [command, checkout] if command == "jars" => {
+            jar::availability(Path::new(checkout), &jar::Curl)
         }
         [command, builds, row, out_flag, out]
             if command == "release-fit" && out_flag == "--out" =>

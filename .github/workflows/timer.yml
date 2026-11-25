@@ -78,7 +78,13 @@ jobs:
       - name: Warn that this run could not look
         if: steps.look.outcome == 'failure'
         run: echo "::warning::Could not look for new Sunrise releases; the next run looks again."
+      # The judging job also asks Modrinth whether it still lists each original jar the releases
+      # name, so while any release names one it runs on every tick.
+      - name: Look for releases that name original jars
+        id: jars
+        run: |
+          if grep -rqsx '\[\[jars\]\]' registry/projects/*/releases/; then echo named=true >> "$GITHUB_OUTPUT"; fi
       - name: Start the judging job
-        if: steps.look.outputs.new > 0 || inputs.force
+        if: steps.look.outputs.new > 0 || steps.jars.outputs.named == 'true' || inputs.force
         continue-on-error: true
         run: gh workflow run fit.yml --repo "$GITHUB_REPOSITORY" --ref main

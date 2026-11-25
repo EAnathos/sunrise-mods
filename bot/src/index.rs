@@ -85,6 +85,9 @@ struct IndexRelease<'a> {
     jars: &'a [JarRef],
     #[serde(skip_serializing_if = "Vec::is_empty")]
     dependency_unavailable: Vec<DependencyUnavailable<'a>>,
+    /// The release's original jars that Modrinth no longer lists.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    jar_unavailable: Vec<&'a JarRef>,
 }
 
 /// A build the release fits on which nothing listed can satisfy its required dependency `mod`.
@@ -226,6 +229,11 @@ pub fn write(
                                     build: &registry.builds[build].id,
                                     mod_id,
                                 })
+                                .collect(),
+                            jar_unavailable: release
+                                .jars
+                                .iter()
+                                .filter(|jar| registry.unlisted_jars.contains(jar.sha512()))
                                 .collect(),
                         }
                     })

@@ -3,7 +3,7 @@
 //! them. A jar lives in the check's working directory only: the registry stores and publishes
 //! none.
 
-use std::{io::Read, path::Path};
+use std::{collections::BTreeSet, fs, io::Read, path::Path};
 
 use sunrise_jar_fetch::{Http, MAX_JAR, Modrinth};
 use sunrise_mod_package::{
@@ -11,7 +11,7 @@ use sunrise_mod_package::{
     content::{JarLayer, check_references},
 };
 
-use crate::github;
+use crate::{github, registry, schema::JarRef};
 
 const MODRINTH: Modrinth<'static> = Modrinth {
     api: "https://api.modrinth.com/v2",
@@ -85,6 +85,44 @@ pub fn check(smod: &Path, manifest: &Manifest, work: &Path, http: &dyn Http) -> 
             findings.errors.join("\n")
         ))
     }
+}
+
+/// The file of `registry/fit` that lists the SHA-512 of each original jar Modrinth does not
+/// list, as [`availability`] last found them.
+pub const UNLISTED: &str = "jars.json";
+
+/// Asks Modrinth which of the original jars the registry's releases name it lists, in one
+/// request and with no download, and stores the others in `registry/fit`. Only Modrinth's own
+/// answer names a jar: a request that fails stores nothing, so what was stored stands.
+pub fn availability(checkout: &Path, http: &dyn Http) -> Result<(), String> {
+    let dir = checkout.join("registry/fit");
+    // As the judging does: the folder is there once the stored verdicts have been read.
+    let load = if dir.exists() {
+        registry::load_generated
+    } else {
+        registry::load
+    };
+    let registry = load(checkout).map_err(|e| e.join("\n"))?;
+    let named: BTreeSet<&str> = registry
+        .projects
+        .values()
+        .flat_map(|entry| entry.releases.values())
+        .flat_map(|release| &release.jars)
+        .map(JarRef::sha512)
+        .collect();
+    let listed =
+        sunrise_jar_fetch::file_urls(http, MODRINTH, &named.iter().copied().collect::<Vec<_>>())?;
+    let unlisted: Vec<&str> = named
+        .into_iter()
+        .filter(|sha512| {
+            !listed
+                .keys()
+                .any(|found| found.eq_ignore_ascii_case(sha512))
+        })
+        .collect();
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let text = serde_json::to_string_pretty(&unlisted).map_err(|e| e.to_string())?;
+    fs::write(dir.join(UNLISTED), text + "\n").map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

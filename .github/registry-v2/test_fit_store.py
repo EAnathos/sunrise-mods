@@ -47,7 +47,7 @@ class FitStore(unittest.TestCase):
     def test_verdicts_written_by_one_run_are_read_by_the_next(self):
         self.assertNotEqual(self.store("read").returncode, 0)
         self.assertEqual(self.store("read", "--optional").returncode, 0)
-        self.files(**{"registry/fit/builds.json": "[]", "registry/fit/considered.json": "[]",
+        self.files(**{"registry/fit/builds.json": "[]", "registry/fit/considered.json": "[]", "registry/fit/jars.json": "[]",
                       "registry/fit/Ab3dE9xQ.toml": "", "registry/other.toml": ""})
         self.assertIn("Stored the verdicts", self.store("write", "first").stdout)
         self.assertIn("are current", self.store("write", "second").stdout)
@@ -59,7 +59,7 @@ class FitStore(unittest.TestCase):
         log = subprocess.run(["git", "log", "--format=%ae %s", "--name-only", "refs/remotes/origin/registry-fit"],
                              cwd=self.checkout, text=True, stdout=subprocess.PIPE).stdout.split()
         self.assertEqual(log, [BOT, "first", "registry/fit/Ab3dE9xQ.toml", "registry/fit/builds.json",
-                               "registry/fit/considered.json"])
+                               "registry/fit/considered.json", "registry/fit/jars.json"])
 
     def test_a_branch_holding_anything_but_fit_files_is_refused(self):
         self.push(**{"registry/fit/builds.json": "[]", "registry/projects/Ab3dE9xQ/project.toml": ""})
