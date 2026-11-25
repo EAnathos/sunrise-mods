@@ -1,0 +1,20 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "pingwheel/v0.5.2"
+published = "2026-11-25T07:58:53Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/pingwheel/v0.5.2/pingwheel-0.5.2.smod"
+size = 94009
+sha256 = "45830feb24bdb0ec1676a0379783ac41504a83ed595abd91bf13c428356ccc72"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/pingwheel/v0.5.2/pingwheel-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/pingwheel/v0.5.2/pingwheel-0.5.2.page.tar"
+size = 924160
+sha256 = "3870c63c84c83d2f6a4ffe1a72f71879b4610e3f7b9c3efea6c4fb77492c604b"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/pingwheel/v0.5.2/pingwheel-0.5.2.page.tar.sigstore.json"
