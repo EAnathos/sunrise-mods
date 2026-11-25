@@ -1183,6 +1183,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sunrise-jar-fetch",
  "sunrise-mod-package",
  "sunrise-mod-surface",
  "sunrise-native-build",
@@ -1412,6 +1413,19 @@ version = "0.1.0"
 source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 
 [[package]]
+name = "sunrise-assets"
+version = "0.1.0"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
+dependencies = [
+ "flate2",
+ "log",
+ "serde",
+ "serde_json",
+ "sunrise-core",
+ "zip",
+]
+
+[[package]]
 name = "sunrise-bench"
 version = "0.1.0"
 source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
@@ -1454,6 +1468,16 @@ dependencies = [
 name = "sunrise-hooks"
 version = "0.1.0"
 source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
+
+[[package]]
+name = "sunrise-jar-fetch"
+version = "0.1.0"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
 
 [[package]]
 name = "sunrise-mod-api-gen"
@@ -1501,6 +1525,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "sunrise-assets",
  "sunrise-core",
  "sunrise-mod-source",
  "sunrise-mod-surface",

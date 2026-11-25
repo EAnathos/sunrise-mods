@@ -436,12 +436,19 @@ incomplete check is not green; if cancellation prevents the final job from start
 stays pending. Use **Rerun all jobs**; do not rerun only failed jobs. Ordinary scanner flags guide
 review without failing the release.
 
+A release whose manifest lists original Java jars (`[[jar]]`) is checked against them too. The
+check asks Modrinth for each jar by its SHA-512, downloads it from Modrinth's CDN and compares the
+bytes, then runs the mod tool's reference check (`cargo sunrise-mod check`) on the mod's files with
+the jars beneath them. A jar Modrinth does not list, or a file neither the mod nor its jars hold,
+fails the check with the jar's `id`, `version` and `sha512` or the file named. The jars stay in the
+job's working directory: none reaches an artifact, a cache or the index.
+
 A download that fails with a server error (HTTP 5xx), a timeout or a broken connection is tried
-again three times, after one, two and four seconds; any other failure, a 4xx included, is final at
-once. A check that still could not download something, or whose GitHub lookup or attestation
-verification met a server error or a failed connection, says nothing about the release, and its
-status says so: `failure` with the description `Not checked: GitHub failed. Not a verdict on the
-release`. The watcher dispatches the check for that head once more on its next pass; if that
+again three times, after one, two and four seconds; a rate limit (HTTP 429) is not tried again;
+any other failure, another 4xx included, is final at once. A check that still could not download
+something, was rate limited, or whose GitHub lookup or attestation verification met a server error
+or a failed connection, says nothing about the release, and its status says so: `failure` with the
+description `Not checked: GitHub or Modrinth failed. Not a verdict on the release`. The watcher dispatches the check for that head once more on its next pass; if that
 one ends the same way, use **Rerun all jobs**.
 
 Enable **Allow GitHub Actions to create and approve pull requests** before turning on the watcher.
