@@ -1,0 +1,9 @@
+id = "chPsUoMj"
+slug = "mouse-wheelie"
+mod = "mousewheelie"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "mousewheelie"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-25"
