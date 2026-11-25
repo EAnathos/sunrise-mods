@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "invisibleframes/v0.5.1"
+published = "2026-11-25T09:56:38Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/invisibleframes/v0.5.1/invisibleframes-0.5.1.smod"
+size = 44053
+sha256 = "c47dcab1d1898b51fc062b48a03f95019aa70ca28328ae1bd4755ed63ea00821"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/invisibleframes/v0.5.1/invisibleframes-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/invisibleframes/v0.5.1/invisibleframes-0.5.1.page.tar"
+size = 75776
+sha256 = "ac43be668bc6cc9cccb685d9363fee0620d1df6894d3a71180b6793d1fad1440"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/invisibleframes/v0.5.1/invisibleframes-0.5.1.page.tar.sigstore.json"
