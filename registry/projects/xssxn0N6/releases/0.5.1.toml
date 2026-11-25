@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "cutthrough/v0.5.1"
+published = "2026-11-25T03:16:26Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/cutthrough/v0.5.1/cutthrough-0.5.1.smod"
+size = 22978
+sha256 = "eaea67f8975163f9c2a20b2686bed9208e6a4a464a9d39637ea575ca8f788c97"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/cutthrough/v0.5.1/cutthrough-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/cutthrough/v0.5.1/cutthrough-0.5.1.page.tar"
+size = 1176576
+sha256 = "1428c615f3d3d9c34ffe3618e62f068f5c16ee1dd3182dc8384e39a981a21339"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/cutthrough/v0.5.1/cutthrough-0.5.1.page.tar.sigstore.json"
