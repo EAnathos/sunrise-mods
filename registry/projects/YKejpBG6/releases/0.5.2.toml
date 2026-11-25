@@ -1,0 +1,20 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "betterpingdisplay/v0.5.2"
+published = "2026-11-25T07:59:25Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/betterpingdisplay/v0.5.2/betterpingdisplay-0.5.2.smod"
+size = 31958
+sha256 = "e58edc0ac83d0219f879161f282a5ef9afdca11cf3594c40284dc56c8ebf509d"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/betterpingdisplay/v0.5.2/betterpingdisplay-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/betterpingdisplay/v0.5.2/betterpingdisplay-0.5.2.page.tar"
+size = 2344960
+sha256 = "f1a1854211d5addfd8a8dc7775f57bb7630f2f18e41d887efc9f1c95258ec8c3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/betterpingdisplay/v0.5.2/betterpingdisplay-0.5.2.page.tar.sigstore.json"
