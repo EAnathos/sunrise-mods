@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "accelerateddecay/v0.5.3"
+published = "2026-11-25T14:32:45Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/accelerateddecay/v0.5.3/accelerateddecay-0.5.3.smod"
+size = 28964
+sha256 = "4fe4a66dd59ac6eaba4d125100db4333dcfa1f385911869caa8d56d479741bf5"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/accelerateddecay/v0.5.3/accelerateddecay-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/accelerateddecay/v0.5.3/accelerateddecay-0.5.3.page.tar"
+size = 420352
+sha256 = "4a06b0620bec1caa7801d3900894268023bc19ae4e1a637f2de765e6f3895886"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/accelerateddecay/v0.5.3/accelerateddecay-0.5.3.page.tar.sigstore.json"
