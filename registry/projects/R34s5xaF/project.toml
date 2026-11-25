@@ -1,0 +1,9 @@
+id = "R34s5xaF"
+slug = "create"
+mod = "create"
+kind = "native-mod"
+owners = ["OlaHulleberg"]
+repository = 1443415428
+path = "create"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-25"
