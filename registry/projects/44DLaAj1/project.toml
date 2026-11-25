@@ -1,0 +1,9 @@
+id = "44DLaAj1"
+slug = "sooty-chimneys"
+mod = "sootychimneys"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "sootychimneys"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-25"
