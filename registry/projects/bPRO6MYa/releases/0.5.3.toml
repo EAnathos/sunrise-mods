@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "blockrunner/v0.5.3"
+published = "2026-11-25T14:34:02Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/blockrunner/v0.5.3/blockrunner-0.5.3.smod"
+size = 27621
+sha256 = "4b8fd4956fbd00625bb586e52a23d7b75bde2d133653a193faf470fc657f9dfb"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/blockrunner/v0.5.3/blockrunner-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/blockrunner/v0.5.3/blockrunner-0.5.3.page.tar"
+size = 588800
+sha256 = "27edf024e2889d8beab58b4b9b8ff970b69931adb97a3b98793a73d9ea02d969"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/blockrunner/v0.5.3/blockrunner-0.5.3.page.tar.sigstore.json"
