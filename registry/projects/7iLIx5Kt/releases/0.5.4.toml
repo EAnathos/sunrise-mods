@@ -1,0 +1,20 @@
+version = "0.5.4"
+kind = "native-mod"
+tag = "betterdays/v0.5.4"
+published = "2026-11-25T14:33:10Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/betterdays/v0.5.4/betterdays-0.5.4.smod"
+size = 168062
+sha256 = "ad2d05e3e722bc1b93f520a0dcc95de4433fedfb62c06686710054b5102c3644"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/betterdays/v0.5.4/betterdays-0.5.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/betterdays/v0.5.4/betterdays-0.5.4.page.tar"
+size = 113152
+sha256 = "cf9ada43fae181c3ea0a6e739add6526c1d98175ff7646c17d7c1e22d359ba44"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/betterdays/v0.5.4/betterdays-0.5.4.page.tar.sigstore.json"
