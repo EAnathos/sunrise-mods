@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "easymagic/v0.5.3"
+published = "2026-11-25T14:35:48Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/easymagic/v0.5.3/easymagic-0.5.3.smod"
+size = 73104
+sha256 = "6e0e44b1f44eb8de4ca76d8fa030dfc26bf158f6b587a240d7b6380fd3331327"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/easymagic/v0.5.3/easymagic-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/easymagic/v0.5.3/easymagic-0.5.3.page.tar"
+size = 654336
+sha256 = "3caffe15ee0d67d4bed657a426f66f96599fdb2cf01b32a381cccbb0ea83f9b6"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/easymagic/v0.5.3/easymagic-0.5.3.page.tar.sigstore.json"
