@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "mousewheelie/v0.5.1"
+published = "2026-11-25T10:28:22Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/mousewheelie/v0.5.1/mousewheelie-0.5.1.smod"
+size = 40125
+sha256 = "16f4d93725781ca09c72ab05b6b3eb58ed372f25c9a6be5485a261e4eb4a917b"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/mousewheelie/v0.5.1/mousewheelie-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/mousewheelie/v0.5.1/mousewheelie-0.5.1.page.tar"
+size = 136704
+sha256 = "6c773763ff573d4a4aa8c8279ce7824c05a6207848766e08838f474821cf5464"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/mousewheelie/v0.5.1/mousewheelie-0.5.1.page.tar.sigstore.json"
