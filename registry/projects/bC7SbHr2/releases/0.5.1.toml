@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "trinkets/v0.5.1"
+published = "2026-11-25T14:56:21Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/trinkets/v0.5.1/trinkets-0.5.1.smod"
+size = 46131
+sha256 = "2c40705e9973e0426c2127dff8a65c85e781071a37ad71b5293ea22e5099ef9b"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/trinkets/v0.5.1/trinkets-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/trinkets/v0.5.1/trinkets-0.5.1.page.tar"
+size = 381440
+sha256 = "96d261fd547471fcb18172468b66715070915bbbc639e14761172dc5943a62b7"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/trinkets/v0.5.1/trinkets-0.5.1.page.tar.sigstore.json"
