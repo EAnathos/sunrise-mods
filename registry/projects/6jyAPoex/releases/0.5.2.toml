@@ -1,0 +1,20 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "mcaccel/v0.5.2"
+published = "2026-11-25T07:58:25Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/mcaccel/v0.5.2/mcaccel-0.5.2.smod"
+size = 192904
+sha256 = "71a8d5f8409e32853bff61cbff2b86323da478a4795bcf0ab6c0f6b97cf3cbd6"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/mcaccel/v0.5.2/mcaccel-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/mcaccel/v0.5.2/mcaccel-0.5.2.page.tar"
+size = 289280
+sha256 = "176725f1ca73af1187adfb893eff43de3e8d7aa9c06b144bfce9430b7c76d2d3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/mcaccel/v0.5.2/mcaccel-0.5.2.page.tar.sigstore.json"
