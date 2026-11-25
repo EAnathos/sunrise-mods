@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "fallingleaves/v0.5.3"
+published = "2026-11-25T14:35:48Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/fallingleaves/v0.5.3/fallingleaves-0.5.3.smod"
+size = 136071
+sha256 = "119865ce88aa58efd5f7988b8ca226754786cb88a386ac5614582d913f44dbc7"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/fallingleaves/v0.5.3/fallingleaves-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/fallingleaves/v0.5.3/fallingleaves-0.5.3.page.tar"
+size = 1401344
+sha256 = "42b3444e5d037099babdbc8b0c9aec260e51059f1e6b9a3122e3f497ed0d15dd"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/fallingleaves/v0.5.3/fallingleaves-0.5.3.page.tar.sigstore.json"
