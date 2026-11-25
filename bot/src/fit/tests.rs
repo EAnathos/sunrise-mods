@@ -387,7 +387,7 @@ fn build_data(dir: &Path, commit: &Commit, body: &str) -> Data {
     for (file, body) in [
         (
             "functions.json",
-            serde_json::json!({"crates": {}, "refused": {}, "functions": {TARGET: {
+            serde_json::json!({"crates": {"sunrise_client": {"library": "sunrise_client", "modules": {"sunrise_client::game": []}}}, "refused": {}, "functions": {TARGET: {
                 "module": "sunrise_client::game", "file": "crates/sunrise-client/src/game.rs",
                 "span": [0, 1], "signature_hash": "sig", "sha256": body,
             }}}),

@@ -1183,6 +1183,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sunrise-jar-fetch",
  "sunrise-mod-package",
  "sunrise-mod-surface",
  "sunrise-native-build",
@@ -1409,12 +1410,25 @@ dependencies = [
 [[package]]
 name = "sunrise-addresses"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
+
+[[package]]
+name = "sunrise-assets"
+version = "0.1.0"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
+dependencies = [
+ "flate2",
+ "log",
+ "serde",
+ "serde_json",
+ "sunrise-core",
+ "zip",
+]
 
 [[package]]
 name = "sunrise-bench"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "serde",
  "serde_json",
@@ -1424,7 +1438,7 @@ dependencies = [
 [[package]]
 name = "sunrise-core"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "crc-fast",
  "crc32fast",
@@ -1441,7 +1455,7 @@ dependencies = [
 [[package]]
 name = "sunrise-game-discovery"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1453,12 +1467,22 @@ dependencies = [
 [[package]]
 name = "sunrise-hooks"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
+
+[[package]]
+name = "sunrise-jar-fetch"
+version = "0.1.0"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
 
 [[package]]
 name = "sunrise-mod-api-gen"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "heck",
  "prettyplease 0.2.37",
@@ -1477,7 +1501,7 @@ dependencies = [
 [[package]]
 name = "sunrise-mod-api-macros"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1487,7 +1511,7 @@ dependencies = [
 [[package]]
 name = "sunrise-mod-package"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "base64",
  "cap-std",
@@ -1501,6 +1525,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "sunrise-assets",
  "sunrise-core",
  "sunrise-mod-source",
  "sunrise-mod-surface",
@@ -1518,7 +1543,7 @@ dependencies = [
 [[package]]
 name = "sunrise-mod-runtime"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "sunrise-core",
 ]
@@ -1526,7 +1551,7 @@ dependencies = [
 [[package]]
 name = "sunrise-mod-source"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1538,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "sunrise-mod-surface"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "libc",
  "proc-macro2",
@@ -1551,7 +1576,7 @@ dependencies = [
 [[package]]
 name = "sunrise-mod-vocab"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "bytemuck",
  "glam",
@@ -1567,7 +1592,7 @@ dependencies = [
 [[package]]
 name = "sunrise-native-build"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "flate2",
  "libc",
@@ -1589,7 +1614,7 @@ dependencies = [
 [[package]]
 name = "sunrise-perf-format"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "flate2",
  "prost",
@@ -1600,7 +1625,7 @@ dependencies = [
 [[package]]
 name = "sunrise-platform"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "sunrise-bench",
  "sunrise-core",
@@ -1613,7 +1638,7 @@ dependencies = [
 [[package]]
 name = "sunrise-release-sign"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "base64",
  "ring",
@@ -1622,7 +1647,7 @@ dependencies = [
 [[package]]
 name = "sunrise-shader-api"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 dependencies = [
  "bytemuck",
  "naga",
@@ -1637,7 +1662,7 @@ dependencies = [
 [[package]]
 name = "sunrise-system"
 version = "0.1.0"
-source = "git+https://github.com/sunrise-org/sunrise.git?rev=e4261df663dc1675322d724f07e1c3b8959a1b2b#e4261df663dc1675322d724f07e1c3b8959a1b2b"
+source = "git+https://github.com/sunrise-org/sunrise.git?rev=4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b#4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b"
 
 [[package]]
 name = "syn"
