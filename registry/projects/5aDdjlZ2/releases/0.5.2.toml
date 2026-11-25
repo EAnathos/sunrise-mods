@@ -1,0 +1,20 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "safespawn/v0.5.2"
+published = "2026-11-25T07:59:11Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/safespawn/v0.5.2/safespawn-0.5.2.smod"
+size = 19251
+sha256 = "3420c5a708a2ab78809cbd742c562911de9757481d3e2334e2ab80d6801d6ac9"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/safespawn/v0.5.2/safespawn-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/safespawn/v0.5.2/safespawn-0.5.2.page.tar"
+size = 686592
+sha256 = "e23a6d5d53b12a57fb1cdc2576c414d749376d2bce70a564da9b2028df0c3133"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/safespawn/v0.5.2/safespawn-0.5.2.page.tar.sigstore.json"
