@@ -81,6 +81,8 @@ struct IndexRelease<'a> {
     does_not_fit: Vec<&'a BuildName>,
     file: &'a Asset,
     dependencies: &'a [Dependency],
+    #[serde(skip_serializing_if = "<[JarRef]>::is_empty")]
+    jars: &'a [JarRef],
 }
 
 /// Copies a validated image to `pages/<owner>/<sha256>.<png|jpg>` and returns that public path.
@@ -181,6 +183,7 @@ pub fn write(
                             does_not_fit: verdicts(false),
                             file: &release.file,
                             dependencies: &release.dependencies,
+                            jars: &release.jars,
                         }
                     })
                     .collect(),

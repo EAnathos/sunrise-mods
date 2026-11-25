@@ -738,6 +738,7 @@ fn prepared(
         file: assets.package,
         page: assets.page,
         dependencies: payload.dependencies.clone(),
+        jars: payload.package.manifest.jar.clone(),
     };
     Ok((row, payload))
 }
@@ -1282,9 +1283,15 @@ mod tests {
     fn writes_only_the_release_row_and_resolved_page() {
         let id = ProjectId::parse("Ab3dE9xQ".into()).unwrap();
         let fixture = Path::new(FIXTURE).join(project_path(&id));
-        let row: Release =
+        let mut row: Release =
             toml::from_str(&fs::read_to_string(fixture.join("releases/1.2.0.toml")).unwrap())
                 .unwrap();
+        assert!(
+            !toml::to_string_pretty(&row).unwrap().contains("jars"),
+            "a release without original jars writes no key"
+        );
+        row.jars =
+            vec![schema::JarRef::new("original".into(), "3.1.2".into(), "ab".repeat(64)).unwrap()];
         let page: schema::Page =
             toml::from_str(&fs::read_to_string(fixture.join("page/page.toml")).unwrap()).unwrap();
         let icon = fs::read(fixture.join("page").join(page.icon.as_str())).unwrap();

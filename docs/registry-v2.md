@@ -85,6 +85,7 @@ earlier release files, so every listed release has the project's kind. The earli
 | `[file]` | The `.smod` asset. Native mods ship source and a lockfile, not a binary. |
 | `[page]` | The separate page bundle. It is not part of the install or the published index. |
 | `[[dependencies]]` | Optional list. Each entry names a `mod` slot, the `version` requirement on its provider (semver, as written in the mod's manifest), and whether it is `required`. An optional `project` pins a specific registered provider of that in-game ID. |
+| `[[jars]]` | Optional list, in the order of the package manifest's `[[jar]]` tables: the `id`, `version` and `sha512` of each original Java jar the mod layers its assets and data on. The bot writes it from the package and the release check refuses a row that differs. The registry stores these references only, never a jar. |
 
 Both asset tables give the HTTPS `url`, `size` in bytes, `sha256` (64 lowercase hexadecimal
 characters), and HTTPS `attestation` URL. Both URLs use
@@ -235,7 +236,7 @@ The author's original filename is not published.
 
 Each project's `releases` array contains rows with `version`, `published`, `sunrise`, `workflow`,
 `repository`,
-`fits`, `file`, and `dependencies`. The release's `workflow` is an exact signer ref, not the project's
+`fits`, `file`, `dependencies` and, when the release lists any, `jars` (as in the release row). The release's `workflow` is an exact signer ref, not the project's
 bare workflow path. `fits` is an array of exact build IDs and `does_not_fit` (left out when empty) those judged not to
 fit. An offered build in neither list has not been judged for that release yet: a release is
 published as soon as it is merged, and its verdicts follow within the judging job's next run.
