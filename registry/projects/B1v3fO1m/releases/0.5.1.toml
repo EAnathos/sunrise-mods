@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "shouldersurfing/v0.5.1"
+published = "2026-11-25T09:03:44Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/shouldersurfing/v0.5.1/shouldersurfing-0.5.1.smod"
+size = 118346
+sha256 = "aabf788c34f4665d1f420dc36c1f709dedc05b0b2156e473056c83198978f9c3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/shouldersurfing/v0.5.1/shouldersurfing-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/shouldersurfing/v0.5.1/shouldersurfing-0.5.1.page.tar"
+size = 1494016
+sha256 = "e8a2943d06e03e30d94ead85260bff6bcb15d18c11d35d6a878193065d294088"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/shouldersurfing/v0.5.1/shouldersurfing-0.5.1.page.tar.sigstore.json"
