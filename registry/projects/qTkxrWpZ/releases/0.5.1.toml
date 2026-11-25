@@ -1,0 +1,24 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "things/v0.5.1"
+published = "2026-11-25T15:01:12Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/things/v0.5.1/things-0.5.1.smod"
+size = 284487
+sha256 = "a2d85d4dc893602c9b78fe307fa59af113403a88d605a39e695fe8037e1749e1"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/things/v0.5.1/things-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/things/v0.5.1/things-0.5.1.page.tar"
+size = 156160
+sha256 = "bfd882cb63a837b748bd2ef92fd39b391f264148560cd3a492b95f1144e1425a"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/things/v0.5.1/things-0.5.1.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "trinkets"
+version = "^0.5"
+required = false
