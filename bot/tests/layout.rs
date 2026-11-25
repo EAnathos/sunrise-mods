@@ -1554,3 +1554,24 @@ fn a_jar_modrinth_does_not_list_is_marked_until_modrinth_lists_it_again() {
         fs::remove_dir_all(checkout.path().join("output")).unwrap();
     }
 }
+
+/// Every verdict of the fixture is current, so the judging downloads nothing.
+#[test]
+fn a_judging_run_keeps_the_stored_list_of_unlisted_jars() {
+    let checkout = fit_checkout();
+    let stored = checkout.path().join("registry/fit/jars.json");
+    let text = format!("[\n  \"{}\"\n]\n", "ab".repeat(64));
+    fs::write(&stored, &text).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_registry-bot"))
+        .current_dir(checkout.path())
+        .env("PATH", "")
+        .args(["fit", "."])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(fs::read_to_string(stored).unwrap(), text);
+}
