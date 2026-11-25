@@ -1,0 +1,20 @@
+version = "0.6.2"
+kind = "native-mod"
+tag = "sootychimneys/v0.6.2"
+published = "2026-11-25T14:37:45Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/sootychimneys/v0.6.2/sootychimneys-0.6.2.smod"
+size = 96026
+sha256 = "c1dbef2a8388707da246f3fddf67242eeaf0b0ef840e8ab40024c6adadedadc5"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/sootychimneys/v0.6.2/sootychimneys-0.6.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/sootychimneys/v0.6.2/sootychimneys-0.6.2.page.tar"
+size = 177152
+sha256 = "7315c7ef64f3ca9264b16e04133d19952681d5d3f1067c4dd5d1ef7080cdb37d"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/sootychimneys/v0.6.2/sootychimneys-0.6.2.page.tar.sigstore.json"
