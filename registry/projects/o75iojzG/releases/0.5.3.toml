@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "invmove/v0.5.3"
+published = "2026-11-25T14:36:11Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/invmove/v0.5.3/invmove-0.5.3.smod"
+size = 69284
+sha256 = "6217e126a6f4fa425a3c2a49abfd092d27f8a3759556b2a3968b0a10d75a9f99"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/invmove/v0.5.3/invmove-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/invmove/v0.5.3/invmove-0.5.3.page.tar"
+size = 504832
+sha256 = "9cd2e3b67831b84b19956dce74f7355b7f35c9c49a07c0f76071978ea60a0193"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/invmove/v0.5.3/invmove-0.5.3.page.tar.sigstore.json"
