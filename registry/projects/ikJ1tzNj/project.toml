@@ -1,0 +1,9 @@
+id = "ikJ1tzNj"
+slug = "convenient-name-tags"
+mod = "convenientnametags"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "convenientnametags"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-25"
