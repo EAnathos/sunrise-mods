@@ -241,6 +241,17 @@ bare workflow path. `fits` is an array of exact build IDs and `does_not_fit` (le
 fit. An offered build in neither list has not been judged for that release yet: a release is
 published as soon as it is merged, and its verdicts follow within the judging job's next run.
 Readers filter using `fits` only.
+
+`dependency_unavailable` (left out when empty) lists `{ build, mod }` pairs: a build the release
+fits on which no listed release can satisfy its required dependency `mod`, so it cannot be installed
+there. A provider counts on a build when it is another project's listed release of that in-game ID
+(the pinned `project` when the dependency pins one), inside the dependency's `version` range, not
+revoked, fits the build, and can have its own required dependencies satisfied in turn; releases that
+need each other count as satisfying each other. A provider not judged on the build yet counts as
+fitting, so a pair appears only when no verdict still to come could change it. Optional
+dependencies are never considered. It is derived from the rows and stored verdicts each time the
+index is assembled and is stored nowhere. The registry bot and the launcher's install planner
+decide "satisfies" with the same code, the `sunrise-dependency-rule` crate.
 `file` contains
 `url`, `size`, `sha256`, and `attestation`. Each dependency carries `mod`, `version`, `project` and `required`.
 `version` is the semver requirement the provider's release must satisfy; a `null` `project` means

@@ -6,7 +6,7 @@ use std::path::Path;
 use semver::Version;
 use serde::Serialize;
 
-use crate::{builds::Build, fit, registry::Registry, schema::*};
+use crate::{builds::Build, dependency, fit, registry::Registry, schema::*};
 use sunrise_mod_package::index::v2::collection::Member;
 
 #[derive(Serialize)]
@@ -83,6 +83,16 @@ struct IndexRelease<'a> {
     dependencies: &'a [Dependency],
     #[serde(skip_serializing_if = "<[JarRef]>::is_empty")]
     jars: &'a [JarRef],
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    dependency_unavailable: Vec<DependencyUnavailable<'a>>,
+}
+
+/// A build the release fits on which nothing listed can satisfy its required dependency `mod`.
+#[derive(Serialize)]
+struct DependencyUnavailable<'a> {
+    build: &'a BuildName,
+    #[serde(rename = "mod")]
+    mod_id: &'a ModId,
 }
 
 /// Copies a validated image to `pages/<owner>/<sha256>.<png|jpg>` and returns that public path.
@@ -116,11 +126,35 @@ pub fn write(
     let pages = dest.join("pages");
     // A publish never mixes the current page set with images in an earlier output.
     fs::create_dir(&pages)?;
-    let projects = registry
-        .projects
-        .values()
-        .filter(|entry| !entry.releases.is_empty())
-        .filter_map(|entry| entry.page.as_ref().map(|page| (entry, page)))
+    let listed = || {
+        registry
+            .projects
+            .values()
+            .filter(|entry| !entry.releases.is_empty())
+            .filter_map(|entry| entry.page.as_ref().map(|page| (entry, page)))
+    };
+    let own_verdicts: Vec<dependency::Listed<'_>> = listed()
+        .flat_map(|(entry, _)| {
+            let fit = registry.fits.get(&entry.project.id);
+            entry.releases.values().map(move |release| {
+                let row = fit.and_then(|rows| rows.get(&release.version));
+                dependency::Listed {
+                    project: &entry.project.id,
+                    mod_id: &entry.project.mod_id,
+                    release,
+                    fits: registry
+                        .builds
+                        .iter()
+                        .map(|build| fit::verdict(row, release, build))
+                        .collect(),
+                }
+            })
+        })
+        .collect();
+    // In the order of `own_verdicts`, which is the order the releases are written below.
+    let mut dependency_unavailable =
+        dependency::unavailable(&own_verdicts, &registry.revoked).into_iter();
+    let projects = listed()
         .map(|(entry, page)| {
             let project = &entry.project;
             let id = project.id.as_str();
@@ -184,6 +218,15 @@ pub fn write(
                             file: &release.file,
                             dependencies: &release.dependencies,
                             jars: &release.jars,
+                            dependency_unavailable: dependency_unavailable
+                                .next()
+                                .into_iter()
+                                .flatten()
+                                .map(|(build, mod_id)| DependencyUnavailable {
+                                    build: &registry.builds[build].id,
+                                    mod_id,
+                                })
+                                .collect(),
                         }
                     })
                     .collect(),

@@ -1,4 +1,5 @@
 mod builds;
+mod dependency;
 mod fit;
 mod game_build;
 mod github;
