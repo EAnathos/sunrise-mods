@@ -11,10 +11,10 @@ percent-encoding = "2.3"
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sunrise-mod-package = { git = "https://github.com/sunrise-org/sunrise.git", rev = "592896d9c97d4f18291bfef8074d1b04e80dd311", default-features = false, features = ["index", "prebuilt"] }
-sunrise-mod-surface = { git = "https://github.com/sunrise-org/sunrise.git", rev = "592896d9c97d4f18291bfef8074d1b04e80dd311" }
-sunrise-native-build = { git = "https://github.com/sunrise-org/sunrise.git", rev = "592896d9c97d4f18291bfef8074d1b04e80dd311" }
-sunrise-release-sign = { git = "https://github.com/sunrise-org/sunrise.git", rev = "592896d9c97d4f18291bfef8074d1b04e80dd311" }
+sunrise-mod-package = { git = "https://github.com/sunrise-org/sunrise.git", rev = "4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b", default-features = false, features = ["index", "prebuilt"] }
+sunrise-mod-surface = { git = "https://github.com/sunrise-org/sunrise.git", rev = "4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b" }
+sunrise-native-build = { git = "https://github.com/sunrise-org/sunrise.git", rev = "4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b" }
+sunrise-release-sign = { git = "https://github.com/sunrise-org/sunrise.git", rev = "4f7f1fcf4ffa6d0943fc0a35781cbfd0e2ec292b" }
 tar = { version = "0.4", default-features = false }
 tempfile = "3"
 time = { version = "0.3", features = ["formatting", "macros", "parsing"] }
