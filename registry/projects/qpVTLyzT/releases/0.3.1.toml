@@ -1,0 +1,20 @@
+version = "0.3.1"
+kind = "native-mod"
+tag = "clutter/v0.3.1"
+published = "2026-11-25T15:01:06Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/clutter/v0.3.1/clutter-0.3.1.smod"
+size = 5350943
+sha256 = "7322e6a2bc0c9136283793a633a2bafd8d892a2529950412b0d923a408b757be"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/clutter/v0.3.1/clutter-0.3.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/clutter/v0.3.1/clutter-0.3.1.page.tar"
+size = 142848
+sha256 = "59d1171df6b0f148f62db5d7a2b540071d268f82a4f1062dc94e60105e11d579"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/clutter/v0.3.1/clutter-0.3.1.page.tar.sigstore.json"
