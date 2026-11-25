@@ -1,0 +1,20 @@
+version = "0.9.3"
+kind = "native-mod"
+tag = "wayfarer_stones/v0.9.3"
+published = "2026-11-25T08:45:24Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300624
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/wayfarer-stones/releases/download/wayfarer_stones/v0.9.3/wayfarer_stones-0.9.3.smod"
+size = 77197
+sha256 = "83ae114b15bfff3670010a989f99384e7430edafab21b50de0c3d8e3d70e4f2e"
+attestation = "https://github.com/arismoko/wayfarer-stones/releases/download/wayfarer_stones/v0.9.3/wayfarer_stones-0.9.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/wayfarer-stones/releases/download/wayfarer_stones/v0.9.3/wayfarer_stones-0.9.3.page.tar"
+size = 841216
+sha256 = "ba6c1e19bc07def83f1e3dfe4193c86ff9d89e800a6dd1d0e83c98bf87a20a9a"
+attestation = "https://github.com/arismoko/wayfarer-stones/releases/download/wayfarer_stones/v0.9.3/wayfarer_stones-0.9.3.page.tar.sigstore.json"
