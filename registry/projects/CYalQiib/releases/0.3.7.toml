@@ -1,0 +1,20 @@
+version = "0.3.7"
+kind = "native-mod"
+tag = "v0.3.7"
+published = "2026-11-25T08:44:56Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300297
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/yungs_better_mineshafts/releases/download/v0.3.7/bettermineshafts-0.3.7.smod"
+size = 139826
+sha256 = "27ba218473a84c7f982664f08a850fec944769ae60d571727cd6e68b66139523"
+attestation = "https://github.com/arismoko/yungs_better_mineshafts/releases/download/v0.3.7/bettermineshafts-0.3.7.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/yungs_better_mineshafts/releases/download/v0.3.7/bettermineshafts-0.3.7.page.tar"
+size = 1752576
+sha256 = "c9e2c2b160ec45cff1abca8144c787eddf83c0d613a1c97c246eaafbdb33cb58"
+attestation = "https://github.com/arismoko/yungs_better_mineshafts/releases/download/v0.3.7/bettermineshafts-0.3.7.page.tar.sigstore.json"
