@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "enchantmentdescriptions/v0.5.1"
+published = "2026-11-25T03:34:10Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/enchantmentdescriptions/v0.5.1/enchantmentdescriptions-0.5.1.smod"
+size = 88690
+sha256 = "311354eb3d1b305650a42037a39e86759cf5e3d26982099f0d622a61b3724757"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/enchantmentdescriptions/v0.5.1/enchantmentdescriptions-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/enchantmentdescriptions/v0.5.1/enchantmentdescriptions-0.5.1.page.tar"
+size = 628224
+sha256 = "0e7189d4f65b0986d0b4be0f506d103f8b17f093086fa290a641fcfd4f8bfacf"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/enchantmentdescriptions/v0.5.1/enchantmentdescriptions-0.5.1.page.tar.sigstore.json"

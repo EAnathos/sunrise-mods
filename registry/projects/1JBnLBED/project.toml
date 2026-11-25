@@ -1,0 +1,9 @@
+id = "1JBnLBED"
+slug = "armor-hud"
+mod = "armorhud"
+kind = "native-mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "armorhud"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-25"

@@ -360,30 +360,6 @@ pub struct Page {
     pub screenshots: Vec<Screenshot>,
 }
 
-#[derive(Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct Collection {
-    pub id: ProjectId,
-    pub name: Text,
-    pub summary: Text,
-    #[serde(default)]
-    pub description: String,
-    pub member: Vec<Member>,
-}
-
-#[derive(Deserialize, Serialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct Member {
-    pub project: ProjectId,
-    /// Whether the member is selected when a player opens the collection.
-    #[serde(default = "selected")]
-    pub default: bool,
-}
-
-fn selected() -> bool {
-    true
-}
-
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Screenshot {

@@ -7,6 +7,7 @@ use semver::Version;
 use serde::Serialize;
 
 use crate::{builds::Build, dependency, fit, registry::Registry, schema::*};
+use sunrise_mod_package::index::v2::collection::Member;
 
 #[derive(Serialize)]
 struct Index<'a> {
@@ -47,8 +48,8 @@ struct IndexProject<'a> {
 #[derive(Serialize)]
 struct IndexCollection<'a> {
     id: &'a ProjectId,
-    name: &'a Text,
-    summary: &'a Text,
+    name: &'a str,
+    summary: &'a str,
     description: &'a str,
     publisher: &'a str,
     icon: String,
@@ -232,7 +233,7 @@ pub fn write(
             })
         })
         .collect::<io::Result<Vec<_>>>()?;
-    let listed: BTreeSet<_> = projects.iter().map(|project| project.id).collect();
+    let listed: BTreeSet<&str> = projects.iter().map(|project| project.id.as_str()).collect();
     let collections = registry
         .collections
         .iter()
@@ -243,7 +244,7 @@ pub fn write(
                 .collection
                 .member
                 .iter()
-                .filter(|member| listed.contains(&member.project))
+                .filter(|member| listed.contains(member.project.as_str()))
                 .collect();
             (members.len() >= 2 && members.iter().any(|member| member.default))
                 .then_some((id, entry, members))

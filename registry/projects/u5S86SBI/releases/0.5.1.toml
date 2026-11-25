@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "easyanvils/v0.5.1"
+published = "2026-11-25T02:38:51Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/easyanvils/v0.5.1/easyanvils-0.5.1.smod"
+size = 68626
+sha256 = "9e32367c4d8bd438c6b5cc50911d894b8cf2f19666dcf35db5fde8ffe653e8db"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/easyanvils/v0.5.1/easyanvils-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/easyanvils/v0.5.1/easyanvils-0.5.1.page.tar"
+size = 670720
+sha256 = "fbec3a85287805883bb26517e9c5fd94cfc6b1b49877b4f21aa1809f2eecfbac"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/easyanvils/v0.5.1/easyanvils-0.5.1.page.tar.sigstore.json"

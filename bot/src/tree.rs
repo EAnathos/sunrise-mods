@@ -137,6 +137,20 @@ impl<'a> Tree<'a> {
         }
     }
 
+    /// A file's bytes, up to `limit`.
+    pub fn bytes(&mut self, path: &Path, limit: u64) -> Option<Vec<u8>> {
+        let mut bytes = Vec::new();
+        match fs::File::open(self.checkout.join(path))
+            .and_then(|file| file.take(limit).read_to_end(&mut bytes))
+        {
+            Ok(_) => Some(bytes),
+            Err(err) => {
+                self.problem(path, err);
+                None
+            }
+        }
+    }
+
     pub fn screenshot(&mut self, path: &Path) {
         let result = (|| {
             let file = fs::File::open(self.checkout.join(path))?;

@@ -12,6 +12,10 @@ use crate::{
     schema::*,
     tree::{Entry, Tree},
 };
+use sunrise_mod_package::{
+    icon::MAX_ICON,
+    index::v2::collection::{Collection, ICON, Part, Registered, TOML, check_collection},
+};
 
 /// The site's own pages under `/mods/` (sunny `frontend/site/src/pages/mods/`: `mine.astro`, `policy.astro`,
 /// `registry-page.astro`, `submit.astro`). A project's page is `/mods/<slug>`, so no project takes one of these.
@@ -390,80 +394,66 @@ fn read_collections(
     let mut collections = BTreeMap::new();
     for (name, entry) in tree.list(root) {
         let dir = root.join(&name);
-        let Ok(id) = ProjectId::parse(name.to_string_lossy().into_owned()) else {
-            tree.problem(
-                &dir,
-                "expected a directory named by an 8-character base62 collection ID",
-            );
-            continue;
-        };
         if entry != Entry::Directory {
             tree.problem(&dir, "expected a collection directory");
             continue;
         }
-        let file = dir.join("collection.toml");
+        let folder = name.to_string_lossy().into_owned();
+        let file = dir.join(TOML);
+        let icon_path = dir.join(ICON);
         let mut entries = tree.list(&dir);
-        let collection =
-            tree.toml::<Collection>(&file, entries.remove(OsStr::new("collection.toml")));
-        let icon = dir.join("icon.png");
-        match entries.remove(OsStr::new("icon.png")) {
-            Some(Entry::File) => tree.icon(&icon),
-            _ => tree.problem(&icon, "expected the collection's PNG icon"),
-        }
-        tree.unknown(&dir, entries);
-        let Some(collection) = collection else {
-            continue;
+        let collection = tree.toml::<Collection>(&file, entries.remove(OsStr::new(TOML)));
+        let icon = match entries.get(OsStr::new(ICON)) {
+            Some(Entry::File) => tree.bytes(&icon_path, MAX_ICON as u64 + 1),
+            _ => None,
         };
-        if collection.id != id {
-            tree.problem(&file, "collection ID must match the directory name");
-        }
-        if projects.contains_key(&id) {
-            tree.problem(&file, "collection ID is the ID of a project");
-        }
-        if collection.member.len() < 2 {
-            tree.problem(&file, "a collection needs at least two members");
-        }
-        if !collection.member.iter().any(|member| member.default) {
-            tree.problem(&file, "at least one member must be selected by default");
-        }
-        let mut seen = BTreeSet::new();
-        let mut publisher = None;
-        for member in &collection.member {
-            let project = member.project.as_str();
-            if !seen.insert(&member.project) {
-                tree.problem(&file, format!("duplicate member {project}"));
-            }
-            let Some(entry) = projects.get(&member.project) else {
-                tree.problem(
-                    &file,
-                    format!("member {project} is not a registered project"),
-                );
-                continue;
+        let names: Vec<String> = entries
+            .keys()
+            .map(|name| name.to_string_lossy().into_owned())
+            .collect();
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+        let lookup = |project: &str| {
+            let entry = projects.get(&ProjectId::parse(project.to_owned()).ok()?)?;
+            Some(Registered {
+                publisher: entry
+                    .repository_name
+                    .as_str()
+                    .split_once('/')
+                    .expect("validated when parsed")
+                    .0
+                    .to_owned(),
+                owners: entry
+                    .project
+                    .owners
+                    .iter()
+                    .map(|login| login.as_str().to_owned())
+                    .collect(),
+            })
+        };
+        let report = check_collection(
+            &folder,
+            &names,
+            collection.as_ref(),
+            icon.as_deref(),
+            &lookup,
+        );
+        for problem in report.problems {
+            let path = match problem.part {
+                Part::Folder => dir.clone(),
+                Part::Toml => file.clone(),
+                Part::Icon => icon_path.clone(),
+                Part::Entry(name) => dir.join(name),
             };
-            let account = entry
-                .repository_name
-                .as_str()
-                .split_once('/')
-                .expect("validated when parsed")
-                .0;
-            match publisher {
-                None => publisher = Some(account),
-                // GitHub logins are case-insensitive.
-                Some(first) if !first.eq_ignore_ascii_case(account) => tree.problem(
-                    &file,
-                    format!(
-                        "member {project} is published by {account}, not by {first}: a collection lists one publisher's mods"
-                    ),
-                ),
-                Some(_) => {}
-            }
+            tree.problem(&path, problem.message);
         }
-        if let Some(publisher) = publisher {
+        if let (Some(collection), Some(publisher), Ok(id)) =
+            (collection, report.publisher, ProjectId::parse(folder))
+        {
             collections.insert(
                 id,
                 CollectionEntry {
                     collection,
-                    publisher: publisher.to_owned(),
+                    publisher,
                 },
             );
         }
