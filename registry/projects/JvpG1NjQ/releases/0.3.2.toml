@@ -1,0 +1,20 @@
+version = "0.3.2"
+kind = "native-mod"
+tag = "mythicupgrades/v0.3.2"
+published = "2026-11-25T14:36:20Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/mythicupgrades/v0.3.2/mythicupgrades-0.3.2.smod"
+size = 1582048
+sha256 = "05700b3c2ff8d9a16ba7d03008e956587df437c6205a051616c07e71b4c4ac86"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/mythicupgrades/v0.3.2/mythicupgrades-0.3.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/mythicupgrades/v0.3.2/mythicupgrades-0.3.2.page.tar"
+size = 167424
+sha256 = "e12f34a01cdd9565f1f6b30b708150b20abefbd347d42264b3190aebcbccdb0f"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/mythicupgrades/v0.3.2/mythicupgrades-0.3.2.page.tar.sigstore.json"
