@@ -150,6 +150,20 @@ def module_in_release(files, roots, declaring, lines):
     return folder / f"{names[0]}.rs" in files or folder / names[0] / "mod.rs" in files
 
 
+def other_sources(files):
+    """The source files of a native package that are not Rust: what a build script may compile.
+
+    A package's other files are its own (`sunrise-mod.toml`, `uses.json`, `icon.png`) or its
+    resources (`assets/`, `data/`, `runtime/`), as `sunrise-mod-package` reads a package. The
+    Rust rules read `.rs`, the manifest checks read `.toml` and `Cargo.lock`, and a root
+    README, licence or notice is text. Whatever is left is code no rule here has read.
+    """
+    def read(name):
+        text = len(name.parts) == 1 and name.name.startswith(("README", "LICENSE", "LICENCE", "COPYING", "NOTICE"))
+        return name.parts[0] in ("assets", "data", "runtime") or name.suffix in (".rs", ".toml") or text
+    return sorted(name for name in files if not read(name) and name.as_posix() not in ("Cargo.lock", "uses.json", "icon.png"))
+
+
 def semgrep(files, targets, roots, work, flags):
     src = work / "rust"
     src.mkdir()
@@ -375,6 +389,8 @@ def scan(source, prior, work, failures, flags, note):
     semgrep(files, targets, roots, work, flags)
     for path in sorted(scripts):
         flags["Build scripts"].append((f"{path}:1", "Review the code Cargo runs before compiling the mod."))
+    for path in other_sources(files):
+        flags["Non-Rust source files"].append((f"{path}:1", "No rule here reads this file. Review it as code."))
     for path in sorted(macros):
         flags["Proc-macro crates"].append((f"{path / 'Cargo.toml'}:1", "Review the code that runs during compilation."))
     if (manifests or Path("Cargo.lock") in files) and not {Path("Cargo.toml"), Path("Cargo.lock")} <= files.keys():

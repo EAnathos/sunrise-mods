@@ -1,7 +1,7 @@
 from pathlib import Path
 import unittest
 
-from scan import module_in_release
+from scan import module_in_release, other_sources
 
 
 class ModuleFileTest(unittest.TestCase):
@@ -28,3 +28,14 @@ class ModuleFileTest(unittest.TestCase):
         self.assertFalse(self.present("src/lib.rs", "mod generated;"))
         self.assertFalse(self.present("src/lib.rs", "mod /* note */ terrain;"))
         self.assertFalse(self.present("src/lib.rs", "mod terrain; mod pieces;"))
+
+
+class OtherSourcesTest(unittest.TestCase):
+    def test_only_source_no_rule_reads_is_listed(self):
+        files = {Path(name) for name in (
+            "sunrise-mod.toml", "uses.json", "icon.png", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "build.rs",
+            "src/lib.rs", "src/tables.toml", "assets/gb/textures/block/stone.png", "data/gb/recipe/slab.json",
+            "runtime/helper.jar", "native/fast.c", "native/fast.h", "src/shim.S", "docs/README.md")}
+        self.assertEqual([path.as_posix() for path in other_sources(files)],
+                         ["docs/README.md", "native/fast.c", "native/fast.h", "src/shim.S"])
+
