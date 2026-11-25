@@ -301,8 +301,9 @@ fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String> {
 }
 
 /// Starts the message of a download or a `gh` call that failed for a reason that is not the
-/// release's: the server answered 5xx, or the connection timed out or broke.
-const UNAVAILABLE: &str = "GitHub unavailable";
+/// release's: the server (GitHub, or Modrinth for an original jar) answered 5xx or with a rate
+/// limit, or the connection timed out or broke.
+const UNAVAILABLE: &str = "Server unavailable";
 
 /// Set when such a failure happened in this process. A run that then fails exits with
 /// [`UNAVAILABLE_EXIT`], so a caller can tell "could not check" from "checked and refused".
@@ -343,11 +344,21 @@ pub fn download(url: &str, dest: &Path, limit: u64) -> Result<(), String> {
     if limit == 0 {
         return Err("empty release asset".into());
     }
+    // All callers pass a canonical GitHub release URL. HTTPS redirects are needed for
+    // GitHub's CDN and repository renames.
+    if transfer(&["--location"], url, dest, limit)? {
+        Ok(())
+    } else {
+        Err("download not found (HTTP 404)".into())
+    }
+}
+
+/// Writes what `url` answers into `dest`, at most `limit` bytes, with curl and its `options`;
+/// `false` when the server has no such file (HTTP 404). curl never gets an authorization header
+/// or an author's options.
+pub fn transfer(options: &[&str], url: &str, dest: &Path, limit: u64) -> Result<bool, String> {
     let mut waits = RETRY_WAITS.into_iter();
     loop {
-        // All callers pass a canonical GitHub release URL. HTTPS redirects are needed for
-        // GitHub's CDN and repository renames. curl never gets an authorization header or an
-        // author's options.
         let output = Command::new("curl")
             .args([
                 "--disable",
@@ -358,13 +369,13 @@ pub fn download(url: &str, dest: &Path, limit: u64) -> Result<(), String> {
                 "--fail",
                 "--silent",
                 "--show-error",
-                "--location",
                 "--globoff",
                 "--write-out",
                 "%{http_code}",
                 "--max-filesize",
             ])
             .arg(limit.to_string())
+            .args(options)
             .arg("--output")
             .arg(dest)
             .arg("--url")
@@ -376,10 +387,16 @@ pub fn download(url: &str, dest: &Path, limit: u64) -> Result<(), String> {
         }
         let http = String::from_utf8_lossy(&output.stdout);
         if http == "404" {
-            return Err("download not found (HTTP 404)".into());
+            return Ok(false);
         }
         let reason = String::from_utf8_lossy(&output.stderr);
         let reason = reason.trim();
+        // A rate limit says nothing about the file either, and waiting a few seconds does not
+        // end one: the check is left unchecked without another attempt.
+        if http == "429" {
+            WAS_UNAVAILABLE.store(true, Ordering::Relaxed);
+            return Err(format!("{UNAVAILABLE}: {reason}"));
+        }
         let passing = http.starts_with('5')
             || output
                 .status
@@ -400,7 +417,7 @@ pub fn download(url: &str, dest: &Path, limit: u64) -> Result<(), String> {
     if fs::metadata(dest).map_err(|e| e.to_string())?.len() > limit {
         return Err("download exceeds its size limit".into());
     }
-    Ok(())
+    Ok(true)
 }
 
 #[derive(Debug)]

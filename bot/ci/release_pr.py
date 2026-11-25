@@ -28,10 +28,10 @@ BOT = "github-actions[bot]"
 STATUS = "registry-v2/release-check"
 WORKFLOW = "release-check.yml"
 NOT_A_RELEASE = "release-not-applicable.yml"
-# The status description of a check that could not finish because GitHub or the connection failed. It says
+# The status description of a check that could not finish because GitHub, Modrinth or the connection failed. It says
 # nothing about the release: the watcher runs such a check once more, and a reader of the status (a reviewer,
 # the merger) tells it from a refusal by this text.
-UNAVAILABLE = "Not checked: GitHub failed. Not a verdict on the release"
+UNAVAILABLE = "Not checked: GitHub or Modrinth failed. Not a verdict on the release"
 # registry-bot's exit for it (`UNAVAILABLE_EXIT` in bot/src/github.rs).
 UNAVAILABLE_EXIT = 75
 MAIN = "refs/heads/main"
@@ -395,7 +395,7 @@ def report(folder):
         verified = jobs.get("verify", {}).get("outputs", {})
         if verified.get("attempt") == attempt and verified.get("unavailable") == "true":
             description = UNAVAILABLE
-            body += ("\n**Not checked**: GitHub answered with a server error or the connection failed, so this "
+            body += ("\n**Not checked**: GitHub or Modrinth answered with a server error or the connection failed, so this "
                      "says nothing about the release. The check runs once more by itself; after that, use "
                      "**Rerun all jobs**.\n")
         elif not current or os.environ["REPORT_DOWNLOADED"] != "true":

@@ -314,6 +314,11 @@ pub fn check(
     if let Some(missing) = unsupplied(&registry, id, &row) {
         return Err(missing);
     }
+    let manifest = &payload.package.manifest;
+    if !manifest.jar.is_empty() {
+        let smod = work.path().join("package.smod");
+        crate::jar::check(&smod, manifest, work.path(), &crate::jar::Curl)?;
+    }
     write_release(
         &row,
         &payload,
