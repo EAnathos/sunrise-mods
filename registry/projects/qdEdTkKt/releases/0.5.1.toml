@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "overflowingbars/v0.5.1"
+published = "2026-11-25T07:57:11Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/overflowingbars/v0.5.1/overflowingbars-0.5.1.smod"
+size = 35552
+sha256 = "747f52f55ebbf67e8ae3425fe30181f623ada0d3f6f0ac0b1745575520f8f08f"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/overflowingbars/v0.5.1/overflowingbars-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/overflowingbars/v0.5.1/overflowingbars-0.5.1.page.tar"
+size = 1728000
+sha256 = "ef257b922e317b0eb22bf3b7556f092aa0cf20a5d0c4e8373c92d7fc89b6d630"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/overflowingbars/v0.5.1/overflowingbars-0.5.1.page.tar.sigstore.json"
