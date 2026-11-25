@@ -1,0 +1,20 @@
+version = "0.1.1"
+kind = "native-mod"
+tag = "tokimistoolshed/v0.1.1"
+published = "2026-11-25T14:56:40Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/tokimistoolshed/v0.1.1/tokimistoolshed-0.1.1.smod"
+size = 618535
+sha256 = "2cb5714b6ab0790f7a13c9569f46e835f09969b5108d0dc0a1dc8a01702cbeaa"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/tokimistoolshed/v0.1.1/tokimistoolshed-0.1.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/tokimistoolshed/v0.1.1/tokimistoolshed-0.1.1.page.tar"
+size = 228864
+sha256 = "2db1f8a8ae91b48690890b2906b5ff20e2d4e2fe3ec93bcf53aa67e6cfa68600"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/tokimistoolshed/v0.1.1/tokimistoolshed-0.1.1.page.tar.sigstore.json"
