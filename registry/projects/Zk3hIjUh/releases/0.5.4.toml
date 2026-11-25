@@ -1,0 +1,20 @@
+version = "0.5.4"
+kind = "native-mod"
+tag = "fallingtrees/v0.5.4"
+published = "2026-11-25T14:35:39Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/fallingtrees/v0.5.4/fallingtrees-0.5.4.smod"
+size = 377449
+sha256 = "2cbb03aac6654d4a7c37be159c996aeb03f60592da60b77db561eb541a83e71b"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/fallingtrees/v0.5.4/fallingtrees-0.5.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/fallingtrees/v0.5.4/fallingtrees-0.5.4.page.tar"
+size = 570880
+sha256 = "b0845d808a744b746ba4dfef8e216dcb6cc815f3fffaed604d0a4e810e7ef7cf"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/fallingtrees/v0.5.4/fallingtrees-0.5.4.page.tar.sigstore.json"
