@@ -391,4 +391,35 @@ mod tests {
         }
         assert_eq!(native_source(&["src/caf\u{e9}.rs", "src/cafe.rs"]), Ok(()));
     }
+
+    /// What the pinned Sunrise tools accept as a native mod's source: C beside the Rust, never
+    /// a file that is already machine code, whatever it is called.
+    #[test]
+    fn a_native_package_carries_c_sources_and_no_prebuilt_binary() {
+        let manifest = format!(
+            "id='wayfinder'\nname='Wayfinder'\nversion='1.2.0'\n[native]\ngame='26.3'\nsunrise='{}'\n",
+            "d".repeat(40)
+        );
+        let read = |name: &str, bytes: &[u8]| {
+            let body = Package::write_files(
+                &manifest,
+                &[
+                    ("Cargo.toml", b"[package]\nname='wayfinder'\n".as_slice()),
+                    ("build.rs", b"fn main() {}\n"),
+                    ("src/lib.rs", b"pub fn read_map() {}\n"),
+                    (name, bytes),
+                ],
+            )?;
+            let dir = tempfile::tempdir().unwrap();
+            let smod = dir.path().join("wayfinder.smod");
+            std::fs::write(&smod, body).unwrap();
+            Package::read(&smod).map(|_| ())
+        };
+        assert_eq!(
+            read("vendor/add.c", b"int add(int a, int b) { return a + b; }\n"),
+            Ok(())
+        );
+        let refused = read("vendor/add.c", b"\x7fELF\x02\x01\x01\0").unwrap_err();
+        assert!(refused.contains("vendor/add.c"), "{refused}");
+    }
 }
