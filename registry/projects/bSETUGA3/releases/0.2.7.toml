@@ -1,0 +1,20 @@
+version = "0.2.7"
+kind = "native-mod"
+tag = "v0.2.7"
+published = "2026-11-25T09:10:45Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300594
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/macaws_paths_and_pavings/releases/download/v0.2.7/mcwpaths-0.2.7.smod"
+size = 932342
+sha256 = "39ec0ec5278c239e8c0b3415f8c655f09cf6850e6e77cd488063ff70f194aca5"
+attestation = "https://github.com/arismoko/macaws_paths_and_pavings/releases/download/v0.2.7/mcwpaths-0.2.7.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/macaws_paths_and_pavings/releases/download/v0.2.7/mcwpaths-0.2.7.page.tar"
+size = 1284608
+sha256 = "0cf4acda6c0ca402d01cf5db99fbc14ef5ca1111c83db97a5280e23f97156448"
+attestation = "https://github.com/arismoko/macaws_paths_and_pavings/releases/download/v0.2.7/mcwpaths-0.2.7.page.tar.sigstore.json"
