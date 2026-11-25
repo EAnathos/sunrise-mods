@@ -1,0 +1,20 @@
+version = "0.5.1"
+kind = "native-mod"
+tag = "smwyg/v0.5.1"
+published = "2026-11-25T09:56:26Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/smwyg/v0.5.1/smwyg-0.5.1.smod"
+size = 18019
+sha256 = "3774a645af6c0a849c775615acf338c8a7998d55d920ce193d4160009508d703"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/smwyg/v0.5.1/smwyg-0.5.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/smwyg/v0.5.1/smwyg-0.5.1.page.tar"
+size = 543232
+sha256 = "251789889986c8597c80b2c02c7d31753ba351e4595574ed59f2a98ba998e6e3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/smwyg/v0.5.1/smwyg-0.5.1.page.tar.sigstore.json"
