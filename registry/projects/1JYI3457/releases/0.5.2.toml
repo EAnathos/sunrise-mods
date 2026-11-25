@@ -1,0 +1,20 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "sophisticatedcore/v0.5.2"
+published = "2026-11-25T14:37:59Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/sophisticatedcore/v0.5.2/sophisticatedcore-0.5.2.smod"
+size = 1869438
+sha256 = "3addcfb2481afe42250207e9059047aa95e01601e551974748c4f3a87ccaa7f3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/sophisticatedcore/v0.5.2/sophisticatedcore-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/sophisticatedcore/v0.5.2/sophisticatedcore-0.5.2.page.tar"
+size = 205824
+sha256 = "2ac66e4464db369bd6d3df81bcac759c4741cd2457de3b7aa0c61bc50e371660"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/sophisticatedcore/v0.5.2/sophisticatedcore-0.5.2.page.tar.sigstore.json"
