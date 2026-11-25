@@ -1441,7 +1441,7 @@ fn a_server_error_is_retried_and_ends_apart_from_a_refusal_while_a_client_error_
     .unwrap();
     // Exit 75 is `EX_TEMPFAIL`, which the release check reads as "could not check".
     for (http, starts, exit, message) in [
-        ("504", 4, 75, "GitHub unavailable: download failed 4 times"),
+        ("504", 4, 75, "Server unavailable: download failed 4 times"),
         ("403", 1, 1, "download failed"),
     ] {
         fs::write(bin.join("curl.http"), http).unwrap();
@@ -1478,7 +1478,7 @@ fn a_github_server_error_ends_a_release_check_apart_from_a_refusal() {
         ("gh: Bad Gateway (HTTP 502)", 75),
         ("gh: Not Found (HTTP 404)", 1),
         // Text in a refusal cannot make it look unchecked.
-        ("gh: GitHub unavailable: no release tagged so (HTTP 404)", 1),
+        ("gh: Server unavailable: no release tagged so (HTTP 404)", 1),
     ] {
         fs::write(bin.join("gh.message"), message).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_registry-bot"))
