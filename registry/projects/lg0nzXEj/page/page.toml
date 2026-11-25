@@ -1,0 +1,53 @@
+name = "Ladybugs"
+summary = "Ladybugs on the flowers in five kinds; one that lands on you brings luck for as many minutes as it has spots."
+description = """
+> **Beta.** Played and tested in single player; multiplayer and balance come later. Reports are welcome on the [issues](https://github.com/EAnathos/sunrise-creatures/issues).
+
+A mod of the [Sunrise Creatures](https://github.com/EAnathos/sunrise-creatures/blob/ladybugs/v0.1.1/README.md) series: ladybugs on the flowers of meadows, forests and swamps, red,
+yellow, orange or black, with their spots. **Requires** [Sunrise Creatures](https://playsunrise.net/mods/creature), the
+series' library.
+
+## Finding them
+
+By day they fly short hops between flowers, rest on them and crawl about; in the rain they shelter under leaves; at
+night, and all day in snowy places, those near each other gather in a cluster. Five
+kinds, each in its own places:
+
+- **Seven-spot** (red, seven black spots): meadows, plains, forests, birch forests, swamps.
+- **Two-spot** (red, two black spots): plains, forests, cherry groves, meadows.
+- **Twenty-two-spot** (yellow, many small black spots): meadows, flower forests, sunflower plains.
+- **Orange** (orange, white spots): birch and dark forests.
+- **Harlequin** (black, red spots): rare, in dark forests and swamps.
+
+In creative: the spawn egg (creative tab "Sunrise Creatures"). Chickens peck them up.
+
+## Luck
+
+Stand still near a ladybug and now and then it flies over and lands on your head. You get **Luck** for as many minutes
+as it has spots: 2 for a two-spot, 7 for a seven-spot, up to 22 for a twenty-two-spot; the rare harlequin gives Luck II.
+Luck makes fishing and loot chests luckier. It stays a minute or so, then flies off; sprint or get hurt and it leaves at
+once, or right-click it to let it go. Each ladybug lands on you once a day at most. Get luck from all five kinds for a
+fact in your guide.
+
+## In a jar
+
+Catch one with the series' glass jar and let it out on a flower: it settles around that flower patch.
+"""
+authors = ["EAnathos"]
+license = "PolyForm-Noncommercial-1.0.0 AND LicenseRef-SunriseCreatures-Art"
+homepage = "https://github.com/EAnathos/sunrise-creatures/blob/main/mods/ladybugs/README.md"
+issues = "https://github.com/EAnathos/sunrise-creatures/issues"
+icon = "icon.png"
+categories = ["mobs"]
+
+[[screenshots]]
+path = "1-ladybugs.jpg"
+caption = ""
+
+[[screenshots]]
+path = "2-ladybugs-ladybug-front.png"
+caption = ""
+
+[[screenshots]]
+path = "3-ladybugs-ladybug-back.png"
+caption = ""

@@ -1,0 +1,20 @@
+version = "1.0.2"
+kind = "native-mod"
+tag = "v1.0.2"
+published = "2026-11-24T19:49:08Z"
+sunrise = "dev-2026-11-24-3d34bbe"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1464968198
+dependencies = []
+
+[file]
+url = "https://github.com/Zekrenlight/supercapes/releases/download/v1.0.2/supercapes-1.0.2.smod"
+size = 69700
+sha256 = "5c5bdaa64ee05d4bf15e3c12d548e9dbffa3d30d16418a606320361e4979fe7c"
+attestation = "https://github.com/Zekrenlight/supercapes/releases/download/v1.0.2/supercapes-1.0.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Zekrenlight/supercapes/releases/download/v1.0.2/supercapes-1.0.2.page.tar"
+size = 30208
+sha256 = "85c029df218cf9ccfcc2ccc73d6515842649ba1561626052fac9d980436373e4"
+attestation = "https://github.com/Zekrenlight/supercapes/releases/download/v1.0.2/supercapes-1.0.2.page.tar.sigstore.json"

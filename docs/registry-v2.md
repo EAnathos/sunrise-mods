@@ -145,9 +145,11 @@ has at least two different members and at least one selected by default.
 
 **Every member belongs to one publisher.** A project's publisher is the GitHub account that owns the
 repository it is registered to. The checker refuses a collection whose members' repositories are
-owned by different accounts, so the file stores no publisher. Only that publisher curates it: a pull
-request that adds, changes or deletes a collection must be opened by a login listed in `owners` of
-every member, before and after the change, as `owners` stands on the base commit.
+owned by different accounts, so the file stores no publisher. The publisher curates it, and so may
+the registry's maintainers: a pull request that adds, changes or deletes a collection must be opened
+by a login listed in `owners` of every member, before and after the change, as `owners` stands on
+the base commit, or by a person with write access to this repository. A maintainer's collection is
+merged by hand after review, and the publisher may still edit or remove it.
 
 ### Fit verdicts: `registry/fit/`
 
@@ -172,8 +174,8 @@ of Nightly and Dev, named by exact build ID. A build whose surface this tool can
 offered. The job verifies each package's size and SHA-256 and the SDK's signed metadata and surface,
 and uses Sunrise's shared surface library for the API comparison; it does not build or run packages.
 A native mod with `[native.*]` rows fits only the build it was made for. A cell that cannot be judged
-fails the run and stores nothing: an unknown is never recorded as "does not fit". When the job
-succeeds it starts `publish.yml`; a dispatched run whose write left the store unchanged does not.
+fails the run and stores nothing: an unknown is never recorded as "does not fit". A run that
+changed what is stored starts `publish.yml`, so the new verdicts are published.
 
 Nobody has to dispatch it when Sunrise publishes a build. A run that looks for builds also stores
 `registry/fit/considered.json`: every published Sunrise release that carries `sdk.json` (game
@@ -234,8 +236,9 @@ The author's original filename is not published.
 Each project's `releases` array contains rows with `version`, `published`, `sunrise`, `workflow`,
 `repository`,
 `fits`, `file`, and `dependencies`. The release's `workflow` is an exact signer ref, not the project's
-bare workflow path. `fits` is an array of exact build IDs and `does_not_fit` (left out when empty) the rest: every
-release has a verdict on every offered build, and the generator refuses to write an index otherwise.
+bare workflow path. `fits` is an array of exact build IDs and `does_not_fit` (left out when empty) those judged not to
+fit. An offered build in neither list has not been judged for that release yet: a release is
+published as soon as it is merged, and its verdicts follow within the judging job's next run.
 Readers filter using `fits` only.
 `file` contains
 `url`, `size`, `sha256`, and `attestation`. Each dependency carries `mod`, `version`, `project` and `required`.
@@ -288,7 +291,8 @@ a reader applies `revoked` and each member's `fits` as it does for a project on 
   build in a stored `builds.json` and writes the build IDs it fits and does not fit, storing nothing.
 - `registry-bot index <checkout> --serial <n> --out <dir>` validates the same tree and stages
   `index.json` and the exact referenced images under `pages/`. Use `--generated-fit` to read the
-  verdicts in `registry/fit/`, which must then be current for every release on every offered build.
+  verdicts in `registry/fit/`; a release with no current verdict on an offered build is written with
+  that build in neither list.
   The command uses the current UTC time for `generated` and
   does not sign or deploy anything.
 - `registry-bot verify-index <index> <sig> --key <pub>` checks the exact bytes and the index schema.
@@ -325,7 +329,9 @@ artifact. It deploys that snapshot again and reports the failure. If neither sou
 recovered it reports `NO_AUTHENTICATED_V2_SNAPSHOT`, and if the deployed serial cannot be
 established it reports `V2_DEPLOYED_SERIAL_UNKNOWN`; either way the entire site is left unchanged. Without a committed public key, the publish does not contact
 the v2 services and publishes no index. Publishing downloads and judges
-nothing: it is started by `fit.yml` and assembles the index from `main` and the stored verdicts.
+nothing: it runs on every push to `main`, and again when `fit.yml` has stored new verdicts, and
+assembles the index from `main` and the verdicts stored at that moment. It never waits for `main`
+to stop moving.
 
 The [two-provider fixture](../bot/tests/fixtures/two-ports/registry/) and
 [its golden index](../bot/tests/fixtures/two-ports/index.json) show two projects for a single in-game ID.

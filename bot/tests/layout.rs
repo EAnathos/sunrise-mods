@@ -895,9 +895,19 @@ fn unexpected_entries_are_rejected() {
     );
 }
 
-/// A verdict counts only for the package, surface and rules it was judged from.
+/// A verdict counts only for the package, surface and rules it was judged from. A release
+/// without a current one on an offered build is published with that build in neither list.
 #[test]
-fn index_needs_a_current_verdict_for_every_release_on_every_offered_build() {
+fn a_cell_with_no_current_verdict_is_left_out_of_the_index_not_refused_or_guessed() {
+    let judged = |checkout: &Path| {
+        let release = &index(checkout)["projects"][0]["releases"][0];
+        ["fits", "does_not_fit"]
+            .iter()
+            .flat_map(|list| release[list].as_array().into_iter().flatten().cloned())
+            .collect::<Vec<_>>()
+    };
+    let every = judged(fit_checkout().path());
+    assert_eq!(every.len(), 3);
     for (file, old, new) in [
         (FIT, "rules = 2", "rules = 1"),
         (
@@ -919,25 +929,9 @@ fn index_needs_a_current_verdict_for_every_release_on_every_offered_build() {
     ] {
         let temp = fit_checkout();
         replace(temp.path(), file, old, new);
-        let result = run(
-            &[
-                "index",
-                ".",
-                "--serial",
-                "41",
-                "--out",
-                "output",
-                "--generated-fit",
-            ],
-            temp.path(),
-        );
-        let stderr = String::from_utf8(result.stderr).unwrap();
-        assert_eq!(result.status.code(), Some(1), "{stderr}");
-        assert!(
-            stderr.contains("no current fit verdict for: Ab3dE9xQ 1.2.0 on "),
-            "{stderr}"
-        );
-        assert!(!temp.path().join("output").exists());
+        let left = judged(temp.path());
+        assert!(left.len() < every.len(), "{file}: {old}");
+        assert!(left.iter().all(|build| every.contains(build)));
     }
 }
 
@@ -1483,6 +1477,8 @@ fn a_github_server_error_ends_a_release_check_apart_from_a_refusal() {
     for (message, exit) in [
         ("gh: Bad Gateway (HTTP 502)", 75),
         ("gh: Not Found (HTTP 404)", 1),
+        // Text in a refusal cannot make it look unchecked.
+        ("gh: GitHub unavailable: no release tagged so (HTTP 404)", 1),
     ] {
         fs::write(bin.join("gh.message"), message).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_registry-bot"))

@@ -1,0 +1,48 @@
+name = "Cyclops"
+summary = "A one-eyed giant shepherd at cave mouths, with its flock, a club that breaks the ground and boulders it throws."
+description = """
+> **Beta.** Played and tested in single player; multiplayer and balance come later. Reports are welcome on the [issues](https://github.com/EAnathos/sunrise-creatures/issues).
+
+A mod of the [Sunrise Creatures](https://github.com/EAnathos/sunrise-creatures/blob/cyclops/v0.1.4/README.md) series: a one-eyed giant shepherd, four blocks tall, who lives at the
+mouths of caves with his flock. **Requires** [Sunrise Creatures](https://playsunrise.net/mods/creature), the series' library.
+
+## Meeting one
+
+Rarely, at a cave mouth in the mountains, the meadows, the windswept hills or on a rocky shore, a cyclops watches over
+three to five sheep that follow him everywhere. Never on Peaceful. In creative: the spawn egg (creative tab "Sunrise Creatures").
+
+He is hostile. Come near, hurt him or one of his sheep, and he walks up and brings his club down on you (it hurts, and
+throws you back). Keep your distance, or climb out of his club's reach, and he lifts a boulder over his head and hurls
+it at you. Wherever the club or the boulder lands, the blocks around it break (chests and other containers are spared;
+nothing breaks with the `mobGriefing` game rule off). His eye is his weak spot: an arrow
+or a trident in it hurts twice as much and leaves him dazed for a moment.
+
+## What he leaves
+
+- **His eye**, when you kill him. With 4 sticks and wool it makes a **shepherd's crook**: while you hold it, the farm
+  animals around you (sheep, cows, pigs, goats, chickens) follow you. His sheep too.
+- Sometimes **his club**: a slow, heavy wooden weapon that hits hard and throws back. You can also make one from 4
+  logs and a stick.
+- Some leather.
+"""
+authors = ["EAnathos"]
+license = "PolyForm-Noncommercial-1.0.0 AND LicenseRef-SunriseCreatures-Art"
+homepage = "https://github.com/EAnathos/sunrise-creatures/blob/main/mods/cyclops/README.md"
+issues = "https://github.com/EAnathos/sunrise-creatures/issues"
+icon = "icon.png"
+categories = [
+    "mobs",
+    "adventure",
+]
+
+[[screenshots]]
+path = "1-cyclops.jpg"
+caption = ""
+
+[[screenshots]]
+path = "2-cyclops-cyclops-front.png"
+caption = ""
+
+[[screenshots]]
+path = "3-cyclops-cyclops-back.png"
+caption = ""

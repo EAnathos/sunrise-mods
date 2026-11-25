@@ -1,0 +1,24 @@
+version = "0.1.2"
+kind = "native-mod"
+tag = "jellyfish/v0.1.2"
+published = "2026-11-24T20:13:17Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/jellyfish/v0.1.2/jellyfish-0.1.2.smod"
+size = 174591
+sha256 = "b0079bb31393884675c79262da9a50478e8d016d55550287853c2de79ffa4c8e"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/jellyfish/v0.1.2/jellyfish-0.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/jellyfish/v0.1.2/jellyfish-0.1.2.page.tar"
+size = 28160
+sha256 = "b16b5bb2b6d6bf30cd811dd49e08ebd3a412108f6ca9602bca9d750ab1ea2379"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/jellyfish/v0.1.2/jellyfish-0.1.2.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.3.5"
+required = true

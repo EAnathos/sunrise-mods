@@ -1,0 +1,24 @@
+version = "0.1.4"
+kind = "native-mod"
+tag = "worms/v0.1.4"
+published = "2026-11-24T20:20:04Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/worms/v0.1.4/worms-0.1.4.smod"
+size = 86021
+sha256 = "125b582e0d51a265c356109b862643bae012148a3935cf8177e5e6b01760a956"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/worms/v0.1.4/worms-0.1.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/worms/v0.1.4/worms-0.1.4.page.tar"
+size = 34304
+sha256 = "2091b55e508c7e198f99328681ba3fc77f5b72b117e85c083c9ec00621002c34"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/worms/v0.1.4/worms-0.1.4.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.3.5"
+required = true

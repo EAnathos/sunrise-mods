@@ -735,8 +735,8 @@ fn read_page(
 }
 
 /// Reads the stored verdicts as written. A row for a release, project or build that is gone is
-/// not a problem here: the judging run drops it, and [`crate::fit::complete`] decides whether
-/// what is listed has its verdicts.
+/// not a problem here: the judging run drops it. A release with no current verdict on an
+/// offered build is not one either: the index leaves that cell out until it is judged.
 fn read_fits(
     tree: &mut Tree<'_>,
     dir: &Path,
