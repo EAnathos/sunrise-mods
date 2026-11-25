@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "betterthanmending/v0.5.3"
+published = "2026-11-25T14:33:31Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/betterthanmending/v0.5.3/betterthanmending-0.5.3.smod"
+size = 49750
+sha256 = "8f77ed69b6f18c28ec4d543c08b9af05b3d096da9e29ce914f922718533486d3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/betterthanmending/v0.5.3/betterthanmending-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/betterthanmending/v0.5.3/betterthanmending-0.5.3.page.tar"
+size = 297472
+sha256 = "0bb9fb379df327face276038230b84e4b44777879729ad9544371b36d30baa4e"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/betterthanmending/v0.5.3/betterthanmending-0.5.3.page.tar.sigstore.json"
