@@ -1,0 +1,20 @@
+version = "5.1.2"
+kind = "native-mod"
+tag = "v5.1.2"
+published = "2026-11-25T08:56:21Z"
+sunrise = "dev-2026-11-25-bdad86d"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468944919
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/dis_enchanting_table/releases/download/v5.1.2/disenchanting_table-5.1.2.smod"
+size = 74561
+sha256 = "116bad83f4317e4f58a8dee1e7aeb9194aad46856e4f22f050f51717a6c5308a"
+attestation = "https://github.com/arismoko/dis_enchanting_table/releases/download/v5.1.2/disenchanting_table-5.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/dis_enchanting_table/releases/download/v5.1.2/disenchanting_table-5.1.2.page.tar"
+size = 342016
+sha256 = "462712412808ea8f85aba2a9ea18aee7fe90c0aa0e08efd62bc07ec0a5b0ef50"
+attestation = "https://github.com/arismoko/dis_enchanting_table/releases/download/v5.1.2/disenchanting_table-5.1.2.page.tar.sigstore.json"
