@@ -1,0 +1,20 @@
+version = "3.1.9"
+kind = "native-mod"
+tag = "v3.1.9"
+published = "2026-11-25T14:38:42Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300393
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/additional_lights/releases/download/v3.1.9/additional_lights-3.1.9.smod"
+size = 701270
+sha256 = "a7475bcc9cead2b11484e078e195591dc10910407334674e4489ea6243b88428"
+attestation = "https://github.com/arismoko/additional_lights/releases/download/v3.1.9/additional_lights-3.1.9.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/additional_lights/releases/download/v3.1.9/additional_lights-3.1.9.page.tar"
+size = 1441280
+sha256 = "99b5243a295c91f3ae722ee57f376cceb9191a13d45869d0f512efcf7d3f53ad"
+attestation = "https://github.com/arismoko/additional_lights/releases/download/v3.1.9/additional_lights-3.1.9.page.tar.sigstore.json"
