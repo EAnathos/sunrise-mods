@@ -1,0 +1,20 @@
+version = "1.1.2"
+kind = "native-mod"
+tag = "convenientnametags/v1.1.2"
+published = "2026-11-25T14:34:32Z"
+sunrise = "dev-2026-11-25-6a02076"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/convenientnametags/v1.1.2/convenientnametags-1.1.2.smod"
+size = 18005
+sha256 = "d38d47e619e1ab2d781f6be4a88820f63591c015b3088404f7e69c23d8e49681"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/convenientnametags/v1.1.2/convenientnametags-1.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/convenientnametags/v1.1.2/convenientnametags-1.1.2.page.tar"
+size = 289280
+sha256 = "54cc5d5d0d1e10262d2dd50a9ef0a4bc62f262cd6038197864f8229b651a307a"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/convenientnametags/v1.1.2/convenientnametags-1.1.2.page.tar.sigstore.json"
