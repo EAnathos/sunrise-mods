@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -20,11 +21,13 @@ VERSION = r"[0-9][0-9A-Za-z.+-]*"
 RELEASE = re.compile(rf"release/(?P<project>{PROJECT})/(?P<version>{VERSION})", re.ASCII)
 ROW = re.compile(rf"registry/projects/(?P<project>{PROJECT})/releases/(?P<version>{VERSION})\.toml", re.ASCII)
 REPOSITORY = re.compile(r"registry/repositories/[1-9][0-9]*\.toml", re.ASCII)
+PROJECT_FILE = re.compile(rf"registry/projects/{PROJECT}/project\.toml", re.ASCII)
 SHA = re.compile(r"[0-9a-f]{40}", re.ASCII)
 PR = re.compile(r"[1-9][0-9]*", re.ASCII)
 DIGEST = re.compile(r"(?:sha256:)?([0-9a-f]{64})", re.ASCII)
 REQUIRED_JOBS = {"pending", "verify", "build", "scanner"}
 BOT = "github-actions[bot]"
+REGISTRATION_APP = "sunrise-sunny[bot]"
 STATUS = "registry-v2/release-check"
 WORKFLOW = "release-check.yml"
 NOT_A_RELEASE = "release-not-applicable.yml"
@@ -134,6 +137,58 @@ def bot(*args):
     require(code == 0, f"registry-bot {args[0]} failed (exit {code})")
 
 
+def repository_blob(commit, path):
+    entry = git("ls-tree", "-z", commit, "--", path)
+    require(entry, "repository row is missing")
+    header, name = entry.rstrip(b"\0").split(b"\t", 1)
+    mode, kind, blob = header.decode().split()
+    require((mode, kind) == ("100644", "blob") and name.decode() == path,
+            "repository row must be a regular non-executable file")
+    return blob
+
+
+def check_registration():
+    pr = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_bytes())["pull_request"]
+    base, head = pr["base"], pr["head"]
+    require(pr["user"]["login"] == REGISTRATION_APP and head["ref"].startswith("register/")
+            and base["ref"] == "main" and head["repo"]["id"] == base["repo"]["id"],
+            "registration must be opened to main by the registry app from its own register/ branch")
+    merge = os.environ["GITHUB_SHA"]
+    require(all(SHA.fullmatch(sha) for sha in (base["sha"], head["sha"], merge)),
+            "invalid registration base, head or test merge SHA")
+    tested_base, tested_head = git("rev-parse", f"{merge}^1", f"{merge}^2").decode().splitlines()
+    require(tested_head == head["sha"], "registration check did not get the exact PR merge commit")
+    diff = ("diff", "--name-status", "-z", "--no-renames", "--no-ext-diff", "--no-textconv")
+    # The tested merge's main parent may be newer than the PR event's base.
+    merged = git(*diff, tested_base, merge, "--")
+    require(git(*diff, f"{base['sha']}...{head['sha']}", "--") == merged,
+            "registration branch and test merge changes disagree")
+    changes = merged.decode().split("\0")[:-1]
+    changed = list(zip(changes[::2], changes[1::2], strict=True))
+    repositories = [(status, path) for status, path in changed if REPOSITORY.fullmatch(path)]
+    if (len(repositories) == 1 and len(changed) == 2 and repositories[0][0] in ("A", "M")
+            and all((status, path) == repositories[0] or status == "A" and PROJECT_FILE.fullmatch(path)
+                    for status, path in changed)):
+        # The old writer adds one project row and adds or appends to its repository row (#501, #619).
+        # This does not exempt it from the ordinary layout, DCO or non-release checks.
+        return
+    require(len(changed) == 1 and repositories == changed and changed[0][0] == "A",
+            "registration must add exactly one registry/repositories/<numeric id>.toml and nothing else")
+    _, path = changed[0]
+    blob = repository_blob(head["sha"], path)
+    require(repository_blob(merge, path) == blob, "registration branch and test merge row blobs disagree")
+    with tempfile.TemporaryDirectory() as folder:
+        row = Path(folder) / Path(path).name
+        row.write_bytes(git("cat-file", "blob", blob))
+        bot("check-registration", row)
+
+
+def source_repository(row):
+    repository = tomllib.loads(row.read_text(encoding="utf-8"))["repository"]
+    require(type(repository) is int and repository > 0, "release row must name a numeric repository ID")
+    return f"registry/repositories/{repository}.toml"
+
+
 def verify(out):
     number, sha, branch = dispatch()
     # By commit, not refs/pull/<n>/head: GitHub sometimes never creates that ref for a PR opened in a burst.
@@ -148,32 +203,45 @@ def verify(out):
     # A release of another kind than the project's changes the project's kind and takes the place of every earlier
     # release: project.toml is then compared with the regenerated one, and the head holds no other release row.
     project_file = f"{root}/project.toml"
-    kind_change = project_file in changed
-    earlier = {name for name in changed if name.startswith(f"{root}/releases/") and name != row} if kind_change else set()
+    project_changed = project_file in changed
+    earlier = {name for name in changed if name.startswith(f"{root}/releases/") and name != row} if project_changed else set()
     require(row in changed and all(name == row or name.startswith(page + "/") or name == project_file or name in earlier
                                    for name in changed),
             "PR may only add its own release row and replace its own page")
     require(not git("ls-tree", "-z", base, "--", row), "PR may not edit an existing release row")
-    if kind_change:
+    first = project_changed and not git("ls-tree", "-z", base, "--", root)
+    if project_changed:
         rows = [entry.split(b"\t", 1)[1].decode()
                 for entry in git("ls-tree", "-rz", sha, "--", f"{root}/releases").split(b"\0")[:-1]]
-        require(rows == [row], "a release that changes the project's kind must remove every earlier release")
+        require(rows == [row], "a release that changes the project's kind must remove every earlier release" if not first
+                else "a first release must add exactly one release row")
     actual = {}
-    for entry in git("ls-tree", "-rz", sha, "--", row, page, *([project_file] if kind_change else [])).split(b"\0")[:-1]:
+    for entry in git("ls-tree", "-rz", sha, "--", row, page, *([project_file] if project_changed else [])).split(b"\0")[:-1]:
         header, name = entry.split(b"\t", 1)
         mode, kind, blob = header.decode().split()
         require((mode, kind) == ("100644", "blob"), "release and page may only contain regular non-executable files")
         actual[name.decode()] = blob
     require(row in actual, "release row is missing from the PR head")
+    if first:
+        require(set(changed) == actual.keys() and f"{page}/page.toml" in actual and project_file in actual,
+                "first release must add only the project row, release row and resolved page")
 
     out.mkdir()
     claim = out / "claim.toml"
     claim.write_bytes(git("cat-file", "blob", actual[row]))
-    bot("verify-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, out)
+    if first:
+        # Use the original registrant authority, which the serial merger can also extract
+        # from the branch base without trusting a mutable PR artifact.
+        repository = source_repository(claim)
+        evidence = out / Path(repository).name
+        evidence.write_bytes(git("cat-file", "blob", repository_blob(base, repository)))
+        bot("verify-first-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, evidence, out)
+    else:
+        bot("verify-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, out)
     regenerated = out / "expected"
     expected = {p.relative_to(regenerated).as_posix(): git("hash-object", "--no-filters", p).decode().strip()
                 for p in regenerated.rglob("*") if p.is_file()}
-    require(actual == expected, "PR files are not exactly the release row and page regenerated from the attested assets")
+    require(actual == expected, "PR files are not exactly the release tree regenerated from the attested assets")
     # What the judging job will store for this release once it is merged, for the reviewer to see now. Nothing is
     # kept. A build the release cannot be judged on fails this check instead of every publish after the merge.
     subprocess.run([sys.executable, "-I", ROOT / ".github/registry-v2/fit_store.py", "read"], cwd=ROOT, check=True)
@@ -196,11 +264,11 @@ def verify(out):
         print(f"\nOn the offered builds: {fit}.", file=stream)
 
 
-def install_tree(generated, work, branch):
+def install_tree(generated, work, branch, *, first=False):
     if match := RELEASE.fullmatch(branch):
         root = Path("registry/projects") / match["project"]
         row, page = root / "releases" / (match["version"] + ".toml"), root / "page"
-        # Present only when the release is of another kind than the project's.
+        # Present only for a first release or a change to an existing project's kind.
         project = root / "project.toml"
         found = {p.relative_to(generated).as_posix() for p in generated.rglob("*") if p.is_file()}
         require(row.as_posix() in found and (page / "page.toml").as_posix() in found
@@ -208,7 +276,13 @@ def install_tree(generated, work, branch):
                         for name in found),
                 "watch artifact is outside its release row and page")
         require(not (work / row).exists(), "cannot alter a release already on main")
-        if project.as_posix() in found:
+        if first:
+            require(project.as_posix() in found and not os.path.lexists(work / root),
+                    "first release may only add a new project directory")
+            (work / root).mkdir()
+            shutil.copyfile(generated / project, work / project)
+            git("add", "--", project, cwd=work)
+        elif project.as_posix() in found:
             require((work / project).is_file(), "cannot change the kind of a project that is not on main")
             shutil.copyfile(generated / project, work / project)
             # Every release of a project has its kind: the earlier ones go with the change.
@@ -231,12 +305,12 @@ def install_tree(generated, work, branch):
         git("add", "--", *rows, cwd=work)
 
 
-def open_pr(generated, branch, base, title, body):
+def open_pr(generated, branch, base, title, body, *, first=False):
     with tempfile.TemporaryDirectory() as folder:
         work = Path(folder) / "registry"
         git("worktree", "add", "--detach", work, base)
         try:
-            install_tree(generated, work, branch)
+            install_tree(generated, work, branch, first=first)
             if not git("diff", "--cached", "--name-only", cwd=work):
                 return
             git("-c", "core.hooksPath=/dev/null", "-c", "user.name=github-actions[bot]",
@@ -296,7 +370,9 @@ def publish(generated):
                             "Updates the display names returned by GitHub for registered numeric repository IDs. No package or release identity changes.")
                 except (OSError, ValueError) as error:
                     print(f"- Could not publish repository names: {safe(error)}", file=summary)
-            for path in sorted((generated / "releases").glob("*/*")):
+            proposals = [(path, first) for leaf, first in (("releases", False), ("first-releases", True))
+                         for path in (generated / leaf).glob("*/*")]
+            for path, first in sorted(proposals):
                 branch = f"release/{path.parent.name}/{path.name}"
                 try:
                     match = RELEASE.fullmatch(branch)
@@ -304,18 +380,26 @@ def publish(generated):
                     prefix = f"release/{match['project']}/"
                     if branch in handled or any(other.startswith(prefix) for other in waiting):
                         continue
-                    # A repository file says which projects it holds and where: one that names
-                    # this project, before or after, changed what the watcher observed.
-                    stale = next((path for path in moved if path.startswith(f"registry/projects/{match['project']}/")
-                                  or REPOSITORY.fullmatch(path) and f'"{match["project"]}"' in git(
-                                      "diff", "-U9999", "--no-ext-diff", "--no-textconv", base, live, "--", path).decode()), None)
+                    # The generated release always carries the stable ID of its signing repository.
+                    # New claims additionally rely on the global ID/slug/path/namespace inventory.
+                    # Comparing paths just withholds stale observations; Rust owns admission/collisions.
+                    if moved:
+                        project_root = f"registry/projects/{match['project']}/"
+                        release = path / project_root / "releases" / (match["version"] + ".toml")
+                        repository = source_repository(release)
+                        stale = next((p for p in moved if p == repository or p.startswith(project_root)
+                                      or first and (p.startswith("registry/collections/")
+                                                    or p.startswith("registry/projects/") and p.endswith("/project.toml"))), None)
+                    else:
+                        stale = None
                     if stale:
                         print(f"- Skipped {safe(branch)}: main changed {safe(stale)} during observation.", file=summary)
                         continue
-                    open_pr(path, branch, base, f"Publish {match['project']} {match['version']}",
+                    title = f"Publish {match['project']} {match['version']}"
+                    open_pr(path, branch, base, title,
                             "## Verified release\n\nBoth GitHub attestations match the registered repository ID, tag and commit, and the shared signer workflow. "
                             "The asset sizes and SHA-256 hashes, package manifest, exact Sunrise build and resolved page were checked. "
-                            "The release check will reverify those inputs, build the package and run the scanner before review.")
+                            "The release check will reverify those inputs, build the package and run the scanner before review.", first=first)
                     waiting.add(branch)
                 except (OSError, ValueError) as error:
                     print(f"- Could not publish {safe(branch)}: {safe(error)}", file=summary)
@@ -429,11 +513,13 @@ if __name__ == "__main__":
                 publish(Path(folder))
             case ["verify", folder]:
                 verify(Path(folder))
+            case ["check-registration"]:
+                check_registration()
             case ["pending"]:
                 pending()
             case ["report", folder]:
                 report(Path(folder))
             case _:
-                raise ValueError("usage: release_pr.py pending, or publish|verify|report <folder>")
+                raise ValueError("usage: release_pr.py pending|check-registration, or publish|verify|report <folder>")
     except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError, zipfile.BadZipFile) as error:
         sys.exit("registry release: " + safe(error))

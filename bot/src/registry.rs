@@ -32,6 +32,7 @@ pub struct Registry {
     /// The SHA-512 of each original jar Modrinth does not list, as the judging job stored them.
     pub unlisted_jars: BTreeSet<String>,
     pub revoked: Vec<Revocation>,
+    claims: ProjectClaims,
 }
 
 pub struct ProjectEntry {
@@ -139,13 +140,21 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
             continue;
         };
         if let Some(repository) = tree.toml::<Repository>(&path, Some(entry)) {
+            let mut accounts = BTreeSet::new();
+            if repository
+                .registrant
+                .iter()
+                .any(|account| !accounts.insert(account.id))
+            {
+                tree.problem(&path, "duplicate registrant account ID");
+            }
             repositories.insert(id, (path, repository));
         }
     }
     let mut registrations = BTreeMap::new();
     for (id, (path, repo)) in &repositories {
         let mut package_paths = BTreeSet::new();
-        for package in &repo.package {
+        for package in repo.package.iter().flatten() {
             if !package_paths.insert(&package.path) {
                 tree.problem(
                     path,
@@ -157,7 +166,7 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
                 );
             }
             if registrations
-                .insert(&package.project, (*id, path, repo, package))
+                .insert(&package.project, (*id, path, package))
                 .is_some()
             {
                 tree.problem(
@@ -172,8 +181,7 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
     }
 
     let mut projects = BTreeMap::new();
-    let mut slugs = BTreeSet::new();
-    let mut subfolder_mods = BTreeSet::new();
+    let mut claims = ProjectClaims::default();
     for (name, entry) in project_dirs {
         let dir = projects_root.join(&name);
         let Ok(id) = ProjectId::parse(name.to_string_lossy().into_owned()) else {
@@ -224,65 +232,49 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
             if project.id != id {
                 tree.problem(&project_path, "project ID must match the directory name");
             }
-            if SITE_PAGES.contains(&project.slug.as_str()) {
-                tree.problem(
-                    &project_path,
-                    format!(
-                        "reserved slug {}: the site has its own page at /mods/{}",
-                        project.slug.as_str(),
-                        project.slug.as_str()
-                    ),
-                );
+            for problem in claims.conflicts(&id, &project) {
+                tree.problem(&project_path, problem);
             }
-            if !slugs.insert(project.slug.clone()) {
-                tree.problem(
-                    &project_path,
-                    format!("duplicate slug {}", project.slug.as_str()),
-                );
-            }
-            if matches!(project.path, PackagePath::Folder(_))
-                && !subfolder_mods.insert((project.repository, project.mod_id.clone()))
-            {
-                tree.problem(&project_path, "another subfolder package in this repository has the same in-game ID (shared tag and caller workflow names)");
-            }
+            claims.insert(id.clone(), &project);
             if project.workflow.as_str() != RELEASE_WORKFLOW {
                 tree.problem(
                     &project_path,
                     "workflow must match the path in release-workflow.toml before '@'",
                 );
             }
-            match registration {
-                Some((repository, _, repo, package)) => {
-                    if repository != project.repository {
-                        tree.problem(
-                            &project_path,
-                            "repository ID does not match the repository file that lists this project",
-                        );
-                    }
-                    if package.path != project.path {
-                        tree.problem(
-                            &project_path,
-                            "package path does not match its repository file",
-                        );
-                    }
-                    projects.insert(
-                        id,
-                        ProjectEntry {
-                            project,
-                            repository_name: repo.name.clone(),
-                            page,
-                            releases,
-                        },
+            if let Some((repository, _, package)) = registration {
+                if repository != project.repository {
+                    tree.problem(
+                        &project_path,
+                        "repository ID does not match the repository file that lists this project",
                     );
                 }
-                None => tree.problem(
+                if package.path != project.path {
+                    tree.problem(
+                        &project_path,
+                        "package path does not match its repository file",
+                    );
+                }
+            }
+            if let Some((_, repo)) = repositories.get(&project.repository) {
+                projects.insert(
+                    id,
+                    ProjectEntry {
+                        project,
+                        repository_name: repo.name.clone(),
+                        page,
+                        releases,
+                    },
+                );
+            } else {
+                tree.problem(
                     &project_path,
-                    "project is not listed in a registry/repositories file",
-                ),
+                    "repository ID does not match any registry/repositories file",
+                );
             }
         }
     }
-    for (id, (_, path, _, _)) in &registrations {
+    for (id, (_, path, _)) in &registrations {
         tree.problem(path, format!("project {} has no project.toml", id.as_str()));
     }
     for (id, entry) in &projects {
@@ -324,6 +316,14 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
         }
         None => BTreeMap::new(),
     };
+    for id in collections.keys() {
+        if !claims.ids.insert(id.clone()) {
+            tree.problem(
+                &collections_root.join(id.as_str()),
+                "project already uses this collection ID",
+            );
+        }
+    }
     let mut revocations = BTreeSet::new();
     for row in &revoked {
         if !revocations.insert((&row.project, &row.sha256)) {
@@ -399,7 +399,163 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
         builds,
         unlisted_jars,
         revoked,
+        claims,
     })
+}
+
+#[derive(Default)]
+struct ProjectClaims {
+    ids: BTreeSet<ProjectId>,
+    slugs: BTreeSet<Slug>,
+    paths: BTreeSet<(RepositoryId, PackagePath)>,
+    subfolder_mods: BTreeSet<(RepositoryId, ModId)>,
+}
+
+impl ProjectClaims {
+    fn conflicts(&self, id: &ProjectId, project: &Project) -> Vec<String> {
+        let mut problems = Vec::new();
+        if self.ids.contains(id) {
+            problems.push(format!(
+                "project or collection already uses ID {}",
+                id.as_str()
+            ));
+        }
+        let slug = project.slug.as_str();
+        if SITE_PAGES.contains(&slug) {
+            problems.push(format!(
+                "reserved slug {slug}: the site has its own page at /mods/{slug}"
+            ));
+        }
+        if self.slugs.contains(&project.slug) {
+            problems.push(format!("duplicate slug {slug}"));
+        }
+        if self
+            .paths
+            .contains(&(project.repository, project.path.clone()))
+        {
+            problems.push("duplicate package path in this repository".into());
+        }
+        if matches!(project.path, PackagePath::Folder(_))
+            && self
+                .subfolder_mods
+                .contains(&(project.repository, project.mod_id.clone()))
+        {
+            problems.push("another subfolder package in this repository has the same in-game ID (shared tag and caller workflow names)".into());
+        }
+        problems
+    }
+
+    fn insert(&mut self, id: ProjectId, project: &Project) {
+        self.ids.insert(id);
+        self.slugs.insert(project.slug.clone());
+        self.paths
+            .insert((project.repository, project.path.clone()));
+        if matches!(project.path, PackagePath::Folder(_)) {
+            self.subfolder_mods
+                .insert((project.repository, project.mod_id.clone()));
+        }
+    }
+}
+
+impl Registry {
+    pub fn has_package_path(&self, repository: RepositoryId, path: &PackagePath) -> bool {
+        self.claims.paths.contains(&(repository, path.clone()))
+    }
+
+    pub fn first_slug(&self, id: &ProjectId, mod_id: &ModId) -> Result<Slug, &'static str> {
+        let slug = Slug::parse(mod_id.as_str().into())?;
+        if self.claims.slugs.contains(&slug) && !SITE_PAGES.contains(&slug.as_str()) {
+            Slug::parse(format!(
+                "{}-{}",
+                slug.as_str(),
+                id.as_str().to_ascii_lowercase()
+            ))
+        } else {
+            Ok(slug)
+        }
+    }
+
+    /// Check an addition against main, not a merged tree in which it could replace a claim.
+    pub fn check_new_project(&self, project: &Project) -> Result<(), String> {
+        let problems = self.claims.conflicts(&project.id, project);
+        if problems.is_empty() {
+            Ok(())
+        } else {
+            Err(problems.join("; "))
+        }
+    }
+
+    pub fn check_first_project(&self, project: &Project) -> Result<(), String> {
+        if project.id != first_project_id(project.repository, &project.path)? {
+            return Err(
+                "first-release project ID does not match its repository and package path".into(),
+            );
+        }
+        self.check_new_project(project)?;
+        if project.slug != self.first_slug(&project.id, &project.mod_id)? {
+            return Err("first-release slug no longer matches the available slug on main".into());
+        }
+        Ok(())
+    }
+}
+
+pub fn first_project_id(
+    repository: RepositoryId,
+    path: &PackagePath,
+) -> Result<ProjectId, &'static str> {
+    const BASE62: &[u8; 62] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    let mut key = String::with_capacity(8);
+    // Domain-separated counter mode; reject the remainder so every digit has four preimages.
+    for block in 0..=u64::MAX {
+        let hash = sunrise_mod_package::index::sha256(
+            format!(
+                "sunrise-registry-project-v1\0{}\0{}\0{block}",
+                repository.get(),
+                path.as_str()
+            )
+            .as_bytes(),
+        );
+        for at in (0..hash.len()).step_by(2) {
+            let byte = u8::from_str_radix(&hash[at..at + 2], 16)
+                .map_err(|_| "SHA-256 was not hexadecimal")?;
+            if byte < 248 {
+                key.push(char::from(BASE62[usize::from(byte % 62)]));
+                if key.len() == 8 {
+                    return ProjectId::parse(key);
+                }
+            }
+        }
+    }
+    Err("could not derive a project ID")
+}
+
+/// The caller checks immutable PR metadata and Git modes; this is the repository row boundary.
+pub fn check_registration(path: &Path) -> Result<(), String> {
+    if path
+        .file_name()
+        .and_then(OsStr::to_str)
+        .and_then(RepositoryId::of_file)
+        .is_none()
+    {
+        return Err("expected <numeric repository ID>.toml".into());
+    }
+    let mut tree = Tree::new(Path::new(""));
+    let entry = tree.entry(path);
+    let row = tree.toml::<Repository>(path, entry);
+    if let Some(row) = row
+        && (row.package.is_some() || row.registrant.len() != 1)
+    {
+        tree.problem(
+            path,
+            "a new repository requires one registrant and no package list",
+        );
+    }
+    let problems = tree.finish();
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(problems.join("; "))
+    }
 }
 
 fn read_collections(
@@ -795,4 +951,91 @@ fn read_fits(
         fits.insert(id, releases);
     }
     fits
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn first_project_claim_checks_all_collisions_without_overlaying_main() {
+        let root = Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/two-ports"
+        ));
+        let mut registry = load(root).unwrap();
+        let repository = serde_json::from_str("123456789").unwrap();
+        let path = PackagePath::parse("mods/demo".into()).unwrap();
+        let id = first_project_id(repository, &path).unwrap();
+        assert_eq!(id, first_project_id(repository, &path).unwrap());
+        assert_ne!(
+            id,
+            first_project_id(repository, &PackagePath::parse(".".into()).unwrap()).unwrap()
+        );
+        let project = |registry: &Registry| {
+            let mod_id = ModId::parse("wayfinder".into()).unwrap();
+            Project {
+                id: id.clone(),
+                slug: registry.first_slug(&id, &mod_id).unwrap(),
+                mod_id,
+                kind: Kind::Mod,
+                owners: vec![],
+                repository,
+                path: path.clone(),
+                workflow: Text::parse(RELEASE_WORKFLOW.into()).unwrap(),
+                registered: CalendarDate::parse("2026-11-25".into()).unwrap(),
+                paused: false,
+            }
+        };
+        let mut claim = project(&registry);
+        assert_eq!(
+            claim.slug.as_str(),
+            format!("wayfinder-{}", id.as_str().to_ascii_lowercase())
+        );
+        assert!(registry.check_first_project(&claim).is_ok());
+        registry.claims.slugs.insert(claim.slug.clone());
+        assert!(
+            registry
+                .check_first_project(&claim)
+                .unwrap_err()
+                .contains("duplicate slug")
+        );
+        registry.claims.slugs.remove(&claim.slug);
+        registry
+            .claims
+            .subfolder_mods
+            .insert((repository, claim.mod_id.clone()));
+        assert!(
+            registry
+                .check_first_project(&claim)
+                .unwrap_err()
+                .contains("same in-game ID")
+        );
+        registry
+            .claims
+            .subfolder_mods
+            .remove(&(repository, claim.mod_id.clone()));
+        registry.claims.paths.insert((repository, path.clone()));
+        assert!(
+            registry
+                .check_first_project(&claim)
+                .unwrap_err()
+                .contains("duplicate package path")
+        );
+        registry.claims.paths.remove(&(repository, path));
+        registry.claims.ids.insert(id);
+        assert!(
+            registry
+                .check_first_project(&claim)
+                .unwrap_err()
+                .contains("project or collection already uses ID")
+        );
+        claim.id = ProjectId::parse("Ab3dE9xQ".into()).unwrap();
+        assert!(
+            registry
+                .check_first_project(&claim)
+                .unwrap_err()
+                .contains("does not match its repository and package path")
+        );
+    }
 }

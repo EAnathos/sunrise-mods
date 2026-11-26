@@ -1,3 +1,5 @@
+pub mod first;
+
 use std::{collections::BTreeSet, fs, path::Path};
 
 use semver::Version;
@@ -11,12 +13,12 @@ use time::OffsetDateTime;
 use crate::{
     dependency,
     game_build::Builds,
-    github::{self, Attestation, GitHub, Observation, Repo},
+    github::{self, Attestation, GitHub, Observation, Repo, VerifiedAttestation},
     registry::{self, ProjectEntry, Registry},
     release_payload::{self, Payload},
     schema::{
-        self, Asset, HttpsUrl, PackagePath, ProjectId, PublishedAt, Release, RepositoryId,
-        RepositoryName, Sha256, SignerWorkflowRef, Text,
+        self, Asset, HttpsUrl, Kind, ModId, PackagePath, ProjectId, PublishedAt, Release,
+        RepositoryId, RepositoryName, Sha256, Text,
     },
 };
 
@@ -26,14 +28,20 @@ struct Candidate<'a> {
     published: OffsetDateTime,
 }
 
+fn tag_parts(tag: &str) -> Option<(Option<&str>, Version)> {
+    let (namespace, tail) = tag
+        .split_once('/')
+        .map_or((None, tag), |(id, tail)| (Some(id), tail));
+    Some((namespace, Version::parse(tail.strip_prefix('v')?).ok()?))
+}
+
 fn tag_version(project: &schema::Project, tag: &str) -> Option<Version> {
-    let tail = match project.path {
-        PackagePath::Root(_) => tag,
-        PackagePath::Folder(_) => tag
-            .strip_prefix(project.mod_id.as_str())?
-            .strip_prefix('/')?,
+    let (namespace, version) = tag_parts(tag)?;
+    let expected = match project.path {
+        PackagePath::Root(_) => None,
+        PackagePath::Folder(_) => Some(project.mod_id.as_str()),
     };
-    Version::parse(tail.strip_prefix('v')?).ok()
+    (namespace == expected).then_some(version)
 }
 
 struct Approved<'a> {
@@ -86,7 +94,7 @@ fn candidates<'a>(
 }
 
 pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), String> {
-    let mut registry = load(checkout)?;
+    let registry = load(checkout)?;
     fs::create_dir_all(out).map_err(|e| e.to_string())?;
     let mut summary = String::from("### Registry release watcher\n\n");
     if registry.repositories.is_empty() {
@@ -97,7 +105,7 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
     let mut builds = Builds::new(github)?;
     let categories = categories(&registry)?;
     let workflow = workflow(&registry)?.to_owned();
-    for (&repository, repo) in &mut registry.repositories {
+    for (&repository, repo) in &registry.repositories {
         let live: Result<_, String> = (|| {
             let live = github.repository(Repo::Registered(repository))?;
             if live.id != repository || live.private {
@@ -118,12 +126,12 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
                 repo.name.as_str(),
                 &format!("renamed to {}", live.name.as_str()),
             );
-            repo.name = live.name;
             let path = out.join("rename/registry/repositories");
             fs::create_dir_all(&path).map_err(|e| e.to_string())?;
-            let text = toml::to_string_pretty(&*repo).map_err(|e| e.to_string())?;
-            fs::write(path.join(format!("{}.toml", repository.get())), text)
-                .map_err(|e| e.to_string())?;
+            let mut renamed = repo.clone();
+            renamed.name = live.name.clone();
+            let text = toml::to_string_pretty(&renamed).map_err(|e| e.to_string())?;
+            fs::write(path.join(repository.file()), text).map_err(|e| e.to_string())?;
         }
         let releases = match github.releases(Repo::Registered(repository)) {
             Ok(releases) => releases,
@@ -132,19 +140,18 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
                 continue;
             }
         };
-        for package in &repo.package {
-            let id = &package.project;
-            let entry = registry
-                .projects
-                .get(id)
-                .ok_or("registered project is missing")?;
+        for (id, entry) in registry
+            .projects
+            .iter()
+            .filter(|(_, entry)| entry.project.repository == repository)
+        {
             if entry.project.paused || has_open_release(&branches.waiting, id) {
                 continue;
             }
             let approved = latest_approved(entry);
             let mut candidates = candidates(entry, &releases, approved.as_ref());
             if approved.is_none() {
-                // Registration observes only the newest publication. Neither an unsigned or
+                // A legacy project with no approvals observes only the newest publication. Neither an unsigned or
                 // rejected release nor an inconclusive verification opens an older release.
                 candidates.truncate(1);
             }
@@ -157,9 +164,10 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
                 let work = tempfile::tempdir().map_err(|e| e.to_string())?;
                 let request = Request {
                     github,
-                    entry,
+                    mod_id: &entry.project.mod_id,
+                    registered_kind: Some(entry.project.kind),
                     repository_id: repository,
-                    repository: &repo.name,
+                    repository: &live.name,
                     workflow: &workflow,
                     release: candidate.release,
                     version: &candidate.version,
@@ -209,6 +217,18 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
                     }
                 }
             }
+        }
+        if !repo.registrant.is_empty() {
+            first::Watch {
+                registry: &registry,
+                branches: &branches,
+                out,
+                github,
+                workflow: &workflow,
+                categories: &categories,
+                builds: &mut builds,
+            }
+            .observe(&live, &releases, &mut summary);
         }
     }
     if summary == "### Registry release watcher\n\n" {
@@ -283,7 +303,8 @@ pub fn check(
     let workflow = workflow(&registry)?;
     let request = Request {
         github,
-        entry,
+        mod_id: &entry.project.mod_id,
+        registered_kind: Some(entry.project.kind),
         repository_id: live.id,
         repository: &live.name,
         workflow,
@@ -306,14 +327,7 @@ pub fn check(
     if row != claim {
         return Err("release row does not match the attested assets and published metadata".into());
     }
-    if let Some(missing) = unsupplied(&registry, id, &row) {
-        return Err(missing);
-    }
-    let manifest = &payload.package.manifest;
-    if !manifest.jar.is_empty() {
-        let smod = work.path().join("package.smod");
-        crate::jar::check(&smod, manifest, work.path(), &crate::jar::Curl)?;
-    }
+    check_payload(&registry, id, &row, &payload, work.path())?;
     write_release(
         &row,
         &payload,
@@ -368,7 +382,7 @@ pub fn check(
         Some(Claim::Approved(&previous.file)),
     )
     .map_err(|error| error.to_string())?;
-    if file != previous.file || workflow != previous.workflow {
+    if file != previous.file || workflow.signer != previous.workflow {
         return Err(
             "last approved package no longer matches its registry row and attestation".into(),
         );
@@ -376,6 +390,28 @@ pub fn check(
     let smod = previous_dir.path().join("package.smod");
     let package = Package::read(&smod)?;
     release_payload::source(&smod, &out.join("previous"), package.is_native())
+}
+
+fn check_payload(
+    registry: &Registry,
+    id: &ProjectId,
+    row: &Release,
+    payload: &Payload,
+    work: &Path,
+) -> Result<(), String> {
+    if let Some(missing) = unsupplied(registry, id, row) {
+        return Err(missing);
+    }
+    let manifest = &payload.package.manifest;
+    if !manifest.jar.is_empty() {
+        crate::jar::check(
+            &work.join("package.smod"),
+            manifest,
+            work,
+            &crate::jar::Curl,
+        )?;
+    }
+    Ok(())
 }
 
 /// The approved release as the author's repository still publishes it: its tag, package
@@ -459,11 +495,11 @@ fn write_release(
     row: &Release,
     payload: &Payload,
     project: &Path,
-    kind_change: Option<&str>,
+    project_toml: Option<&str>,
 ) -> Result<(), String> {
     let releases = project.join("releases");
     fs::create_dir_all(&releases).map_err(|e| e.to_string())?;
-    if let Some(text) = kind_change {
+    if let Some(text) = project_toml {
         fs::write(project.join("project.toml"), text).map_err(|e| e.to_string())?;
     }
     let text = toml::to_string_pretty(row).map_err(|e| e.to_string())?;
@@ -473,7 +509,8 @@ fn write_release(
 
 struct Request<'a> {
     github: &'a dyn GitHub,
-    entry: &'a ProjectEntry,
+    mod_id: &'a ModId,
+    registered_kind: Option<Kind>,
     /// The repository the release is signed from: the project's for a proposed release, the
     /// row's own for an approved one, which a project that moved since no longer names.
     repository_id: RepositoryId,
@@ -494,7 +531,13 @@ impl Request<'_> {
 struct Assets {
     package: Asset,
     page: Asset,
-    workflow: SignerWorkflowRef,
+    attestation: VerifiedAttestation,
+}
+
+struct SignedPackage {
+    commit: String,
+    file: Asset,
+    attestation: VerifiedAttestation,
 }
 
 #[derive(Clone, Copy)]
@@ -508,9 +551,17 @@ fn release_assets(
     dir: &Path,
     claim: Option<&Release>,
 ) -> Result<Assets, Observation> {
-    // Both artifacts must come from the same snapshot even if the tag moves mid-check.
+    let package = signed_package(request, dir, claim)?;
+    signed_page(request, dir, claim, package)
+}
+
+fn signed_package(
+    request: &Request<'_>,
+    dir: &Path,
+    claim: Option<&Release>,
+) -> Result<SignedPackage, Observation> {
     let commit = request.tag_commit()?;
-    let (package, package_ref) = asset(
+    let (file, attestation) = asset(
         request,
         &commit,
         "smod",
@@ -518,23 +569,37 @@ fn release_assets(
         dir,
         claim.map(|r| Claim::Proposed(&r.file)),
     )?;
+    Ok(SignedPackage {
+        commit,
+        file,
+        attestation,
+    })
+}
+
+fn signed_page(
+    request: &Request<'_>,
+    dir: &Path,
+    claim: Option<&Release>,
+    package: SignedPackage,
+) -> Result<Assets, Observation> {
+    // Both artifacts must come from the same snapshot even if the tag moves mid-check.
     let (page, page_ref) = asset(
         request,
-        &commit,
+        &package.commit,
         "page.tar",
         "page.tar",
         dir,
         claim.map(|r| Claim::Proposed(&r.page)),
     )?;
-    if package_ref != page_ref {
+    if package.attestation != page_ref {
         return Err(Observation::Ineligible(
-            "package and page attestations name different signer workflow refs".into(),
+            "package and page attestations name different signer or caller snapshots".into(),
         ));
     }
     Ok(Assets {
-        package,
+        package: package.file,
         page,
-        workflow: package_ref,
+        attestation: package.attestation,
     })
 }
 
@@ -577,14 +642,10 @@ fn asset(
     local: &str,
     dir: &Path,
     claim: Option<Claim<'_>>,
-) -> Result<(Asset, SignerWorkflowRef), Observation> {
+) -> Result<(Asset, VerifiedAttestation), Observation> {
     let tag = &request.release.tag_name;
     let repo = request.repository_id;
-    let name = format!(
-        "{}-{}.{suffix}",
-        request.entry.project.mod_id.as_str(),
-        request.version
-    );
+    let name = format!("{}-{}.{suffix}", request.mod_id.as_str(), request.version);
     let bundle_name = format!("{name}.sigstore.json");
     let file = request
         .release
@@ -674,6 +735,7 @@ fn asset(
                 workflow_path: request.workflow,
                 tag,
                 commit,
+                first_release: request.registered_kind.is_none(),
             },
             &path,
             &attestation,
@@ -709,7 +771,8 @@ fn prepared(
     let payload = release_payload::read(
         &dir.join("package.smod"),
         &dir.join("page.tar"),
-        &request.entry.project,
+        request.mod_id,
+        request.registered_kind,
         request.version,
         categories,
     )?;
@@ -727,7 +790,7 @@ fn prepared(
         tag: Text::parse(request.release.tag_name.clone())?,
         published: PublishedAt::of(published)?,
         sunrise,
-        workflow: assets.workflow,
+        workflow: assets.attestation.signer,
         // Both attestations were verified against this ID (`asset`).
         repository: request.repository_id,
         file: assets.package,
@@ -765,6 +828,7 @@ fn note(summary: &mut String, label: &str, reason: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::schema::SignerWorkflowRef;
     use std::{
         cell::{Cell, RefCell},
         collections::BTreeMap,
@@ -915,6 +979,8 @@ mod tests {
         inconclusive: bool,
         alias_reassigned: bool,
         alias_broken: bool,
+        other_page_caller: bool,
+        folder_callers: bool,
     }
 
     impl GitHub for Recorded {
@@ -956,10 +1022,30 @@ mod tests {
 
         fn tag_commit(&self, repo: Repo<'_>, tag: &str) -> Result<String, String> {
             assert!(matches!(repo, Repo::Registered(id) if id.get() == 123456789));
-            assert_eq!(tag, "v1.2.0");
+            assert!(tag == "v1.2.0" || self.folder_callers && tag.ends_with("/v1.2.0"));
             let count = self.tag_lookups.get();
             self.tag_lookups.set(count + 1);
             Ok(if count == 0 { "a" } else { "b" }.repeat(40))
+        }
+
+        fn caller_workflow(
+            &self,
+            _: RepositoryId,
+            caller: &github::Caller,
+        ) -> Result<Vec<u8>, Observation> {
+            let path = match caller.path.as_str() {
+                ".github/workflows/offline.yml" => {
+                    return Err(Observation::Unknown("GitHub unavailable".into()));
+                }
+                ".github/workflows/invalid.yml" => "${{ inputs.path }}",
+                ".github/workflows/separate.yml" => "mods/separate",
+                _ => "mods/shared",
+            };
+            Ok(format!(
+                "jobs:\n  release:\n    uses: {}@release-v1\n    with:\n      path: '{path}'\n",
+                schema::RELEASE_WORKFLOW
+            )
+            .into_bytes())
         }
 
         fn download_release(&self, url: &str, dest: &Path, _: u64) -> Result<(), String> {
@@ -980,13 +1066,36 @@ mod tests {
             check: Attestation<'_>,
             file: &Path,
             bundle: &Path,
-        ) -> Result<SignerWorkflowRef, Observation> {
+        ) -> Result<VerifiedAttestation, Observation> {
             assert_eq!(check.repository_id.get(), 123456789);
             assert_eq!(fs::read(file).unwrap().as_slice(), BODY);
             assert_eq!(fs::read(bundle).unwrap().as_slice(), BUNDLE);
             self.verified_commits.borrow_mut().push(check.commit.into());
-            SignerWorkflowRef::parse(format!("{}@refs/tags/release-v1", schema::RELEASE_WORKFLOW))
-                .map_err(|reason| Observation::Ineligible(reason.into()))
+            let signer = SignerWorkflowRef::parse(format!(
+                "{}@refs/tags/release-v1",
+                schema::RELEASE_WORKFLOW
+            ))
+            .map_err(|reason| Observation::Ineligible(reason.into()))?;
+            let caller = check.first_release.then(|| {
+                let path = if self.folder_callers {
+                    format!(
+                        ".github/workflows/{}.yml",
+                        check.tag.split_once('/').unwrap().0
+                    )
+                } else if self.other_page_caller && file.ends_with("page.tar") {
+                    ".github/workflows/other.yml".into()
+                } else {
+                    ".github/workflows/publish.yml".into()
+                };
+                (
+                    github::Caller {
+                        path: schema::RelativePath::parse(path).unwrap(),
+                        commit: schema::Commit::parse(check.commit.to_owned()).unwrap(),
+                    },
+                    schema::Commit::parse("c".repeat(40)).unwrap(),
+                )
+            });
+            Ok(VerifiedAttestation { signer, caller })
         }
     }
 
@@ -1033,7 +1142,8 @@ mod tests {
         let release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
         let request = Request {
             github: &github,
-            entry,
+            mod_id: &entry.project.mod_id,
+            registered_kind: Some(entry.project.kind),
             repository_id: entry.project.repository,
             repository: &RepositoryName::parse(CURRENT.into()).unwrap(),
             workflow: schema::RELEASE_WORKFLOW,
@@ -1046,6 +1156,92 @@ mod tests {
             github.verified_commits.borrow().as_slice(),
             ["a".repeat(40), "a".repeat(40)]
         );
+    }
+
+    #[test]
+    fn only_authenticated_callers_reserve_a_path_for_first_release() {
+        let github = Recorded {
+            folder_callers: true,
+            ..Recorded::default()
+        };
+        let repository = serde_json::from_str("123456789").unwrap();
+        let name = RepositoryName::parse(CURRENT.into()).unwrap();
+        let version = Version::new(1, 2, 0);
+        let mut paths = BTreeSet::new();
+        // The newest unrelated callers cannot establish a path. The first verified caller
+        // for mods/shared has no page: that later failure must not free the path.
+        for tag in ["offline", "invalid", "newest", "separate", "older"] {
+            let mod_id = ModId::parse(tag.into()).unwrap();
+            let mut release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
+            release.tag_name = format!("{tag}/v1.2.0");
+            release
+                .assets
+                .retain(|asset| !asset.name.contains(".page.tar"));
+            for asset in &mut release.assets {
+                asset.name = asset
+                    .name
+                    .replace("wayfinder-1.2.0", &format!("{tag}-1.2.0"));
+                asset.browser_download_url = format!(
+                    "https://github.com/{CURRENT}/releases/download/{}/{}",
+                    release.tag_name, asset.name
+                );
+            }
+            let work = tempfile::tempdir().unwrap();
+            let request = Request {
+                github: &github,
+                mod_id: &mod_id,
+                registered_kind: None,
+                repository_id: repository,
+                repository: &name,
+                workflow: schema::RELEASE_WORKFLOW,
+                release: &release,
+                version: &version,
+            };
+            let result = first::newest_path(&mut paths, &request, Some(&mod_id), work.path(), None);
+            match tag {
+                "offline" => assert!(matches!(result, Err(Observation::Unknown(_)))),
+                "invalid" => assert!(matches!(result, Err(Observation::Ineligible(_)))),
+                "newest" => {
+                    let (path, package) = result.unwrap().unwrap();
+                    assert_eq!(path.as_str(), "mods/shared");
+                    assert!(signed_page(&request, work.path(), None, package).is_err());
+                }
+                "separate" => assert_eq!(result.unwrap().unwrap().0.as_str(), "mods/separate"),
+                _ => assert!(result.unwrap().is_none()),
+            }
+        }
+    }
+
+    #[test]
+    fn first_release_package_and_page_must_attest_the_same_caller() {
+        let registry = load(Path::new(FIXTURE)).unwrap();
+        let entry = &registry.projects[&ProjectId::parse("Ab3dE9xQ".into()).unwrap()];
+        let release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
+        for other_page_caller in [false, true] {
+            let github = Recorded {
+                other_page_caller,
+                ..Recorded::default()
+            };
+            let work = tempfile::tempdir().unwrap();
+            let request = Request {
+                github: &github,
+                mod_id: &entry.project.mod_id,
+                registered_kind: None,
+                repository_id: entry.project.repository,
+                repository: &RepositoryName::parse(CURRENT.into()).unwrap(),
+                workflow: schema::RELEASE_WORKFLOW,
+                release: &release,
+                version: &Version::new(1, 2, 0),
+            };
+            let result = release_assets(&request, work.path(), None);
+            if other_page_caller {
+                assert!(
+                    matches!(result, Err(Observation::Ineligible(reason)) if reason.contains("different signer or caller snapshots"))
+                );
+            } else {
+                assert!(result.is_ok());
+            }
+        }
     }
 
     #[test]
@@ -1062,7 +1258,8 @@ mod tests {
         let release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
         let request = Request {
             github: &Recorded::default(),
-            entry,
+            mod_id: &entry.project.mod_id,
+            registered_kind: Some(entry.project.kind),
             repository_id: signed_from,
             repository: &RepositoryName::parse(CURRENT.into()).unwrap(),
             workflow: schema::RELEASE_WORKFLOW,
@@ -1086,7 +1283,8 @@ mod tests {
             let release = live_release("1.2.0", "2026-11-23T13:00:00Z", digest);
             let request = Request {
                 github: &github,
-                entry,
+                mod_id: &entry.project.mod_id,
+                registered_kind: Some(entry.project.kind),
                 repository_id: entry.project.repository,
                 repository: &repo,
                 workflow: schema::RELEASE_WORKFLOW,
@@ -1164,7 +1362,8 @@ mod tests {
             };
             let request = Request {
                 github: &github,
-                entry,
+                mod_id: &entry.project.mod_id,
+                registered_kind: Some(entry.project.kind),
                 repository_id: entry.project.repository,
                 repository: &repo,
                 workflow: schema::RELEASE_WORKFLOW,
@@ -1269,7 +1468,7 @@ mod tests {
         let text = fs::read_to_string(renamed.join("123456789.toml")).unwrap();
         let row: schema::Repository = toml::from_str(&text).unwrap();
         assert_eq!(row.name.as_str(), "Example/Wayfinder-Renamed");
-        assert_eq!(row.package.len(), 1);
+        assert_eq!(row.package.unwrap().len(), 1);
         assert_eq!(fs::read_dir(renamed).unwrap().count(), 1);
         assert!(!out.path().join("releases").exists());
     }
@@ -1310,6 +1509,30 @@ mod tests {
         assert_eq!(fs::read(out.path().join("page/icon.png")).unwrap(), icon);
         assert!(out.path().join("page/page.toml").is_file());
         assert!(!out.path().join("project.toml").exists());
+
+        let mut project: schema::Project =
+            toml::from_str(&fs::read_to_string(fixture.join("project.toml")).unwrap()).unwrap();
+        project.path = PackagePath::parse("mods/wayfinder".into()).unwrap();
+        project.id = registry::first_project_id(project.repository, &project.path).unwrap();
+        let tree = |root: &Path| {
+            let project_path = root.join(project_path(&project.id));
+            [
+                "project.toml",
+                "releases/1.2.0.toml",
+                "page/page.toml",
+                "page/icon.png",
+            ]
+            .map(|file| fs::read(project_path.join(file)).unwrap())
+        };
+        let first = tempfile::tempdir().unwrap();
+        let retry = tempfile::tempdir().unwrap();
+        for dir in [&first, &retry] {
+            first::write_first(&project, &row, &payload, dir.path()).unwrap();
+            assert!(!dir.path().join("registry/repositories").exists());
+            assert!(!dir.path().join("sunrise-mod.toml").exists());
+        }
+        assert_eq!(tree(first.path()), tree(retry.path()));
+        assert_eq!(payload.package.manifest.id, "wayfinder");
     }
 
     #[test]

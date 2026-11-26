@@ -27,21 +27,19 @@ pub struct Payload {
 pub fn read(
     smod: &Path,
     archive: &Path,
-    project: &schema::Project,
+    mod_id: &ModId,
+    registered_kind: Option<Kind>,
     version: &Version,
     categories: &page::Categories,
 ) -> Result<Payload, String> {
     let package = Package::read(smod)?;
     let manifest = &package.manifest;
-    if manifest.id != project.mod_id.as_str()
-        || manifest.version != *version
-        || is_unresolved(version)
-    {
+    if manifest.id != mod_id.as_str() || manifest.version != *version || is_unresolved(version) {
         return Err(
             "package manifest ID or version does not match the project and release tag".into(),
         );
     }
-    if !matches!(project.kind, Kind::Mod | Kind::NativeMod) {
+    if registered_kind.is_some_and(|kind| !matches!(kind, Kind::Mod | Kind::NativeMod)) {
         return Err("registered project is not a mod".into());
     }
     // Validate resources and runtime data through the same readers as the game/tool.

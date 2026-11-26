@@ -77,6 +77,12 @@ jobs:
           before = api(endpoint)
           if before["state"] != "open" or before["base"]["ref"] != "main" or before["head"]["sha"] != head:
               raise SystemExit(0)
+          # An own release branch is never marked green here, even if malformed or if the
+          # only changed file were the new project.toml. Its check always comes from main.
+          head_repo = before["head"]["repo"]
+          if before["user"]["login"] == "github-actions[bot]" and before["head"]["ref"].startswith("release/") \
+             and head_repo and head_repo["full_name"].lower() == os.environ["GITHUB_REPOSITORY"].lower():
+              raise SystemExit(0)
           base = before["base"]["sha"]
           # Pin the comparison to immutable commits: the live PR files listing can change on a force-push.
           comparison = api(f"compare/{base}...{head}?per_page=1")

@@ -34,8 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          # The commit and its first parent: the pull request's base, or main before the push.
-          fetch-depth: 2
+          # Registration compares the exact PR branch and its test merge. Other checks need
+          # only the commit and its first parent.
+          ref: ${{ github.sha }}
+          fetch-depth: ${{ github.event.pull_request.user.login == 'sunrise-sunny[bot]' && github.event.pull_request.head.repo.full_name == github.repository && github.base_ref == 'main' && startsWith(github.head_ref, 'register/') && '0' || '2' }}
           persist-credentials: false
       - name: Test the release PR scripts
         run: python3 -I -m unittest discover -s ci -p 'test_release*.py'
@@ -59,6 +61,18 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base
           persist-credentials: false
+      # Until the writer switches, its repo + project PRs still run all ordinary checks.
+      - name: Check the registry app's registration shape
+        if: >-
+          github.event_name == 'pull_request'
+          && github.event.pull_request.user.login == 'sunrise-sunny[bot]'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && github.base_ref == 'main'
+          && startsWith(github.head_ref, 'register/')
+        working-directory: .
+        env:
+          REGISTRY_BOT: ${{ github.workspace }}/target/release/registry-bot
+        run: python3 -I bot/ci/release_pr.py check-registration
       - name: A listed project keeps a release
         if: github.event_name == 'pull_request'
         working-directory: .
