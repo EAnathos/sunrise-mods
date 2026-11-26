@@ -7,12 +7,12 @@ import json
 import sys
 from pathlib import Path
 
-releases = [release for page in json.load(sys.stdin) for release in page if not release["draft"]]
+releases = [release for page in json.load(sys.stdin) for release in page if release["draft"] is not True]
+# The site is public: nothing but a release GitHub itself marks as published may be on it, and an
+# answer with no release at all is not the list.
+if not releases or any(release["draft"] is not False for release in releases):
+    sys.exit("GAME_RELEASE_LIST_REFUSED: no release, or one that is not plainly published")
 file = Path(sys.argv[1])
 file.parent.mkdir(parents=True, exist_ok=True)
 file.write_text(json.dumps(releases))
-# The site is public: nothing but a release GitHub itself marks as published may be on it.
-if any(release["draft"] is not False for release in json.loads(file.read_text())):
-    file.unlink()
-    sys.exit("GAME_RELEASE_LIST_HAS_A_DRAFT: refusing to publish Sunrise's release list")
 print(f"Sunrise's release list: {len(releases)} releases")

@@ -191,7 +191,8 @@ The site also serves a copy of Sunrise's own release list, at
 `github/repos/sunrise-org/sunrise/releases`: every published release as GitHub's API returns it,
 in one array, never a draft. A launcher reads it only when GitHub's API is rate-limiting its
 network. `publish.yml` writes it on every publish, and `timer.yml` starts a publish when the last
-one is about half an hour old, so the copy is never much older than that.
+one is about half an hour old, so the copy is rarely much older than that. A publish that cannot
+read the list deploys nothing, the index included, and the site keeps what it has until the next run.
 
 The release check judges a proposed release the same way on the builds offered at that moment
 (`registry-bot release-fit`) and shows the result in its report, so a reviewer sees where the release

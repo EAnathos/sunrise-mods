@@ -42,13 +42,16 @@ jobs:
       - name: Start the release watcher
         run: gh workflow run watch.yml --repo "$GITHUB_REPOSITORY" --ref main
       # The site carries a copy of Sunrise's release list that launchers check every half hour;
-      # a publish refreshes it. Runs of this chain are ten minutes apart, so the third one after
-      # a publish finds it 25 minutes old.
+      # a publish refreshes it. Runs of this chain are a little over ten minutes apart, so the
+      # third one after a publish is the first to find it 25 minutes old: a publish about every
+      # half hour.
       - name: Start a publish when the last one is half an hour old
+        if: ${{ !cancelled() }}
         run: |
+          set -euo pipefail
           last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow publish.yml --branch main --limit 1 \
-            --json createdAt --jq '.[0].createdAt')
-          if (( $(date +%s) - $(date -d "$last" +%s) >= 1500 )); then
+            --json createdAt --jq '.[0].createdAt // empty')
+          if [[ -z "$last" ]] || (( $(date +%s) - $(date -d "$last" +%s) >= 1500 )); then
             gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main
           fi
       - name: Wait ten minutes

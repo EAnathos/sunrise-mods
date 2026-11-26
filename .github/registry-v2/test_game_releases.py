@@ -26,10 +26,11 @@ class GameReleases(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertEqual(json.loads(file.read_text()), [stable, dev])
 
-    def test_a_release_that_is_not_plainly_published_stops_the_write(self):
-        run, file = self.write([[{"tag_name": "dev-8", "draft": None}]])
-        self.assertIn("GAME_RELEASE_LIST_HAS_A_DRAFT", run.stderr)
-        self.assertFalse(file.exists())
+    def test_nothing_is_written_for_an_empty_list_or_a_release_not_plainly_published(self):
+        for pages in ([[]], [[{"tag_name": "dev-8", "draft": True}]], [[{"tag_name": "dev-8", "draft": None}]]):
+            run, file = self.write(pages)
+            self.assertIn("GAME_RELEASE_LIST_REFUSED", run.stderr)
+            self.assertFalse(file.exists())
 
 
 if __name__ == "__main__":
