@@ -1,0 +1,20 @@
+version = "0.5.5"
+kind = "native-mod"
+tag = "preferredgamerules/v0.5.5"
+published = "2026-11-26T02:42:00Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/preferredgamerules/v0.5.5/preferredgamerules-0.5.5.smod"
+size = 421350
+sha256 = "8dcef819a512dff5db34fdef54d448a9154498adede8ea05a2615c18eb5a1d8b"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/preferredgamerules/v0.5.5/preferredgamerules-0.5.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/preferredgamerules/v0.5.5/preferredgamerules-0.5.5.page.tar"
+size = 411648
+sha256 = "0aaf2c17e4f735f66abb56459b660ac7550e84aaccfff15e8592a5c52f0c8311"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/preferredgamerules/v0.5.5/preferredgamerules-0.5.5.page.tar.sigstore.json"
