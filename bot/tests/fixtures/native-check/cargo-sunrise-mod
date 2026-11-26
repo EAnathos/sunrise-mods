@@ -1,0 +1,14 @@
+#!/bin/sh
+# A stand-in for a build's mod tool in the bot's tests. It answers `native-check` with what the
+# staged mod itself carries: `src/reply.rs`, or `src/supplied.rs` once the plan names a surface.
+# Each holds one line: the exit code, then the reply.
+read -r plan
+mods=${plan#*\"mods\":\"}
+mods=${mods%%\"*}
+case $plan in
+*'"surface"'*) file=supplied.rs ;;
+*) file=reply.rs ;;
+esac
+read -r code reply <"$mods/wayfinder/src/$file"
+printf '%s\n' "$reply"
+exit "$code"

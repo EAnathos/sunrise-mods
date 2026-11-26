@@ -909,7 +909,7 @@ fn a_cell_with_no_current_verdict_is_left_out_of_the_index_not_refused_or_guesse
     let every = judged(fit_checkout().path());
     assert_eq!(every.len(), 3);
     for (file, old, new) in [
-        (FIT, "rules = 2", "rules = 1"),
+        (FIT, "rules = 3", "rules = 2"),
         (
             FIT,
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

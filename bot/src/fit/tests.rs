@@ -1,5 +1,5 @@
 use super::*;
-use std::{io, slice::from_ref};
+use std::io;
 
 use crate::schema::BuildName;
 
@@ -113,10 +113,14 @@ impl Judge for Recorded {
         Ok((!self.unreadable.contains(&build.id)).then(|| offered(build, "9").surface))
     }
 
-    fn judge(&mut self, release: &Release, build: &Offered) -> Result<bool, String> {
+    fn judge(&mut self, release: &Release, build: &Offered) -> Result<Option<bool>, String> {
         let key = (release.file.sha256.clone(), build.id.clone());
         self.calls.push(key.clone());
-        self.responses.get(&key).cloned().unwrap_or(Ok(false))
+        self.responses
+            .get(&key)
+            .cloned()
+            .unwrap_or(Ok(false))
+            .map(Some)
     }
 }
 
@@ -282,53 +286,25 @@ fn package_download_checks_hash_before_reading_the_archive() {
     assert!(error.contains("SHA-256"), "{error}");
 }
 
-#[test]
-fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
-    use std::cell::Cell;
-
-    struct PackageDownload<'a> {
-        body: &'a [u8],
-        requests: &'a Cell<usize>,
-    }
-    impl Download for PackageDownload<'_> {
+/// What the bot makes of a package of `files` (after a manifest with `native`) on the fixture's
+/// first build, whose mod tool is the stand-in `tests/fixtures/native-check/cargo-sunrise-mod`
+/// when `tool` is set. Only the package can be downloaded.
+fn judged_by_tool(
+    native: &str,
+    files: &[(&str, &[u8])],
+    tool: bool,
+) -> Result<Option<bool>, String> {
+    struct PackageOnly(Vec<u8>);
+    impl Download for PackageOnly {
         fn get(&self, url: &str, file: &Path, _limit: u64) -> Result<(), String> {
             assert!(url.ends_with(".smod"), "unexpected SDK download: {url}");
-            self.requests.set(self.requests.get() + 1);
-            fs::write(file, self.body).map_err(|e| e.to_string())
+            fs::write(file, &self.0).map_err(|e| e.to_string())
         }
     }
 
-    let uses = include_bytes!("../../tests/fixtures/deferred-fit/uses.json");
-    let table = UsesTable::read(uses).unwrap();
-    let surface = || {
-        Surface::new(
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        )
-    };
-    let report = table.fits(table.entries.iter(), &surface());
-    assert!(report.deferred.is_some());
-    let pin = table.made_for;
-    let manifest = format!(
-        "id='wayfinder'\nname='Wayfinder'\nversion='1.2.0'\n[native]\ngame='26.3'\nsunrise='{pin}'\n"
-    );
-    let body = Package::write_files(
-        &manifest,
-        &[
-            ("Cargo.toml", b"[package]\nname='wayfinder'\n"),
-            ("src/lib.rs", b"pub fn read_map() {}\n"),
-            (USES_FILE, uses),
-        ],
-    )
-    .unwrap();
+    let manifest = format!("id='wayfinder'\nname='Wayfinder'\nversion='1.2.0'\n{native}");
+    let body = Package::write_files(&manifest, files).unwrap();
     let mut registry = registry::load(fixture()).unwrap();
-    registry.projects.retain(|id, _| id.as_str() == "Ab3dE9xQ");
     let release = registry
         .projects
         .values_mut()
@@ -340,201 +316,136 @@ fn a_comparison_the_surface_cannot_finish_is_an_error_not_a_verdict() {
         .unwrap();
     release.file.size = body.len() as u64;
     release.file.sha256 = Sha256::parse(sha256_hex(&body)).unwrap();
-    let release = &*release;
     let target = scratch();
-    let builds = candidates(&judged(target.path()));
-    let build = offered(&builds[0], "1");
-    let requests = Cell::new(0);
-    let mut tool = Tool {
+    let build = Offered {
+        surface: Sha256::parse(sha256_hex(&[])).unwrap(),
+        ..offered(&candidates(&judged(target.path()))[0], "1")
+    };
+    Tool {
         root: target.path(),
-        downloads: PackageDownload {
-            body: &body,
-            requests: &requests,
-        },
+        downloads: PackageOnly(body),
         packages: BTreeMap::new(),
         sdks: BTreeMap::from([(
             build.commit.clone(),
             Ok(Rc::new(Sdk {
                 index: index(&build.commit, Manifest::parse(&manifest).unwrap().api),
                 surface_bytes: vec![],
-                surface: Ok(Rc::new(surface())),
+                surface: Ok(()),
+                tool: tool.then(|| {
+                    Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("tests/fixtures/native-check/cargo-sunrise-mod")
+                }),
             })),
         )]),
-        data: BTreeMap::new(),
-    };
-    // The build was offered with another surface than the one now published for its commit.
-    assert!(
-        tool.judge(release, &build)
-            .unwrap_err()
-            .contains("not the one")
-    );
-    let build = Offered {
-        surface: Sha256::parse(sha256_hex(&[])).unwrap(),
-        ..build
-    };
-    assert_eq!(tool.judge(release, &build), Err(report.deferred.unwrap()));
-    assert_eq!(requests.get(), 1);
+    }
+    .judge(release, &build)
 }
 
-/// A mixin target as a build's function index holds it.
-const TARGET: &str = "sunrise_client::game::f";
-/// The build a native mod in these tests was made for, another than the one it is judged on.
-const MADE_FOR: &str = "dddddddddddddddddddddddddddddddddddddddd";
+const NATIVE: &str = "[native]\ngame='26.3'\nsunrise='dddddddddddddddddddddddddddddddddddddddd'\n";
 
-/// The build data of `commit`: the function index holds [`TARGET`] with `body`.
-fn build_data(dir: &Path, commit: &Commit, body: &str) -> Data {
-    let header = serde_json::json!({"schema": 1, "build": {"commit": commit.as_str()}});
-    for (file, body) in [
+/// A native package whose stand-in tool answers `reply`, and `supplied` once given the surface.
+fn native(reply: &str, supplied: &str) -> Result<Option<bool>, String> {
+    judged_by_tool(
+        NATIVE,
+        &[
+            ("Cargo.toml", b"[package]\nname='wayfinder'\n"),
+            ("src/lib.rs", b"pub fn read_map() {}\n"),
+            ("src/reply.rs", reply.as_bytes()),
+            ("src/supplied.rs", supplied.as_bytes()),
+        ],
+        true,
+    )
+}
+
+fn checked(mod_reply: &str) -> String {
+    format!(r#"0 {{"contract":2,"route":null,"mods":[{{"id":"wayfinder",{mod_reply}}}]}}"#)
+}
+
+#[test]
+fn a_native_package_fits_where_the_builds_own_tool_says_it_is_usable() {
+    for (verdict, fits) in [
+        (r#"{"kind":"made-for"}"#, true),
+        (r#"{"kind":"fits","made_for":"d"}"#, true),
+        (r#"{"kind":"no-list","made_for":"d"}"#, false),
         (
-            "functions.json",
-            serde_json::json!({"crates": {"sunrise_client": {"library": "sunrise_client", "modules": {
-                "sunrise_client::game": [{"path": "crates/sunrise-client/src/game.rs", "sha256": body}],
-            }}}, "refused": {}, "functions": {TARGET: {
-                "module": "sunrise_client::game", "file": "crates/sunrise-client/src/game.rs",
-                "span": [0, 1], "signature_hash": "sig", "sha256": body,
-            }}}),
+            r#"{"kind":"exact","made_for":"d","why":"internals"}"#,
+            false,
         ),
-        ("internals.json", serde_json::json!({"internals": []})),
-        ("loops.json", serde_json::json!({"loops": []})),
+        (
+            r#"{"kind":"does-not-fit","made_for":"d","misfits":[]}"#,
+            false,
+        ),
     ] {
-        let mut document = header.clone();
-        document
-            .as_object_mut()
-            .unwrap()
-            .extend(body.as_object().unwrap().clone());
-        fs::write(dir.join(file), document.to_string()).unwrap();
+        let reply = checked(&format!(
+            r#""needs":null,"refusal":null,"verdict":{verdict}"#
+        ));
+        assert_eq!(native(&reply, ""), Ok(Some(fits)), "{verdict}");
     }
-    Data::read(dir, commit.as_str()).unwrap()
 }
 
-/// Whether the bot stores as fitting a native mod made for [`MADE_FOR`] whose package holds
-/// `manifest` (after its `[native]` table) and `files`, judged on the fixture's first build
-/// with `surface` (a `surface.json`) and, when given, the build data `body` makes. Only the
-/// package can be downloaded.
-fn stored(
-    native: &str,
-    files: &[(&str, &[u8])],
-    surface: serde_json::Value,
-    body: Option<&str>,
-) -> Result<bool, String> {
-    struct PackageOnly(Vec<u8>);
-    impl Download for PackageOnly {
-        fn get(&self, url: &str, file: &Path, _limit: u64) -> Result<(), String> {
-            if !url.ends_with(".smod") {
-                return Err(format!("{url}: download not found (HTTP 404)"));
-            }
-            fs::write(file, &self.0).map_err(|e| e.to_string())
-        }
-    }
-
-    let manifest = format!(
-        "id='wayfinder'\nname='Wayfinder'\nversion='1.2.0'\n[native]\ngame='26.3'\nsunrise='{MADE_FOR}'\n{native}"
+/// The page entries of sunrise#5973: an older build's tool refuses the whole package.
+#[test]
+fn a_package_the_builds_own_tool_cannot_read_or_refuses_does_not_fit() {
+    assert_eq!(
+        native(
+            r#"1 {"contract":2,"error":{"kind":"unread","message":"unexpected package path: page.toml"}}"#,
+            ""
+        ),
+        Ok(Some(false))
     );
-    let mut all = vec![
-        ("Cargo.toml", &b"[package]\nname='wayfinder'\n"[..]),
+    assert_eq!(
+        native(&checked(r#""refusal":"wayfinder needs a newer game""#), ""),
+        Ok(Some(false))
+    );
+}
+
+#[test]
+fn the_tool_is_given_the_surface_it_asks_for_once() {
+    let needs = checked(r#""needs":"surface""#);
+    let fits = checked(r#""verdict":{"kind":"fits","made_for":"d"}"#);
+    assert_eq!(native(&needs, &fits), Ok(Some(true)));
+    assert!(native(&needs, &needs).is_err());
+}
+
+#[test]
+fn an_answer_that_is_no_reply_is_an_error_not_a_verdict() {
+    for reply in [
+        "2 no plan",
+        r#"0 {"contract":2,"error":{"kind":"unread","message":"m"}}"#,
+        r#"0 {"contract":2,"route":null,"mods":[]}"#,
+        &checked(r#""needs":null,"refusal":null,"verdict":null"#),
+    ] {
+        assert!(native(reply, "").is_err(), "{reply}");
+    }
+}
+
+#[test]
+fn a_native_package_gets_no_verdict_on_a_build_without_a_tool_for_this_computer() {
+    let files: &[(&str, &[u8])] = &[
+        ("Cargo.toml", b"[package]\nname='wayfinder'\n"),
         ("src/lib.rs", b"pub fn read_map() {}\n"),
     ];
-    all.extend_from_slice(files);
-    let body_bytes = Package::write_files(&manifest, &all).unwrap();
+    assert_eq!(judged_by_tool(NATIVE, files, false), Ok(None));
+    // A content-only package needs no tool.
+    assert_eq!(judged_by_tool("", &[], false), Ok(Some(true)));
+}
+
+#[test]
+fn a_cell_without_a_verdict_is_stored_in_neither_list() {
+    struct Unjudged;
+    impl Judge for Unjudged {
+        fn surface(&mut self, build: &Build) -> Result<Option<Sha256>, String> {
+            Ok(Some(offered(build, "9").surface))
+        }
+        fn judge(&mut self, _: &Release, _: &Offered) -> Result<Option<bool>, String> {
+            Ok(None)
+        }
+    }
     let target = scratch();
-    let mut registry = judged(target.path());
-    registry.projects.retain(|id, _| id.as_str() == "Ab3dE9xQ");
-    let project = registry.projects.values_mut().next().unwrap();
-    let first = project.releases.pop_first().unwrap();
-    project.releases = BTreeMap::from([first]);
-    let release = project.releases.values_mut().next().unwrap();
-    release.file.size = body_bytes.len() as u64;
-    release.file.sha256 = Sha256::parse(sha256_hex(&body_bytes)).unwrap();
-    registry.fits.clear();
-    let build = candidates(&registry).remove(0);
-    // A new build: its surface is the one the tool reads.
-    registry.builds.clear();
-    let surface_bytes = surface.to_string().into_bytes();
-    let data = body.map(|body| {
-        let dir = target.path().join("build-data");
-        fs::create_dir_all(&dir).unwrap();
-        (
-            build.commit.clone(),
-            Ok(Rc::new(build_data(&dir, &build.commit, body))),
-        )
-    });
-    let mut tool = Tool {
-        root: target.path(),
-        downloads: PackageOnly(body_bytes),
-        packages: BTreeMap::new(),
-        sdks: BTreeMap::from([(
-            build.commit.clone(),
-            Ok(Rc::new(Sdk {
-                index: index(&build.commit, Manifest::parse(&manifest).unwrap().api),
-                surface: Ok(Rc::new(Surface::read(&surface_bytes).unwrap())),
-                surface_bytes,
-            })),
-        )]),
-        data: data.into_iter().collect(),
-    };
+    let registry = registry::load(fixture()).unwrap();
+    let builds = candidates(&judged(target.path()));
     let output = target.path().join("fit");
-    write_rows(&registry, from_ref(&build), &mut tool, &output)?;
-    let row = written(&output, "Ab3dE9xQ").release.remove(0);
-    assert_eq!(row.rules, RULES);
-    let (fits, does_not_fit) = (
-        row.fits.contains_key(&build.id),
-        row.does_not_fit.contains_key(&build.id),
-    );
-    assert!(fits != does_not_fit, "one verdict per cell");
-    Ok(fits)
-}
-
-fn empty_surface() -> serde_json::Value {
-    serde_json::json!({"schema": mod_surface::SCHEMA, "hash": "s"})
-}
-
-#[test]
-fn a_package_whose_list_cannot_show_it_fits_is_stored_as_not_fitting() {
-    // No list: it works on the build it was made for only, as the launcher builds it.
-    assert_eq!(stored("", &[], empty_surface(), None), Ok(false));
-}
-
-#[test]
-fn game_code_off_its_pin_is_compared_with_the_build_data() {
-    let native = format!(
-        "mixins='{}'\n[[native.mixin]]\nid='m'\ntarget='{TARGET}'\nkind='HEAD'\nhelper='src/m.rs'\n",
-        "e".repeat(40)
-    );
-    let list = serde_json::json!({
-        "schema": USES_SCHEMA, "made_for": MADE_FOR,
-        "entries": [{"id": format!("game:fn:{TARGET}"), "hash": "sig:body"}],
-    })
-    .to_string();
-    let files: &[(&str, &[u8])] = &[("src/m.rs", b"{}"), (USES_FILE, list.as_bytes())];
-    assert_eq!(
-        stored(&native, files, empty_surface(), Some("body")),
-        Ok(true)
-    );
-    // A replacement written for the old body could undo what the game changed in it.
-    assert_eq!(
-        stored(&native, files, empty_surface(), Some("another body")),
-        Ok(false)
-    );
-}
-
-#[test]
-fn hook_versions_the_build_it_was_made_for_cannot_give_fail_the_run() {
-    let list = serde_json::json!({
-        "schema": 1, "made_for": MADE_FOR,
-        "entries": [{"id": "hook:joined", "hash": "h1"}],
-    })
-    .to_string();
-    let surface = serde_json::json!({
-        "schema": mod_surface::SCHEMA, "hash": "s",
-        "hooks": [{
-            "id": "hook:joined", "hash": "h1", "engine": {"target": "t"}, "call": "c",
-            "version": 1, "side": "server", "contract": "listen", "cancellable": false,
-            "arguments": [],
-        }],
-    });
-    let error = stored("", &[(USES_FILE, list.as_bytes())], surface, None).unwrap_err();
-    assert!(
-        error.contains("cannot judge") && error.contains(MADE_FOR),
-        "{error}"
-    );
+    write_rows(&registry, &builds, &mut Unjudged, &output).unwrap();
+    let row = &written(&output, "Ab3dE9xQ").release[0];
+    assert!(row.fits.is_empty() && row.does_not_fit.is_empty());
 }

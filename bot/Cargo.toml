@@ -15,7 +15,6 @@ sunrise-dependency-rule = { git = "https://github.com/sunrise-org/sunrise.git", 
 sunrise-jar-fetch = { git = "https://github.com/sunrise-org/sunrise.git", rev = "c3c9aa0b07fbc7f2aa637b87847fe315258a6bfc" }
 sunrise-mod-package = { git = "https://github.com/sunrise-org/sunrise.git", rev = "c3c9aa0b07fbc7f2aa637b87847fe315258a6bfc", default-features = false, features = ["index", "prebuilt", "references"] }
 sunrise-mod-surface = { git = "https://github.com/sunrise-org/sunrise.git", rev = "c3c9aa0b07fbc7f2aa637b87847fe315258a6bfc" }
-sunrise-native-build = { git = "https://github.com/sunrise-org/sunrise.git", rev = "c3c9aa0b07fbc7f2aa637b87847fe315258a6bfc" }
 sunrise-release-sign = { git = "https://github.com/sunrise-org/sunrise.git", rev = "c3c9aa0b07fbc7f2aa637b87847fe315258a6bfc" }
 tar = { version = "0.4", default-features = false }
 tempfile = "3"
