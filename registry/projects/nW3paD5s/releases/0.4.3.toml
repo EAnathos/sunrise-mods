@@ -1,0 +1,20 @@
+version = "0.4.3"
+kind = "native-mod"
+tag = "toms_storage/v0.4.3"
+published = "2026-11-26T02:44:14Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/toms_storage/v0.4.3/toms_storage-0.4.3.smod"
+size = 310343
+sha256 = "015ccb31da1bdddb5158dd7caa866294f70dbebe6eb450104a0e602e4c6b4dd4"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/toms_storage/v0.4.3/toms_storage-0.4.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/toms_storage/v0.4.3/toms_storage-0.4.3.page.tar"
+size = 140288
+sha256 = "ee6ac6cb2f7b4e3bc6a494e419946d52585b7ef14d5ef7db9a56c1e03ab536f3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/toms_storage/v0.4.3/toms_storage-0.4.3.page.tar.sigstore.json"
