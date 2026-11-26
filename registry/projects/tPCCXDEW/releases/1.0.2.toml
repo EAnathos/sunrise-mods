@@ -1,0 +1,20 @@
+version = "1.0.2"
+kind = "native-mod"
+tag = "bebpm/v1.0.2"
+published = "2026-11-26T03:04:27Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/bebpm/v1.0.2/bebpm-1.0.2.smod"
+size = 587195
+sha256 = "dc8c4acc1556b34f1e9331b826c70ab8fc12a6da6df81af50122549f5751e52a"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/bebpm/v1.0.2/bebpm-1.0.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/bebpm/v1.0.2/bebpm-1.0.2.page.tar"
+size = 571392
+sha256 = "770c3f156fb4d51590029f45387981dd5d6684d0b016f72bf6f6b429f61539f0"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/bebpm/v1.0.2/bebpm-1.0.2.page.tar.sigstore.json"
