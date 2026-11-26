@@ -1,0 +1,93 @@
+name: Bot pin
+
+# The registry tool reads every package with the Sunrise crates pinned in bot/Cargo.toml. When
+# the registry offers a game build ahead of that pin, this proposes the pull request that moves
+# the pin to the build's commit, so a release made for the new build is not read with an older
+# reader. Started by timer.yml on every tick, like the release watcher. The pull request is
+# reviewed and merged by hand like any other change to the tool; registry-tools.yml then builds
+# the tool.
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: bot-pin
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Find the newest game build ahead of the pin
+        id: build
+        run: |
+          set -euo pipefail
+          pin=$(grep -o 'sunrise\.git", rev = "[0-9a-f]\{40\}"' bot/Cargo.toml | grep -o '[0-9a-f]\{40\}' | sort -u)
+          [[ "$pin" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::bot/Cargo.toml does not pin the Sunrise crates at one commit"; exit 1; }
+          # The builds the judging job offers and stored: each one's commit is the one its
+          # release's signed SDK descriptor names. The build furthest ahead of the pin wins;
+          # one behind or beside the pin (an older line's Nightly) never moves it.
+          python3 -I .github/registry-v2/fit_store.py read
+          # The store is a branch of this repository: its text is checked here before any of
+          # it reaches a command, and a reviewer reads the proposed commit before it merges.
+          jq -r '.[] | if (.id | test("^[a-z0-9][a-z0-9.-]*$")) and (.commit | test("^[0-9a-f]{40}$"))
+            then "\(.id) \(.commit)" else error("builds.json: not a build ID and commit") end' \
+            registry/fit/builds.json > "$RUNNER_TEMP/builds"
+          best=0
+          while read -r tag commit; do
+            [[ "$commit" != "$pin" ]] || continue
+            read -r status ahead < <(gh api "repos/sunrise-org/sunrise/compare/$pin...$commit" --jq '"\(.status) \(.ahead_by)"')
+            if [[ "$status" == ahead ]] && (( ahead > best )); then
+              best=$ahead
+              echo "tag=$tag" > "$RUNNER_TEMP/chosen"
+              echo "commit=$commit" >> "$RUNNER_TEMP/chosen"
+            fi
+          done < "$RUNNER_TEMP/builds"
+          echo "pin=$pin" >> "$GITHUB_OUTPUT"
+          if (( best == 0 )); then
+            echo "No game build is ahead of the pin ${pin:0:10}." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          cat "$RUNNER_TEMP/chosen" >> "$GITHUB_OUTPUT"
+      # A branch is one proposal for one commit and is never replaced. A closed pull request
+      # was refused and stays closed. The pull request's checks wait for a maintainer's
+      # approval, as for every pull request a workflow's token opens (docs/registry-v2.md).
+      - name: Propose the pin
+        if: steps.build.outputs.commit
+        env:
+          PIN: ${{ steps.build.outputs.pin }}
+          TAG: ${{ steps.build.outputs.tag }}
+          COMMIT: ${{ steps.build.outputs.commit }}
+        run: |
+          set -euo pipefail
+          branch="bot-pin/$COMMIT"
+          title="Bot: pin the Sunrise crates at $TAG"
+          pulls=$(gh api "repos/$GITHUB_REPOSITORY/pulls?state=all&base=main&head=${GITHUB_REPOSITORY_OWNER}:$branch" \
+            --jq 'map(select(.user.login == "github-actions[bot]"))')
+          if [[ $(jq length <<< "$pulls") == 0 ]]; then
+            sed -i "s/$PIN/$COMMIT/g" bot/Cargo.toml
+            # Resolves again and rewrites the lockfile for the moved crates only.
+            cargo metadata --manifest-path bot/Cargo.toml --format-version 1 > /dev/null
+            git add -- bot/Cargo.toml bot/Cargo.lock
+            git -c core.hooksPath=/dev/null -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -q -s -m "$title"
+            # A push never replaces a branch. One that exists without the pull request (a run
+            # that stopped between the two, or a branch somebody else made) is not adopted:
+            # this step fails on every tick until a maintainer deletes it.
+            if ! git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push origin "HEAD:refs/heads/$branch"; then
+              echo "::error::Could not push $branch. If the branch exists, delete it to propose the pin again."
+              exit 1
+            fi
+            pulls=$(gh api "repos/$GITHUB_REPOSITORY/pulls" -X POST -f base=main -f head="$branch" -f title="$title" -f body="The registry offers the game build \`$TAG\` at \`$COMMIT\`, ahead of the commit the registry tool's Sunrise crates are pinned at (\`$PIN\`). This moves the pin and its lockfile entries to that build, so releases made for it are read with its own package reader. Nothing else changes." --jq '[.]')
+          fi
+          jq -r '.[0] | "The pin at \(env.TAG) is #\(.number) (\(.state))."' <<< "$pulls" >> "$GITHUB_STEP_SUMMARY"

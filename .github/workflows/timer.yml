@@ -41,6 +41,11 @@ jobs:
     steps:
       - name: Start the release watcher
         run: gh workflow run watch.yml --repo "$GITHUB_REPOSITORY" --ref main
+      # A game build may be ahead of the Sunrise crates the tool is pinned at. The look is the
+      # workflow's own, so a run that failed is made up for by the next tick.
+      - name: Start the look for a game build ahead of the tool's pin
+        if: ${{ !cancelled() }}
+        run: gh workflow run bot-pin.yml --repo "$GITHUB_REPOSITORY" --ref main
       # The site carries a copy of Sunrise's release list that launchers check every half hour;
       # a publish refreshes it. Runs of this chain are a little over ten minutes apart, so the
       # third one after a publish is the first to find it 25 minutes old: a publish about every
