@@ -1,0 +1,20 @@
+version = "0.5.3"
+kind = "native-mod"
+tag = "badwithernocookie/v0.5.3"
+published = "2026-11-26T03:04:42Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/badwithernocookie/v0.5.3/badwithernocookie-0.5.3.smod"
+size = 846371
+sha256 = "3a913523ca85597d7d77f9b7721d7a1b6820538a0a00a58e16431a01dc224a0e"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/badwithernocookie/v0.5.3/badwithernocookie-0.5.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/badwithernocookie/v0.5.3/badwithernocookie-0.5.3.page.tar"
+size = 613888
+sha256 = "f012a692701d1aeb526adab713df4b3ce36e810e9ed9d213f672f8e125c1b46a"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/badwithernocookie/v0.5.3/badwithernocookie-0.5.3.page.tar.sigstore.json"
