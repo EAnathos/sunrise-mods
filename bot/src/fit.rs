@@ -1,20 +1,18 @@
 use std::{
     collections::{BTreeMap, btree_map::Entry},
     fs,
+    io::Write,
     path::{Path, PathBuf},
+    process::{Command, Stdio},
     rc::Rc,
 };
 
-use mod_surface::{
-    Surface,
-    uses::{USES_FILE, USES_SCHEMA, UsesError, UsesTable},
-};
+use mod_surface::Surface;
+use serde::Deserialize;
 use sunrise_mod_package::{
-    Manifest, Package, build_data, index::MAX_FILE, manifest::MAX_USES, sdk,
-};
-use sunrise_native_build::{
-    check::{self as fit_check, Builds, Unlisted},
-    game_uses::Data,
+    Manifest, Package, build_data,
+    index::{MAX_FILE, native::Bundle},
+    sdk,
 };
 use sunrise_release_sign::{SIGNATURE, SUMS, check, sdk_digest, sha256_hex, trusted_keys_for};
 
@@ -22,26 +20,34 @@ use crate::{
     builds::{self, Build, Considered, Offered, Outcome, SUNRISE},
     escape,
     registry::{self, Registry},
-    schema::{Asset, BuildName, Commit, Fit, FitRelease, Release, Sha256},
+    schema::{Asset, BuildName, Commit, Fit, FitRelease, Kind, Release, Sha256},
     signed::SMALL,
 };
 
 const SURFACE: &str = "surface.json";
 /// The version of the rules a verdict was judged by. Raise it with any change to what
-/// [`Tool::judge`] answers, the pinned Sunrise crates it compares with included: every stored
-/// verdict is then judged again.
-pub const RULES: u32 = 2;
+/// [`Tool::judge`] answers, the pinned Sunrise crates it reads a package with included: every
+/// stored verdict is then judged again.
+pub const RULES: u32 = 3;
 /// The stored list of considered Sunrise releases, beside the verdicts.
 pub const CONSIDERED: &str = "considered.json";
 /// The most the build data may unpack to: its files at the mod tool's bound for one
 /// (`cargo-sunrise-mod`'s `BUILD_DATA_LIMIT`).
 const BUILD_DATA_LIMIT: u64 = 4 * (256 << 20);
+/// The computer the judging job runs on, as an SDK names its per-target assets.
+const HOST: &str = "x86_64-unknown-linux-gnu";
+/// The most a build's mod tool may unpack to.
+const TOOL_LIMIT: u64 = 256 << 20;
+/// The `native-check` contract this tool speaks.
+const CONTRACT: u32 = 2;
 
 trait Judge {
     /// The digest of the build's signed `surface.json`, or `None` when this tool cannot read that
     /// surface and so cannot offer the build.
     fn surface(&mut self, build: &Build) -> Result<Option<Sha256>, String>;
-    fn judge(&mut self, release: &Release, build: &Offered) -> Result<bool, String>;
+    /// `None` when the build has nothing to judge a native package with: no verdict is stored,
+    /// and a launcher on that build checks the package itself.
+    fn judge(&mut self, release: &Release, build: &Offered) -> Result<Option<bool>, String>;
 }
 
 /// The stored verdict for a release on an offered build, when it was judged from the release's
@@ -103,7 +109,8 @@ fn write_rows(
                 let fits = match verdict(stored, release, build) {
                     Some(fits) => fits,
                     None => match judge.judge(release, build) {
-                        Ok(fits) => fits,
+                        Ok(Some(fits)) => fits,
+                        Ok(None) => continue,
                         Err(why) => {
                             failed.push(format!(
                                 "{} {} on {}: {}",
@@ -200,7 +207,6 @@ pub fn run(checkout: &Path, considered: Option<&Path>) -> Result<(), String> {
             downloads: Https,
             packages: BTreeMap::new(),
             sdks: BTreeMap::new(),
-            data: BTreeMap::new(),
         },
         &out,
     )?;
@@ -242,8 +248,9 @@ fn cells<'a>(
     let mut failed = Vec::new();
     for build in builds {
         match judge.judge(release, build) {
-            Ok(true) => cells.fits.push(&build.id),
-            Ok(false) => cells.does_not_fit.push(&build.id),
+            Ok(Some(true)) => cells.fits.push(&build.id),
+            Ok(Some(false)) => cells.does_not_fit.push(&build.id),
+            Ok(None) => {}
             Err(why) => failed.push(format!("{}: {why}", build.id.as_str())),
         }
     }
@@ -272,7 +279,6 @@ pub fn release(builds: &Path, row: &Path, out: &Path) -> Result<(), String> {
             downloads: Https,
             packages: BTreeMap::new(),
             sdks: BTreeMap::new(),
-            data: BTreeMap::new(),
         },
     )?;
     let bytes = serde_json::to_vec(&cells).map_err(|e| e.to_string())?;
@@ -303,8 +309,6 @@ struct Tool<'a, D> {
     downloads: D,
     packages: BTreeMap<Sha256, (PathBuf, Manifest)>,
     sdks: BTreeMap<Commit, Result<Rc<Sdk>, String>>,
-    /// Each build's game-code tables, read only for a mod that declares game code.
-    data: BTreeMap<Commit, Result<Rc<Data>, String>>,
 }
 
 fn package(
@@ -348,7 +352,10 @@ fn sdk_file(
 struct Sdk {
     index: sdk::Index,
     surface_bytes: Vec<u8>,
-    surface: Result<Rc<Surface>, String>,
+    /// Whether this tool reads the surface: a build whose surface it cannot read is not offered.
+    surface: Result<(), String>,
+    /// The build's own `cargo-sunrise-mod`, when its SDK has one for [`HOST`].
+    tool: Option<PathBuf>,
 }
 
 fn sdk(downloader: &impl Download, mirror: &Path, commit: &Commit) -> Result<Rc<Sdk>, String> {
@@ -371,12 +378,30 @@ fn sdk(downloader: &impl Download, mirror: &Path, commit: &Commit) -> Result<Rc<
     index
         .verify(SURFACE, surface_bytes.as_slice())
         .map_err(|e| e.to_string())?;
+    // Checked as the launcher checks it: listed in the signed index, and unpacked only once
+    // its bytes match the digest listed there.
+    let tool = match index.route_assets("tool", HOST, sdk::Side::Client) {
+        Ok(names) => {
+            let [name] = names.as_slice() else {
+                return Err(format!("expected one mod tool archive, found {names:?}"));
+            };
+            let size = index.asset(name).map_err(|e| e.to_string())?.size;
+            let archive = sdk_file(downloader, mirror, commit, name, size)?;
+            let into = archive.with_file_name("tool");
+            sdk::unpack(&index, name, &archive, &into, TOOL_LIMIT).map_err(|e| e.to_string())?;
+            Some(into.join("cargo-sunrise-mod"))
+        }
+        // No tool at all, or none for this computer.
+        Err(sdk::Refusal::Route(_) | sdk::Refusal::Missing(_)) => None,
+        Err(other) => return Err(other.to_string()),
+    };
     Ok(Rc::new(Sdk {
         index,
         surface: Surface::read(&surface_bytes)
-            .map(Rc::new)
+            .map(drop)
             .map_err(|e| e.to_string()),
         surface_bytes,
+        tool,
     }))
 }
 
@@ -404,59 +429,124 @@ impl<D: Download> Judge for Tool<'_, D> {
         }
     }
 
-    fn judge(&mut self, release: &Release, build: &Offered) -> Result<bool, String> {
+    fn judge(&mut self, release: &Release, build: &Offered) -> Result<Option<bool>, String> {
         let asset = &release.file;
         let target = self.sdk(&build.commit)?;
         if sha256_hex(&target.surface_bytes) != build.surface.as_str() {
             return Err("the build's surface is not the one it was offered with".into());
         }
+        // Asked again on every run, so answered before the package is downloaded.
+        if release.kind == Kind::NativeMod && target.tool.is_none() {
+            return Ok(None);
+        }
         let Tool {
             root,
             downloads,
             packages,
-            sdks,
-            data,
+            ..
         } = self;
         let (file, manifest) = match packages.entry(asset.sha256.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(package(downloads, root, asset)?),
         };
         if target.index.content_api != manifest.api {
-            return Ok(false);
+            return Ok(Some(false));
         }
-        let Some(native) = &manifest.native else {
-            return Ok(true);
+        if manifest.native.is_none() {
+            return Ok(Some(true));
+        }
+        // A native package is judged by the build's own mod tool, the one the launcher runs: only
+        // it knows what that build reads of a package.
+        let Some(program) = &target.tool else {
+            return Ok(None);
         };
-        if native.game != target.index.build.game {
-            return Ok(false);
+        // The package's files as the launcher stages them for the tool.
+        let staged = root.join("staged").join(asset.sha256.as_str());
+        if !staged.exists() {
+            let bundle = Bundle::read(file)?;
+            for (name, bytes) in &bundle.files {
+                let to = staged.join(&manifest.id).join(name);
+                fs::create_dir_all(to.parent().expect("a file in the staged folder"))
+                    .and_then(|()| fs::write(&to, bytes))
+                    .map_err(|e| format!("{}: {e}", to.display()))?;
+            }
         }
-        let mirror = root.join("sdk-releases");
-        let mut listed = None;
-        let judged = fit_check::judge(
-            manifest,
-            Builds {
-                made_for: &native.sunrise,
-                build: build.commit.as_str(),
-                mixins_rev: &target.index.mixins.rev,
-            },
-            || {
-                let bytes = Package::entry(file, USES_FILE, MAX_USES)
-                    .map_err(|_| Unlisted::Unreadable)?
-                    .ok_or(Unlisted::Missing)?;
-                let table = UsesTable::read(&bytes).map_err(|error| match error {
-                    UsesError::Schema(schema) if schema > USES_SCHEMA => Unlisted::NewerSchema,
-                    _ => Unlisted::Unreadable,
-                })?;
-                Ok(listed.insert(table))
-            },
-            &mut || target.surface.clone(),
-            &mut || {
-                let tables = data
-                    .entry(build.commit.clone())
-                    .or_insert_with(|| {
+        let sdk_dir = root
+            .join("sdk-releases")
+            .join(format!("sdk-{}", build.commit.as_str()));
+        let mut plan = serde_json::json!({
+            "contract": CONTRACT, "mods": staged, "build": build.commit.as_str(),
+        });
+        let does_not_fit = |why: &str| {
+            println!(
+                "{} does not fit {}: {}",
+                asset.url.as_str(),
+                build.id.as_str(),
+                escape(why)
+            );
+            Ok(Some(false))
+        };
+        loop {
+            // The tool reads a package nobody has reviewed yet: it gets none of this job's
+            // environment, starts in the staged folder, and what it writes besides its reply
+            // (the package's own words among it) stays out of the job's log.
+            let mut child = Command::new(program)
+                .arg("native-check")
+                .env_clear()
+                .current_dir(&staged)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|e| format!("{}: {e}", program.display()))?;
+            child
+                .stdin
+                .take()
+                .expect("piped")
+                .write_all(format!("{plan}\n").as_bytes())
+                .map_err(|e| e.to_string())?;
+            let output = child.wait_with_output().map_err(|e| e.to_string())?;
+            let unread = || {
+                format!(
+                    "the mod tool of {} gave no answer this tool reads ({})",
+                    build.id.as_str(),
+                    output.status
+                )
+            };
+            // A tool from before `native-check` prints its usage and no reply: the build has
+            // nothing to judge with.
+            if output.stdout.trim_ascii().is_empty() {
+                return Ok(None);
+            }
+            let reply: Reply = serde_json::from_slice(&output.stdout).map_err(|_| unread())?;
+            let checked = match (output.status.code(), reply) {
+                // The tool could not read the package: neither can a launcher on this build.
+                (Some(1), Reply::Error { error }) => return does_not_fit(&error.message),
+                (Some(0), Reply::Checked { mods }) => {
+                    let [checked] = <[Checked; 1]>::try_from(mods).map_err(|_| unread())?;
+                    checked
+                }
+                _ => return Err(unread()),
+            };
+            match (checked.verdict, checked.refusal, checked.needs) {
+                (Some(verdict), None, None) => {
+                    // The verdicts the launcher builds by (`Verdict::usable`).
+                    return if matches!(verdict["kind"].as_str(), Some("made-for" | "fits")) {
+                        Ok(Some(true))
+                    } else {
+                        does_not_fit(&verdict.to_string())
+                    };
+                }
+                (None, Some(why), None) => return does_not_fit(&why),
+                (None, None, Some(Need::Surface)) if plan.get("surface").is_none() => {
+                    plan["surface"] = serde_json::json!(sdk_dir.join(SURFACE));
+                }
+                (None, None, Some(Need::BuildData)) if plan.get("build_data").is_none() => {
+                    let into = sdk_dir.join("build-data");
+                    if !into.exists() {
                         let archive = sdk_file(
                             downloads,
-                            &mirror,
+                            &root.join("sdk-releases"),
                             &build.commit,
                             build_data::ARCHIVE,
                             target
@@ -465,7 +555,6 @@ impl<D: Download> Judge for Tool<'_, D> {
                                 .map_err(|e| e.to_string())?
                                 .size,
                         )?;
-                        let into = archive.with_file_name("build-data");
                         sdk::unpack(
                             &target.index,
                             build_data::ARCHIVE,
@@ -474,43 +563,41 @@ impl<D: Download> Judge for Tool<'_, D> {
                             BUILD_DATA_LIMIT,
                         )
                         .map_err(|e| e.to_string())?;
-                        Data::read(&into, build.commit.as_str())
-                            .map(Rc::new)
-                            .map_err(|e| e.to_string())
-                    })
-                    .as_ref()
-                    .map_err(Clone::clone)?;
-                Ok(tables.entries(manifest))
-            },
-            Some(&mut || {
-                let pin = Commit::parse(native.sunrise.clone())?;
-                let made_for = sdks
-                    .entry(pin.clone())
-                    .or_insert_with(|| sdk(downloads, &mirror, &pin))
-                    .as_ref()
-                    .map_err(Clone::clone)?;
-                Ok(made_for.surface_bytes.clone())
-            }),
-        )?;
-        // A cell the bot cannot judge fails the run, never a stored guess: the build it was made
-        // for could not complete the list's hook versions, or an entry only the compile can judge
-        // is left.
-        if let Some(why) = judged.unpinned.or(judged.deferred) {
-            return Err(why);
+                    }
+                    plan["build_data"] = serde_json::json!(into);
+                }
+                _ => return Err(unread()),
+            }
         }
-        // The verdict the launcher builds by (`Verdict::usable`): a mod whose package cannot show
-        // it fits works on the build it was made for only.
-        let fits = judged.verdict.usable();
-        if !fits {
-            println!(
-                "{} does not fit {}: {}",
-                asset.url.as_str(),
-                build.id.as_str(),
-                escape(&serde_json::to_string(&judged.verdict).map_err(|e| e.to_string())?)
-            );
-        }
-        Ok(fits)
     }
+}
+
+/// `native-check`'s reply line (the SDK reference's "native-check").
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Reply {
+    Error { error: ReplyError },
+    Checked { mods: Vec<Checked> },
+}
+
+#[derive(Deserialize)]
+struct ReplyError {
+    message: String,
+}
+
+/// How one mod stands: its verdict, its refusal, or what the tool needs to give one.
+#[derive(Deserialize)]
+struct Checked {
+    verdict: Option<serde_json::Value>,
+    refusal: Option<String>,
+    needs: Option<Need>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum Need {
+    Surface,
+    BuildData,
 }
 
 #[cfg(test)]

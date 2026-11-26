@@ -172,10 +172,21 @@ change to the rules raises `RULES`. Rows for a build that is no longer offered a
 offered. A dispatch also looks for builds to offer: every published
 `26.3-<semver>` stable release and up to the ten newest builds with a published SDK surface from each
 of Nightly and Dev, named by exact build ID. A build whose surface this tool cannot read is not
-offered. The job verifies each package's size and SHA-256 and the SDK's signed metadata and surface,
-and uses Sunrise's shared surface library for the API comparison; it does not build or run packages.
-A native mod with `[native.*]` rows fits only the build it was made for. A cell that cannot be judged
-fails the run and stores nothing: an unknown is never recorded as "does not fit". A run that
+offered. The job verifies each package's size and SHA-256 and the SDK's signed metadata and surface; it
+does not build or run packages.
+
+A native package is judged on a build by that build's own mod tool, the one a launcher on that build
+runs: the job takes `cargo-sunrise-mod` from the build's signed SDK release, checks it against the
+digest `sdk.json` lists, stages the package's files as the launcher does and asks `native-check`. The
+release fits when the tool's verdict is `made-for` or `fits`. Any other verdict, a refusal, or a
+package the tool cannot read is "does not fit", and the job's log has the tool's words. So a newer
+package format an older build's tool refuses is never offered to that build. A build whose SDK has no
+tool for the job's computer (Linux x86_64), or a tool from before `native-check`, gets no verdict for
+native packages, and a launcher on it checks them itself. The tool runs with an empty environment, in
+a step of `fit.yml` that holds no token. A content-only package fits every build with its content API.
+
+A cell that cannot be judged (a download that fails, a tool that gives no answer) fails the run and
+stores nothing: an unknown is never recorded as "does not fit". A run that
 changed what is stored starts `publish.yml`, so the new verdicts are published.
 
 Nobody has to dispatch it when Sunrise publishes a build. A run that looks for builds also stores
@@ -197,7 +208,8 @@ read the list deploys nothing, the index included, and the site keeps what it ha
 The release check judges a proposed release the same way on the builds offered at that moment
 (`registry-bot release-fit`) and shows the result in its report, so a reviewer sees where the release
 will appear before merging. It stores nothing: the job above judges the release again after the
-merge. A release that cannot be judged on an offered build fails its check.
+merge. A release that cannot be judged on an offered build fails its check; a build that gets no
+verdict is in neither list.
 
 ### `registry/revoked.toml`
 

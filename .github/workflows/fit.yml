@@ -18,37 +18,51 @@ jobs:
   judge:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: write
       actions: write
       attestations: read
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
       - uses: ./.github/actions/registry-tool
-      - name: Judge the releases that have no current verdict
-        id: judge
+      - name: Read the stored verdicts and look for builds to offer
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          bot=target/release/registry-bot
           python3 -I .github/registry-v2/fit_store.py read --optional
-          considered=()
           # A push changes releases, not game builds: it is judged on the builds already offered.
           if [[ "$GITHUB_EVENT_NAME" != push || ! -f registry/fit/builds.json ]]; then
-            "$bot" builds --out "$RUNNER_TEMP/considered.json"
+            target/release/registry-bot builds --out "$RUNNER_TEMP/considered.json"
+          fi
+      # Judging runs each build's own mod tool on packages, so this step holds no token: the job's
+      # token is given only to the steps around it.
+      - name: Judge the releases that have no current verdict
+        run: |
+          set -euo pipefail
+          considered=()
+          if [[ -f "$RUNNER_TEMP/considered.json" ]]; then
             considered=(--builds "$RUNNER_TEMP/considered.json")
           fi
-          "$bot" fit . "${considered[@]}"
+          target/release/registry-bot fit . "${considered[@]}"
+      - name: Store the verdicts
+        id: judge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
           # Which original jars Modrinth no longer lists. When Modrinth cannot be asked (exit 75,
           # `UNAVAILABLE_EXIT` in bot/src/github.rs) the stored answer stands.
-          "$bot" jars . || { code=$?; [[ $code == 75 ]] || exit "$code"; echo "::warning::Could not ask Modrinth about original jars; the stored answer stands."; }
+          target/release/registry-bot jars . || { code=$?; [[ $code == 75 ]] || exit "$code"; echo "::warning::Could not ask Modrinth about original jars; the stored answer stands."; }
           python3 -I .github/registry-v2/fit_store.py write "Judge fits for $GITHUB_SHA"
       # publish.yml publishes every push by itself. This publish carries the verdicts stored
       # above, on whatever main is by now: what a newer push added is left unjudged in it until
       # that push's own run of this job.
       - name: Publish the new verdicts
         if: steps.judge.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main
