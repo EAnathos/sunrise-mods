@@ -1,0 +1,20 @@
+version = "1.0.2"
+kind = "native-mod"
+tag = "v1.0.2"
+published = "2026-11-26T01:34:55Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1472464577
+dependencies = []
+
+[file]
+url = "https://github.com/EAnathos/sunrise-villagefolk/releases/download/v1.0.2/villagefolk-1.0.2.smod"
+size = 1583094
+sha256 = "55cea77510c3d43847be1921e20890bb431caf333681e1b9c05e718a981cba1b"
+attestation = "https://github.com/EAnathos/sunrise-villagefolk/releases/download/v1.0.2/villagefolk-1.0.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-villagefolk/releases/download/v1.0.2/villagefolk-1.0.2.page.tar"
+size = 1568768
+sha256 = "6c58877b79fffd78d0175dc2476f73654b9f0a6ac44705a91e87c476a866f7e7"
+attestation = "https://github.com/EAnathos/sunrise-villagefolk/releases/download/v1.0.2/villagefolk-1.0.2.page.tar.sigstore.json"
