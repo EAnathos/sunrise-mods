@@ -1,6 +1,6 @@
 //! Read-only GitHub boundary for release observation and attestation verification.
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs,
     num::NonZeroU64,
     path::Path,
@@ -12,7 +12,7 @@ use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use serde::{Deserialize, de::DeserializeOwned};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-use crate::schema::{Commit, Login, RelativePath, RepositoryId, RepositoryName, SignerWorkflowRef};
+use crate::schema::{Login, RepositoryId, RepositoryName, SignerWorkflowRef};
 
 #[derive(Deserialize)]
 pub struct Repository {
@@ -122,14 +122,6 @@ pub trait GitHub {
 
     fn account(&self, id: NonZeroU64) -> Result<Account, Observation> {
         api(&format!("user/{id}")).map_err(Observation::Unknown)
-    }
-
-    fn caller_workflow(
-        &self,
-        repository: RepositoryId,
-        caller: &Caller,
-    ) -> Result<Vec<u8>, Observation> {
-        caller_workflow(repository, caller)
     }
 
     fn download_release(&self, url: &str, dest: &Path, limit: u64) -> Result<(), String> {
@@ -258,101 +250,6 @@ impl GitHub for Cli<'_> {
         }
         Ok(commit.sha)
     }
-}
-
-/// Fetch the exact regular workflow blob, never a symlink target or an archive of the repository.
-fn caller_workflow(repository: RepositoryId, caller: &Caller) -> Result<Vec<u8>, Observation> {
-    #[derive(Deserialize)]
-    struct GitCommit {
-        sha: Commit,
-        tree: Object,
-    }
-    #[derive(Deserialize)]
-    struct Object {
-        sha: Commit,
-    }
-    #[derive(Deserialize)]
-    struct GitTree {
-        truncated: bool,
-        tree: Vec<GitEntry>,
-    }
-    #[derive(Deserialize)]
-    struct GitEntry {
-        path: String,
-        #[serde(rename = "type")]
-        kind: String,
-        mode: String,
-        sha: Commit,
-        size: Option<usize>,
-    }
-    let repo = Repo::Registered(repository).endpoint();
-    let commit: GitCommit = api(&format!("{repo}/git/commits/{}", caller.commit.as_str()))
-        .map_err(Observation::Unknown)?;
-    if commit.sha != caller.commit {
-        return Err(Observation::Ineligible(
-            "caller lookup returned a different commit".into(),
-        ));
-    }
-    let mut sha = commit.tree.sha;
-    let mut parts = caller.path.as_str().split('/').peekable();
-    while let Some(part) = parts.next() {
-        let tree: GitTree =
-            api(&format!("{repo}/git/trees/{}", sha.as_str())).map_err(Observation::Unknown)?;
-        if tree.truncated {
-            return Err(Observation::Unknown(
-                "GitHub truncated the caller tree".into(),
-            ));
-        }
-        let mut matches = tree.tree.into_iter().filter(|entry| entry.path == part);
-        let Some(entry) = matches.next() else {
-            return Err(Observation::Ineligible(
-                "attested caller workflow does not exist at its commit".into(),
-            ));
-        };
-        if matches.next().is_some() {
-            return Err(Observation::Unknown(
-                "GitHub returned duplicate caller tree entries".into(),
-            ));
-        }
-        sha = entry.sha;
-        if parts.peek().is_some() {
-            if entry.kind != "tree" || entry.mode != "040000" {
-                return Err(Observation::Ineligible(
-                    "caller parent is not a Git tree".into(),
-                ));
-            }
-            continue;
-        }
-        // GitHub Actions workflow file size limit (GitHub Actions / Limits / Workflows).
-        const MAX_WORKFLOW: usize = 1 << 20;
-        let size = entry.size.filter(|size| *size <= MAX_WORKFLOW);
-        if entry.kind != "blob"
-            || !matches!(entry.mode.as_str(), "100644" | "100755")
-            || size.is_none()
-        {
-            return Err(Observation::Ineligible(
-                "caller workflow must be a regular file within GitHub's 1 MiB limit".into(),
-            ));
-        }
-        let bytes = gh(&[
-            "api",
-            "--hostname",
-            "github.com",
-            "-H",
-            "Accept: application/vnd.github.raw+json",
-            &format!("{repo}/git/blobs/{}", sha.as_str()),
-        ])
-        .map_err(Observation::Unknown)?;
-        if Some(bytes.len()) != size {
-            return Err(Observation::Unknown(
-                "caller workflow download size differs from the Git tree".into(),
-            ));
-        }
-        return Ok(bytes);
-    }
-    Err(Observation::Ineligible(
-        "missing caller workflow path".into(),
-    ))
 }
 
 pub fn encode(text: &str) -> percent_encoding::PercentEncode<'_> {
@@ -534,7 +431,7 @@ pub fn transfer(options: &[&str], url: &str, dest: &Path, limit: u64) -> Result<
     Ok(true)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Observation {
     Unknown(String),
     Ineligible(String),
@@ -550,15 +447,11 @@ impl std::fmt::Display for Observation {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Caller {
-    pub path: RelativePath,
-    pub commit: Commit,
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VerifiedAttestation {
     pub signer: SignerWorkflowRef,
-    pub caller: Option<(Caller, Commit)>,
+    /// The `(name, sha256)` subjects of the verified statement, the one the artifact itself is a
+    /// subject of. Nothing of the bundle outside that statement is read.
+    pub subjects: BTreeSet<(String, String)>,
 }
 
 pub struct Attestation<'a> {
@@ -567,7 +460,6 @@ pub struct Attestation<'a> {
     pub workflow_path: &'a str,
     pub tag: &'a str,
     pub commit: &'a str,
-    pub first_release: bool,
 }
 
 impl Attestation<'_> {
@@ -640,6 +532,20 @@ impl Attestation<'_> {
         #[derive(Deserialize)]
         struct Verification {
             signature: Signature,
+            /// The in-toto statement that was verified (`verificationResult.statement`).
+            #[serde(default)]
+            statement: Option<Statement>,
+        }
+        #[derive(Deserialize)]
+        struct Statement {
+            subject: Vec<Subject>,
+        }
+        #[derive(Deserialize)]
+        struct Subject {
+            #[serde(default)]
+            name: String,
+            #[serde(default)]
+            digest: BTreeMap<String, String>,
         }
         #[derive(Deserialize)]
         struct Signature {
@@ -654,12 +560,6 @@ impl Attestation<'_> {
             source_repository_identifier: String,
             source_repository_ref: String,
             source_repository_digest: String,
-            #[serde(rename = "sourceRepositoryURI")]
-            source_repository_uri: Option<String>,
-            #[serde(rename = "buildConfigURI")]
-            build_config_uri: Option<String>,
-            build_config_digest: Option<String>,
-            build_signer_digest: Option<String>,
         }
         let results: Vec<Verified> = decode(output).map_err(Observation::Unknown)?;
         let mut refs = BTreeSet::new();
@@ -679,48 +579,18 @@ impl Attestation<'_> {
                     .is_some_and(|(path, _)| path == self.workflow_path)
                 && let Ok(workflow) = SignerWorkflowRef::parse(signer.into())
             {
-                let caller = if self.first_release {
-                    let (Some(repository), Some(config), Some(config_digest), Some(signer_digest)) = (
-                        cert.source_repository_uri,
-                        cert.build_config_uri,
-                        cert.build_config_digest,
-                        cert.build_signer_digest,
-                    ) else {
-                        return Err(Observation::Ineligible(
-                            "verified certificate is missing caller or signer snapshot".into(),
-                        ));
-                    };
-                    let source_ref = format!("refs/tags/{}", self.tag);
-                    let path = config
-                        .strip_prefix(&repository)
-                        .and_then(|suffix| suffix.strip_prefix('/'))
-                        .and_then(|suffix| suffix.strip_suffix(&format!("@{source_ref}")));
-                    let path = path.filter(|path| {
-                        path.strip_prefix(".github/workflows/").is_some_and(|file| {
-                            !file.contains('/')
-                                && (file.ends_with(".yml") || file.ends_with(".yaml"))
-                        })
-                    });
-                    let valid_repository = repository
-                        .strip_prefix("https://github.com/")
-                        .is_some_and(crate::schema::github_repository);
-                    let (true, Some(path), Ok(commit), Ok(signer_commit)) = (
-                        valid_repository && config_digest == self.commit,
-                        path,
-                        Commit::parse(config_digest),
-                        Commit::parse(signer_digest),
-                    ) else {
-                        return Err(Observation::Ineligible("verified caller does not match the signed source repository, release ref and commit".into()));
-                    };
-                    let path = RelativePath::parse(path.to_owned())
-                        .map_err(|e| Observation::Ineligible(e.into()))?;
-                    Some((Caller { path, commit }, signer_commit))
-                } else {
-                    None
-                };
+                let subjects = result
+                    .verification_result
+                    .statement
+                    .into_iter()
+                    .flat_map(|statement| statement.subject)
+                    .filter_map(|subject| {
+                        Some((subject.name, subject.digest.get("sha256")?.clone()))
+                    })
+                    .collect();
                 refs.insert(VerifiedAttestation {
                     signer: workflow,
-                    caller,
+                    subjects,
                 });
             }
         }
@@ -747,7 +617,6 @@ mod tests {
             workflow_path: crate::schema::RELEASE_WORKFLOW,
             tag: "mod/v1.2.0",
             commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            first_release: false,
         };
         let uri = format!(
             "https://github.com/{}@refs/tags/release-v2",
@@ -787,7 +656,7 @@ mod tests {
     }
 
     #[test]
-    fn first_release_claims_require_the_verified_caller_and_its_snapshot() {
+    fn claims_carry_only_the_sha256_subjects_of_the_verified_statement() {
         let repo = RepositoryName::parse("arismoko/sunrise-ports".into()).unwrap();
         let check = Attestation {
             repository_id: serde_json::from_str("1468300372").unwrap(),
@@ -795,56 +664,67 @@ mod tests {
             workflow_path: crate::schema::RELEASE_WORKFLOW,
             tag: "clumps/v0.5.3",
             commit: "04c387e7e2fae4d100aa2f2c575db7b51d60fe98",
-            first_release: true,
         };
-        // Projection of gh's verified certificate schema, matching the public sample's
-        // extensions. This does not substitute for real signature verification.
+        // Projection of the fields of `gh attestation verify --format json` that are read:
+        // `verificationResult.signature.certificate` and `verificationResult.statement.subject`.
+        // This does not substitute for real signature verification.
+        let uri = format!(
+            "https://github.com/{}@refs/tags/release-v1",
+            check.workflow_path
+        );
         let cert = json!({
-            "subjectAlternativeName": "https://github.com/sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1",
-            "buildSignerURI": "https://github.com/sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1",
-            "buildSignerDigest": "6d1fb5c6fe20b394ff583960f385a0ecf8e41478",
-            "sourceRepositoryURI": "https://github.com/arismoko/sunrise-ports",
+            "subjectAlternativeName": uri,
+            "buildSignerURI": uri,
             "sourceRepositoryIdentifier": "1468300372",
             "sourceRepositoryRef": "refs/tags/clumps/v0.5.3",
             "sourceRepositoryDigest": check.commit,
-            "buildConfigURI": "https://github.com/arismoko/sunrise-ports/.github/workflows/sunrise-release-clumps.yml@refs/tags/clumps/v0.5.3",
-            "buildConfigDigest": check.commit,
         });
-        let verified =
-            |cert| json!([{"verificationResult":{"signature":{"certificate":cert}}}]).to_string();
-        let (caller, _) = check
-            .claims(verified(cert.clone()).as_bytes())
+        let statement = json!({"subject": [
+            {"name": "clumps-0.5.3.smod", "digest": {"sha256": "aa"}},
+            {"name": "clumps-0.5.3.release.json", "digest": {"sha256": "bb"}},
+            {"name": "clumps-0.5.3.other", "digest": {"sha512": "cc"}},
+        ]});
+        let verified = |cert: &serde_json::Value, statement: &serde_json::Value| {
+            json!([{"verificationResult": {"signature": {"certificate": cert}, "statement": statement}}])
+                .to_string()
+        };
+        let subjects = check
+            .claims(verified(&cert, &statement).as_bytes())
             .unwrap()
-            .caller
-            .unwrap();
+            .subjects;
         assert_eq!(
-            caller.path.as_str(),
-            ".github/workflows/sunrise-release-clumps.yml"
+            subjects,
+            BTreeSet::from([
+                ("clumps-0.5.3.smod".to_owned(), "aa".to_owned()),
+                ("clumps-0.5.3.release.json".to_owned(), "bb".to_owned()),
+            ])
         );
-        assert_eq!(caller.commit.as_str(), check.commit);
-        for (field, value) in [
-            (
-                "buildConfigURI",
-                json!(
-                    "https://github.com/other/mod/.github/workflows/s.yml@refs/tags/clumps/v0.5.3"
-                ),
-            ),
-            (
-                "buildConfigURI",
-                json!(
-                    "https://github.com/arismoko/sunrise-ports/.github/workflows/s.yml@refs/heads/main"
-                ),
-            ),
-            ("buildConfigDigest", json!("f".repeat(40))),
-            ("buildSignerDigest", json!(null)),
-        ] {
-            let mut wrong = cert.clone();
-            wrong[field] = value;
-            assert!(matches!(
-                check.claims(verified(wrong).as_bytes()),
-                Err(Observation::Ineligible(_))
-            ));
-        }
+        // An ordinary release's output without a statement is still a verified signer.
+        let bare = json!([{"verificationResult": {"signature": {"certificate": cert}}}]);
+        assert!(
+            check
+                .claims(bare.to_string().as_bytes())
+                .unwrap()
+                .subjects
+                .is_empty()
+        );
+        // The statement of a result whose certificate does not match is never read.
+        let mut wrong = cert.clone();
+        wrong["sourceRepositoryDigest"] = json!("f".repeat(40));
+        assert!(matches!(
+            check.claims(verified(&wrong, &statement).as_bytes()),
+            Err(Observation::Ineligible(_))
+        ));
+        // Two verified results with different statements are not merged into one.
+        let other = json!({"subject": []});
+        let two = json!([
+            {"verificationResult": {"signature": {"certificate": cert}, "statement": statement}},
+            {"verificationResult": {"signature": {"certificate": cert}, "statement": other}},
+        ]);
+        assert!(matches!(
+            check.claims(two.to_string().as_bytes()),
+            Err(Observation::Ineligible(_))
+        ));
         assert!(matches!(
             check.claims(b"not gh JSON"),
             Err(Observation::Unknown(_))

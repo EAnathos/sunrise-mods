@@ -18,7 +18,7 @@ use crate::{
     release_payload::{self, Payload},
     schema::{
         self, Asset, HttpsUrl, Kind, ModId, PackagePath, ProjectId, PublishedAt, Release,
-        RepositoryId, RepositoryName, Sha256, Text,
+        RepositoryId, RepositoryName, Sha256, SignerWorkflowRef, Text,
     },
 };
 
@@ -531,7 +531,7 @@ impl Request<'_> {
 struct Assets {
     package: Asset,
     page: Asset,
-    attestation: VerifiedAttestation,
+    workflow: SignerWorkflowRef,
 }
 
 struct SignedPackage {
@@ -591,15 +591,15 @@ fn signed_page(
         dir,
         claim.map(|r| Claim::Proposed(&r.page)),
     )?;
-    if package.attestation != page_ref {
+    if package.attestation.signer != page_ref.signer {
         return Err(Observation::Ineligible(
-            "package and page attestations name different signer or caller snapshots".into(),
+            "package and page attestations name different signer workflow refs".into(),
         ));
     }
     Ok(Assets {
         package: package.file,
         page,
-        attestation: package.attestation,
+        workflow: package.attestation.signer,
     })
 }
 
@@ -635,6 +635,16 @@ fn download_asset(
     Ok(hash)
 }
 
+/// The download URL of an asset of the live release, if it names the registered repository, the
+/// release's tag and the asset's own name.
+fn release_url<'a>(request: &Request<'_>, live: &'a github::Asset) -> Result<&'a str, Observation> {
+    let url = live.browser_download_url.as_str();
+    registry::release_download_repository(url, &request.release.tag_name, &live.name)
+        .is_some_and(|owner| owner.eq_ignore_ascii_case(request.repository.as_str()))
+        .then_some(url)
+        .ok_or_else(|| Observation::Ineligible("GitHub release asset or bundle URL does not name the registered repository and release".into()))
+}
+
 fn asset(
     request: &Request<'_>,
     commit: &str,
@@ -655,15 +665,8 @@ fn asset(
         .release
         .asset(&bundle_name)
         .map_err(Observation::Ineligible)?;
-    let url = file.browser_download_url.as_str();
-    let bundle_url = bundle.browser_download_url.as_str();
-    for (url, expected) in [(url, &name), (bundle_url, &bundle_name)] {
-        if !registry::release_download_repository(url, tag, expected)
-            .is_some_and(|owner| owner.eq_ignore_ascii_case(request.repository.as_str()))
-        {
-            return Err(Observation::Ineligible("GitHub release asset or bundle URL does not name the registered repository and release".into()));
-        }
-    }
+    let url = release_url(request, file)?;
+    let bundle_url = release_url(request, bundle)?;
     if let Some(Claim::Proposed(claim)) = claim
         && (claim.url.as_str() != url || claim.attestation.as_str() != bundle_url)
     {
@@ -735,7 +738,6 @@ fn asset(
                 workflow_path: request.workflow,
                 tag,
                 commit,
-                first_release: request.registered_kind.is_none(),
             },
             &path,
             &attestation,
@@ -790,7 +792,7 @@ fn prepared(
         tag: Text::parse(request.release.tag_name.clone())?,
         published: PublishedAt::of(published)?,
         sunrise,
-        workflow: assets.attestation.signer,
+        workflow: assets.workflow,
         // Both attestations were verified against this ID (`asset`).
         repository: request.repository_id,
         file: assets.package,
@@ -828,7 +830,6 @@ fn note(summary: &mut String, label: &str, reason: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema::SignerWorkflowRef;
     use std::{
         cell::{Cell, RefCell},
         collections::BTreeMap,
@@ -979,8 +980,40 @@ mod tests {
         inconclusive: bool,
         alias_reassigned: bool,
         alias_broken: bool,
-        other_page_caller: bool,
-        folder_callers: bool,
+        other_page_signer: bool,
+        /// What each stream's `<mod>-<version>.release.json` serves, by mod ID.
+        served: BTreeMap<&'static str, &'static str>,
+        /// How a stream's attested subjects differ from the file it serves.
+        attested: BTreeMap<&'static str, Attested>,
+    }
+
+    #[derive(Clone, Copy)]
+    enum Attested {
+        OtherBytes,
+        OtherName,
+        NoSubjects,
+    }
+
+    impl Recorded {
+        fn json(&self, mod_id: &str) -> &'static str {
+            self.served
+                .get(mod_id)
+                .copied()
+                .unwrap_or(r#"{"path":"mods/shared"}"#)
+        }
+
+        /// The subjects of a package statement, as the real verification reports them.
+        fn subjects(&self, mod_id: &str, version: &str) -> BTreeSet<(String, String)> {
+            use sunrise_mod_package::index::sha256;
+            let name = format!("{mod_id}-{version}.release.json");
+            let served = sha256(self.json(mod_id).as_bytes());
+            match self.attested.get(mod_id) {
+                None => BTreeSet::from([(name, served)]),
+                Some(Attested::OtherBytes) => BTreeSet::from([(name, sha256(b"other"))]),
+                Some(Attested::OtherName) => BTreeSet::from([(format!("x-{name}"), served)]),
+                Some(Attested::NoSubjects) => BTreeSet::new(),
+            }
+        }
     }
 
     impl GitHub for Recorded {
@@ -1022,36 +1055,10 @@ mod tests {
 
         fn tag_commit(&self, repo: Repo<'_>, tag: &str) -> Result<String, String> {
             assert!(matches!(repo, Repo::Registered(id) if id.get() == 123456789));
-            assert!(
-                tag == "v1.2.0"
-                    || self.folder_callers
-                        && tag
-                            .split_once('/')
-                            .is_some_and(|(_, v)| v.starts_with("v1."))
-            );
+            assert!(tag == "v1.2.0" || tag.ends_with("/v1.2.0"));
             let count = self.tag_lookups.get();
             self.tag_lookups.set(count + 1);
             Ok(if count == 0 { "a" } else { "b" }.repeat(40))
-        }
-
-        fn caller_workflow(
-            &self,
-            _: RepositoryId,
-            caller: &github::Caller,
-        ) -> Result<Vec<u8>, Observation> {
-            let path = match caller.path.as_str() {
-                ".github/workflows/offline.yml" => {
-                    return Err(Observation::Unknown("GitHub unavailable".into()));
-                }
-                ".github/workflows/invalid.yml" => "${{ inputs.path }}",
-                ".github/workflows/separate.yml" => "mods/separate",
-                _ => "mods/shared",
-            };
-            Ok(format!(
-                "jobs:\n  release:\n    uses: {}@release-v1\n    with:\n      path: '{path}'\n",
-                schema::RELEASE_WORKFLOW
-            )
-            .into_bytes())
         }
 
         fn download_release(&self, url: &str, dest: &Path, _: u64) -> Result<(), String> {
@@ -1061,6 +1068,16 @@ mod tests {
             }
             let bytes = if url.ends_with(".sigstore.json") {
                 BUNDLE
+            } else if let Some(name) = url.strip_suffix(".release.json") {
+                // `.../download/<tag>/<mod>-<version>` with the suffix cut off.
+                let mod_id = name
+                    .rsplit('/')
+                    .next()
+                    .and_then(|stem| stem.split('-').next());
+                if mod_id == Some("offline") {
+                    return Err("asset temporarily unavailable".into());
+                }
+                self.json(mod_id.unwrap()).as_bytes()
             } else {
                 BODY
             };
@@ -1077,31 +1094,27 @@ mod tests {
             assert_eq!(fs::read(file).unwrap().as_slice(), BODY);
             assert_eq!(fs::read(bundle).unwrap().as_slice(), BUNDLE);
             self.verified_commits.borrow_mut().push(check.commit.into());
+            let release = if self.other_page_signer && file.ends_with("page.tar") {
+                "release-v2"
+            } else {
+                "release-v1"
+            };
             let signer = SignerWorkflowRef::parse(format!(
-                "{}@refs/tags/release-v1",
+                "{}@refs/tags/{release}",
                 schema::RELEASE_WORKFLOW
             ))
             .map_err(|reason| Observation::Ineligible(reason.into()))?;
-            let caller = check.first_release.then(|| {
-                let path = if self.folder_callers {
-                    format!(
-                        ".github/workflows/{}.yml",
-                        check.tag.split_once('/').unwrap().0
-                    )
-                } else if self.other_page_caller && file.ends_with("page.tar") {
-                    ".github/workflows/other.yml".into()
-                } else {
-                    ".github/workflows/publish.yml".into()
-                };
-                (
-                    github::Caller {
-                        path: schema::RelativePath::parse(path).unwrap(),
-                        commit: schema::Commit::parse(check.commit.to_owned()).unwrap(),
-                    },
-                    schema::Commit::parse("c".repeat(40)).unwrap(),
-                )
-            });
-            Ok(VerifiedAttestation { signer, caller })
+            // A root tag's package is `wayfinder` in these fixtures.
+            let (mod_id, version) = check
+                .tag
+                .split_once("/v")
+                .unwrap_or(("wayfinder", &check.tag[1..]));
+            let subjects = if file.ends_with("package.smod") {
+                self.subjects(mod_id, version)
+            } else {
+                BTreeSet::new()
+            };
+            Ok(VerifiedAttestation { signer, subjects })
         }
     }
 
@@ -1164,51 +1177,77 @@ mod tests {
         );
     }
 
+    fn with_release_json(release: &mut github::Release, mod_id: &str, body: &str) {
+        let name = format!(
+            "{mod_id}-{}.release.json",
+            release.tag_name.rsplit_once('v').unwrap().1
+        );
+        release.assets.push(github::Asset {
+            browser_download_url: format!(
+                "https://github.com/{CURRENT}/releases/download/{}/{name}",
+                release.tag_name
+            ),
+            name,
+            size: body.len() as u64,
+            digest: None,
+        });
+    }
+
     #[test]
-    fn only_authenticated_callers_reserve_a_path_for_first_release() {
+    fn only_the_signed_release_json_names_a_path_for_first_release() {
         let github = Recorded {
-            folder_callers: true,
+            served: BTreeMap::from([
+                ("invalid", r#"{"path":"mods//x"}"#),
+                ("extra", r#"{"path":"mods/x","other":1}"#),
+                ("dot", r#"{"path":"."}"#),
+                ("number", r#"{"path":3}"#),
+                ("separate", r#"{"path":"mods/separate"}"#),
+            ]),
+            attested: BTreeMap::from([
+                ("other_bytes", Attested::OtherBytes),
+                ("other_name", Attested::OtherName),
+                ("no_subjects", Attested::NoSubjects),
+            ]),
             ..Recorded::default()
         };
         let repository = serde_json::from_str("123456789").unwrap();
         let name = RepositoryName::parse(CURRENT.into()).unwrap();
-        let mut streams = first::Streams::default();
-        // Each step is one candidate of the stream named by its tag, newest first, with a
-        // distinct version so that an older tag is visibly a different release.
-        let steps = [
-            ("offline", "1.2.0"),
-            ("offline", "1.1.0"),
-            ("invalid", "1.2.0"),
-            ("invalid", "1.1.0"),
-            ("newest", "1.2.0"),
-            ("newest", "1.1.0"),
-            ("other", "1.2.0"),
-            ("other", "1.1.0"),
-            ("separate", "1.2.0"),
-            ("separate", "1.1.0"),
-        ];
-        // The newest unrelated callers cannot establish a path: a caller that cannot be read or
-        // is invalid settles nothing, so the same stream is read again at its older tag, and
-        // the streams of other namespaces are unaffected. The first verified caller for
-        // mods/shared has no page: that later failure must not free the path.
-        for (tag, number) in steps {
-            let mod_id = ModId::parse(tag.into()).unwrap();
-            let version = Version::parse(number).unwrap();
-            let mut release = live_release(number, "2026-11-23T13:00:00Z", None);
-            release.tag_name = format!("{tag}/v{number}");
+        let version = Version::new(1, 2, 0);
+        let mut paths = BTreeSet::new();
+        // Each stream is one release, as discovery hands them over: the newest of its tag stream.
+        // `newest` and `other` both sign mods/shared, and the rest each fail in their own way.
+        for stream in [
+            "offline",
+            "no_metadata",
+            "other_bytes",
+            "other_name",
+            "no_subjects",
+            "invalid",
+            "extra",
+            "dot",
+            "number",
+            "newest",
+            "other",
+            "separate",
+        ] {
+            let mod_id = ModId::parse(stream.into()).unwrap();
+            let mut release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
+            release.tag_name = format!("{stream}/v1.2.0");
             release
                 .assets
                 .retain(|asset| !asset.name.contains(".page.tar"));
             for asset in &mut release.assets {
                 asset.name = asset
                     .name
-                    .replace(&format!("wayfinder-{number}"), &format!("{tag}-{number}"));
+                    .replace("wayfinder-1.2.0", &format!("{stream}-1.2.0"));
                 asset.browser_download_url = format!(
                     "https://github.com/{CURRENT}/releases/download/{}/{}",
                     release.tag_name, asset.name
                 );
             }
-            let work = tempfile::tempdir().unwrap();
+            if stream != "no_metadata" {
+                with_release_json(&mut release, stream, github.json(stream));
+            }
             let request = Request {
                 github: &github,
                 mod_id: &mod_id,
@@ -1219,66 +1258,77 @@ mod tests {
                 release: &release,
                 version: &version,
             };
+            let work = tempfile::tempdir().unwrap();
             let before = github.downloads.borrow().len();
-            let result =
-                first::newest_path(&mut streams, &request, Some(&mod_id), work.path(), None);
+            let result = first::newest_path(&mut paths, &request, Some(&mod_id), work.path(), None);
             let reads = github.downloads.borrow().len() - before;
-            match (tag, number) {
-                ("offline", _) => {
-                    assert!(
-                        matches!(result, Err(Observation::Unknown(_))),
-                        "{tag} {number}"
-                    );
-                    assert!(reads > 0, "{tag} {number}");
+            match stream {
+                "offline" => assert!(matches!(result, Err(Observation::Unknown(_)))),
+                // Nothing is downloaded or verified for a release that has no metadata.
+                "no_metadata" => {
+                    assert!(matches!(result, Err(Observation::Ineligible(_))));
+                    assert_eq!(reads, 0);
                 }
-                ("invalid", _) => {
-                    assert!(
-                        matches!(result, Err(Observation::Ineligible(_))),
-                        "{tag} {number}"
-                    );
-                    assert!(reads > 0, "{tag} {number}");
-                }
-                ("newest", "1.2.0") => {
-                    let (path, package) = result.unwrap().unwrap();
-                    assert_eq!(path.as_str(), "mods/shared");
-                    assert!(reads > 0);
-                    assert!(signed_page(&request, work.path(), None, package).is_err());
-                }
-                // An authenticated claim of an already reserved path still settles its own
-                // stream, so its older tag is not read at all.
-                ("other", "1.2.0") => {
-                    assert!(result.unwrap().is_none());
-                    assert!(reads > 0);
-                }
-                // An independent path in another stream is still found.
-                ("separate", "1.2.0") => {
-                    assert_eq!(result.unwrap().unwrap().0.as_str(), "mods/separate");
-                    assert!(reads > 0);
-                }
-                // Older tags of a settled stream are not read at all.
-                _ => {
-                    assert!(result.unwrap().is_none(), "{tag} {number}");
-                    assert_eq!(reads, 0, "{tag} {number}");
-                }
+                "newest" | "separate" => assert!(result.unwrap().is_some(), "{stream}"),
+                // A second stream signing a reserved path is not admitted a second time.
+                "other" => assert!(result.unwrap().is_none()),
+                _ => assert!(
+                    matches!(result, Err(Observation::Ineligible(_))),
+                    "{stream}"
+                ),
             }
+        }
+        // Only the two admitted streams reserved a path: no refusal above took one.
+        assert_eq!(
+            paths.iter().map(PackagePath::as_str).collect::<Vec<_>>(),
+            ["mods/separate", "mods/shared"]
+        );
+    }
+
+    #[test]
+    fn a_root_tag_is_admitted_only_with_the_root_path() {
+        for (body, admitted) in [
+            (r#"{"path":"mods/wayfinder"}"#, false),
+            (r#"{"path":"."}"#, true),
+        ] {
+            let github = Recorded {
+                served: BTreeMap::from([("wayfinder", body)]),
+                ..Recorded::default()
+            };
+            let mut release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
+            with_release_json(&mut release, "wayfinder", body);
+            let work = tempfile::tempdir().unwrap();
+            let request = Request {
+                github: &github,
+                mod_id: &ModId::parse("wayfinder".into()).unwrap(),
+                registered_kind: None,
+                repository_id: serde_json::from_str("123456789").unwrap(),
+                repository: &RepositoryName::parse(CURRENT.into()).unwrap(),
+                workflow: schema::RELEASE_WORKFLOW,
+                release: &release,
+                version: &Version::new(1, 2, 0),
+            };
+            let result =
+                first::newest_path(&mut BTreeSet::new(), &request, None, work.path(), None);
+            assert_eq!(result.is_ok(), admitted, "{body}");
         }
     }
 
     #[test]
-    fn first_release_package_and_page_must_attest_the_same_caller() {
+    fn package_and_page_must_name_the_same_signer() {
         let registry = load(Path::new(FIXTURE)).unwrap();
         let entry = &registry.projects[&ProjectId::parse("Ab3dE9xQ".into()).unwrap()];
         let release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
-        for other_page_caller in [false, true] {
+        for other_page_signer in [false, true] {
             let github = Recorded {
-                other_page_caller,
+                other_page_signer,
                 ..Recorded::default()
             };
             let work = tempfile::tempdir().unwrap();
             let request = Request {
                 github: &github,
                 mod_id: &entry.project.mod_id,
-                registered_kind: None,
+                registered_kind: Some(entry.project.kind),
                 repository_id: entry.project.repository,
                 repository: &RepositoryName::parse(CURRENT.into()).unwrap(),
                 workflow: schema::RELEASE_WORKFLOW,
@@ -1286,9 +1336,9 @@ mod tests {
                 version: &Version::new(1, 2, 0),
             };
             let result = release_assets(&request, work.path(), None);
-            if other_page_caller {
+            if other_page_signer {
                 assert!(
-                    matches!(result, Err(Observation::Ineligible(reason)) if reason.contains("different signer or caller snapshots"))
+                    matches!(result, Err(Observation::Ineligible(reason)) if reason.contains("different signer workflow refs"))
                 );
             } else {
                 assert!(result.is_ok());

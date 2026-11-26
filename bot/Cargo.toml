@@ -11,7 +11,6 @@ percent-encoding = "2.3"
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde-saphyr = { version = "2.2", default-features = false, features = ["deserialize"] }
 sunrise-dependency-rule = { git = "https://github.com/sunrise-org/sunrise.git", rev = "ba1f24e4ad41246b558230aa665539dc768b1287" }
 sunrise-jar-fetch = { git = "https://github.com/sunrise-org/sunrise.git", rev = "ba1f24e4ad41246b558230aa665539dc768b1287" }
 sunrise-mod-package = { git = "https://github.com/sunrise-org/sunrise.git", rev = "ba1f24e4ad41246b558230aa665539dc768b1287", default-features = false, features = ["index", "prebuilt", "references"] }

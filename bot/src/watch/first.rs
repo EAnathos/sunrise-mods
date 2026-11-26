@@ -1,17 +1,21 @@
-//! First-release discovery and regeneration. Tags and names are hints; only a verified caller
-//! at the tagged commit can claim a package path.
+//! First-release discovery and regeneration. Only the newest published release of a tag stream is
+//! read, and only the `<mod>-<version>.release.json` that the trusted release workflow signed into
+//! the package's attestation names its package path. Tags and file names are hints.
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
 use super::*;
-use crate::schema::{CalendarDate, Login, Project, SignerWorkflowRef};
+use crate::schema::{CalendarDate, Login, Project};
 
 struct FirstCandidate<'a> {
     namespace: Option<ModId>,
     candidate: Candidate<'a>,
 }
 
+/// The newest published release of each tag stream (the root, or one subfolder namespace) that no
+/// registered project claims, newest publication first. A stream whose newest release carries no
+/// metadata is not admitted, and nothing older of it is considered.
 fn first_candidates<'a>(
     registry: &Registry,
     repository: RepositoryId,
@@ -35,17 +39,7 @@ fn first_candidates<'a>(
                 .map(|id| ModId::parse(id.to_owned()))
                 .transpose()
                 .ok()?;
-            // Tag names only narrow discovery. A newer tag that cannot authenticate its path
-            // must not suppress an earlier tag, even in the same namespace.
-            if claimed.contains(&namespace)
-                || !release
-                    .assets
-                    .iter()
-                    .any(|asset| asset.name.ends_with(".smod.sigstore.json"))
-            {
-                return None;
-            }
-            Some(FirstCandidate {
+            (!claimed.contains(&namespace)).then_some(FirstCandidate {
                 namespace,
                 candidate: Candidate {
                     release,
@@ -62,132 +56,90 @@ fn first_candidates<'a>(
             &a.namespace,
         ))
     });
+    let mut streams = BTreeSet::new();
+    newest.retain(|first| streams.insert(first.namespace.clone()));
     newest
 }
 
 fn asset_mod_id(first: &FirstCandidate<'_>) -> Result<ModId, Observation> {
-    let release = first.candidate.release;
+    if let Some(id) = &first.namespace {
+        return Ok(id.clone());
+    }
     let suffix = format!("-{}.smod", first.candidate.version);
-    let id = if let Some(id) = &first.namespace {
-        id.clone()
-    } else {
-        let mut packages = release
-            .assets
-            .iter()
-            .filter_map(|asset| asset.name.strip_suffix(&suffix));
-        match (packages.next(), packages.next()) {
-            (Some(id), None) => {
-                ModId::parse(id.to_owned()).map_err(|e| Observation::Ineligible(e.into()))?
-            }
-            _ => {
-                return Err(Observation::Ineligible(
-                    "expected exactly one <mod>-<version>.smod asset for the root tag".into(),
-                ));
-            }
+    let mut packages = first
+        .candidate
+        .release
+        .assets
+        .iter()
+        .filter_map(|asset| asset.name.strip_suffix(&suffix));
+    match (packages.next(), packages.next()) {
+        (Some(id), None) => {
+            ModId::parse(id.to_owned()).map_err(|e| Observation::Ineligible(e.into()))
         }
-    };
-    let name = format!("{}{suffix}", id.as_str());
-    release.asset(&name).map_err(Observation::Ineligible)?;
-    release
-        .asset(&format!("{name}.sigstore.json"))
-        .map_err(Observation::Ineligible)?;
-    Ok(id)
-}
-
-fn caller_path(
-    bytes: &[u8],
-    signer: &SignerWorkflowRef,
-    namespace: Option<&ModId>,
-) -> Result<PackagePath, Observation> {
-    #[derive(Deserialize)]
-    struct Workflow {
-        jobs: BTreeMap<String, Job>,
-    }
-    #[derive(Deserialize)]
-    struct Job {
-        uses: Option<String>,
-        #[serde(rename = "with", default)]
-        inputs: BTreeMap<String, serde_json::Value>,
-    }
-    let refuse = |message: &str| Observation::Ineligible(message.to_owned());
-    // Actions supports YAML anchors, not YAML merge keys. Keep the parser's default
-    // duplicate-key rejection and expansion budget.
-    let options = serde_saphyr::options! { merge_keys: serde_saphyr::MergeKeyPolicy::Error };
-    let workflow: Workflow = serde_saphyr::from_slice_with_options(bytes, options)
-        .map_err(|e| Observation::Ineligible(format!("invalid attested caller YAML: {e}")))?;
-    let (workflow_ref, tag) = signer
-        .as_str()
-        .split_once("@refs/tags/")
-        .ok_or_else(|| refuse("expected a verified shared signer tag"))?;
-    let short = format!("{workflow_ref}@{tag}");
-    let mut jobs = workflow.jobs.values().filter(|job| {
-        job.uses
-            .as_deref()
-            .is_some_and(|uses| uses == short || uses == signer.as_str())
-    });
-    let (Some(job), None) = (jobs.next(), jobs.next()) else {
-        return Err(refuse(
-            "expected one caller job using the exact verified shared signer ref",
-        ));
-    };
-    let literal = job
-        .inputs
-        .get("path")
-        .and_then(serde_json::Value::as_str)
-        .filter(|path| !path.contains("${{"))
-        .ok_or_else(|| refuse("caller with.path is not a literal string"))?;
-    let path = PackagePath::parse(literal.to_owned()).map_err(refuse)?;
-    if matches!(path, PackagePath::Root(_)) != namespace.is_none() {
-        return Err(refuse(
-            "caller with.path does not match the release tag namespace",
-        ));
-    }
-    Ok(path)
-}
-
-/// What first-release discovery has settled so far in one pass. A tag stream is a namespace
-/// (or the root); package paths are deduplicated across streams independently of it.
-#[derive(Default)]
-pub(super) struct Streams {
-    settled: BTreeSet<Option<ModId>>,
-    paths: BTreeSet<PackagePath>,
-}
-
-impl Streams {
-    pub(super) fn settled(&self, namespace: Option<&ModId>) -> bool {
-        self.settled.contains(&namespace.cloned())
+        _ => Err(Observation::Ineligible(
+            "expected exactly one <mod>-<version>.smod asset for the root tag".into(),
+        )),
     }
 }
 
-/// Called newest first within each stream. A stream stops at its newest candidate whose package
-/// authenticates and whose caller proves a path, even when another stream already reserved that
-/// path, and does so before the page, collisions, PR or payload are checked, so a later refusal
-/// never admits an older release. A candidate that fails to authenticate or prove a path settles
-/// nothing. Older candidates of a settled stream are not read. `Ok(None)` means nothing is left
-/// to propose from this candidate.
+/// Called for the newest candidate of each stream, newest publication first, with the paths the
+/// earlier ones named. The package must authenticate, and the release must carry its
+/// `<mod>-<version>.release.json` as an asset whose name and SHA-256 are a subject of the same
+/// verified statement as the package. The path comes from that file alone. It is reserved even if
+/// the page, collisions, PR or payload are refused later, so nothing older is ever admitted in
+/// its place; a candidate that proves no path reserves none and stops no other stream. `Ok(None)`
+/// means a newer stream already holds the path.
 pub(super) fn newest_path(
-    streams: &mut Streams,
+    paths: &mut BTreeSet<PackagePath>,
     request: &Request<'_>,
     namespace: Option<&ModId>,
     dir: &Path,
     claim: Option<&Release>,
 ) -> Result<Option<(PackagePath, SignedPackage)>, Observation> {
-    if streams.settled(namespace) {
-        return Ok(None);
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct ReleaseJson {
+        path: String,
     }
+    // The document holds one package path: Linux PATH_MAX (`limits.h`) is the longest a checkout can name.
+    const MAX_RELEASE_JSON: u64 = 4096;
+    let name = format!(
+        "{}-{}.release.json",
+        request.mod_id.as_str(),
+        request.version
+    );
+    let live = request
+        .release
+        .asset(&name)
+        .map_err(Observation::Ineligible)?;
+    if live.size > MAX_RELEASE_JSON {
+        return Err(Observation::Ineligible(format!(
+            "{name} is larger than {MAX_RELEASE_JSON} bytes"
+        )));
+    }
+    let url = release_url(request, live)?;
     let package = signed_package(request, dir, claim)?;
-    let (caller, _) = package.attestation.caller.as_ref().ok_or_else(|| {
-        Observation::Ineligible("first release must attest the caller workflow".into())
-    })?;
-    let bytes = request
-        .github
-        .caller_workflow(request.repository_id, caller)?;
-    let path = caller_path(&bytes, &package.attestation.signer, namespace)?;
-    streams.settled.insert(namespace.cloned());
-    Ok(streams
-        .paths
-        .insert(path.clone())
-        .then_some((path, package)))
+    let file = dir.join("release.json");
+    let sha256 = download_asset(request.github, url, &file, live)?;
+    if !package
+        .attestation
+        .subjects
+        .contains(&(name.clone(), sha256))
+    {
+        return Err(Observation::Ineligible(format!(
+            "{name} is not a subject of the verified package attestation"
+        )));
+    }
+    let bytes = fs::read(&file).map_err(|e| Observation::Unknown(e.to_string()))?;
+    let ReleaseJson { path } = serde_json::from_slice(&bytes)
+        .map_err(|e| Observation::Ineligible(format!("invalid {name}: {e}")))?;
+    let path = PackagePath::parse(path).map_err(|e| Observation::Ineligible(e.into()))?;
+    if matches!(path, PackagePath::Root(_)) != namespace.is_none() {
+        return Err(Observation::Ineligible(format!(
+            "{name} path does not match the release tag namespace"
+        )));
+    }
+    Ok(paths.insert(path.clone()).then_some((path, package)))
 }
 
 fn first_request<'a>(
@@ -226,11 +178,8 @@ impl Watch<'_, '_> {
         releases: &[github::Release],
         summary: &mut String,
     ) {
-        let mut streams = Streams::default();
+        let mut paths = BTreeSet::new();
         for first in first_candidates(self.registry, live.id, releases) {
-            if streams.settled(first.namespace.as_ref()) {
-                continue;
-            }
             let candidate = &first.candidate;
             let label = &candidate.release.tag_name;
             let result = (|| {
@@ -238,7 +187,7 @@ impl Watch<'_, '_> {
                 let request = first_request(live, candidate, &mod_id, self.workflow, self.github);
                 let work = tempfile::tempdir().map_err(|e| e.to_string())?;
                 let Some((path, package)) = newest_path(
-                    &mut streams,
+                    &mut paths,
                     &request,
                     first.namespace.as_ref(),
                     work.path(),
@@ -419,7 +368,7 @@ pub fn verify(
         return Err("registered repository is no longer public or has the wrong ID".into());
     }
     let releases = github.releases(Repo::Registered(live.id))?;
-    let mut streams = Streams::default();
+    let mut paths = BTreeSet::new();
     let target_root = !claim.tag.as_str().contains('/');
     for first in first_candidates(&registry, live.id, &releases) {
         // Root and subfolder namespaces cannot share paths.
@@ -437,7 +386,7 @@ pub fn verify(
         let request = first_request(&live, candidate, &mod_id, workflow, github);
         let work = tempfile::tempdir().map_err(|e| e.to_string())?;
         let observed = newest_path(
-            &mut streams,
+            &mut paths,
             &request,
             first.namespace.as_ref(),
             work.path(),
@@ -502,83 +451,28 @@ mod tests {
     use std::num::NonZeroU64;
 
     const FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/two-ports");
-    const CALLER: &str = "name: Sunrise release\non:\n  push:\n    tags: ['clumps/v*']\njobs:\n  release:\n    uses: sunrise-org/sunrise-mods/.github/workflows/release.yml@release-v1\n    with:\n      path: clumps\n";
-
     #[test]
-    fn caller_uses_its_attested_signer_and_a_literal_canonical_path() {
-        let signer =
-            SignerWorkflowRef::parse(format!("{}@refs/tags/release-v1", schema::RELEASE_WORKFLOW))
-                .unwrap();
-        let id = ModId::parse("clumps".into()).unwrap();
-        let parse = |text: &str| caller_path(text.as_bytes(), &signer, Some(&id));
-        assert_eq!(parse(CALLER).unwrap().as_str(), "clumps");
-        for literal in [
-            "${{ inputs.path }}",
-            ".",
-            "../clumps",
-            "mods//clumps",
-            "mods/clumps/",
-            "false",
-            "[clumps]",
-        ] {
-            assert!(
-                matches!(
-                    parse(&CALLER.replace("path: clumps", &format!("path: {literal}"))),
-                    Err(Observation::Ineligible(_))
-                ),
-                "{literal}"
-            );
-        }
-        for bad in [
-            CALLER.replace("@release-v1", "@release-v2"),
-            CALLER.replace("with:\n      path: clumps", "with: {}"),
-            CALLER.replace("path: clumps", "path: clumps\n      path: bogus"),
-            format!(
-                "{CALLER}{}",
-                CALLER
-                    .split_once("jobs:\n")
-                    .unwrap()
-                    .1
-                    .replace("  release:", "  other:")
-            ),
-        ] {
-            assert!(
-                matches!(parse(&bad), Err(Observation::Ineligible(_))),
-                "{bad}"
-            );
-        }
-        assert_eq!(
-            caller_path(
-                CALLER.replace("path: clumps", "path: '.'").as_bytes(),
-                &signer,
-                None
-            )
-            .unwrap()
-            .as_str(),
-            "."
-        );
-    }
-
-    #[test]
-    fn discovery_sorts_tag_hints_and_skips_claimed_namespaces() {
+    fn discovery_takes_only_the_newest_release_of_each_unclaimed_stream() {
         let registry = load(Path::new(FIXTURE)).unwrap();
         let repo = serde_json::from_str("123456789").unwrap();
         let releases: Vec<github::Release> = serde_json::from_value(serde_json::json!([
-            {"draft":false,"tag_name":"other/v1.0.0","published_at":"2026-11-23T10:00:00Z",
-             "assets":[{"name":"other-1.0.0.smod.sigstore.json", "size":1, "browser_download_url":"unused"}]},
-            {"draft":false,"tag_name":"second/v2.0.0","published_at":"2026-11-23T11:00:00Z",
-             "assets":[{"name":"second-2.0.0.smod.sigstore.json", "size":1, "browser_download_url":"unused"}]},
-            {"draft":false,"tag_name":"v3.0.0","published_at":"2026-11-23T12:00:00Z",
-             "assets":[{"name":"wayfinder-3.0.0.smod.sigstore.json", "size":1, "browser_download_url":"unused"}]},
-            {"draft":false,"tag_name":"other/v4.0.0","published_at":"2026-11-23T13:00:00Z","assets":[]}
+            {"draft":false,"tag_name":"other/v1.0.0","published_at":"2026-11-23T10:00:00Z","assets":[]},
+            {"draft":false,"tag_name":"second/v2.0.0","published_at":"2026-11-23T11:00:00Z","assets":[]},
+            {"draft":false,"tag_name":"v3.0.0","published_at":"2026-11-23T12:00:00Z","assets":[]},
+            {"draft":false,"tag_name":"other/v0.9.0","published_at":"2026-11-23T12:30:00Z","assets":[]},
+            {"draft":true,"tag_name":"second/v2.1.0","published_at":"2026-11-23T14:00:00Z","assets":[]},
+            {"draft":false,"tag_name":"not-a-tag","published_at":"2026-11-23T14:00:00Z","assets":[]}
         ])).unwrap();
+        // The root and wayfinder streams are claimed. In `other`, the newest publication is
+        // chosen by time, not by version, and its older tag is never a candidate even though
+        // neither release carries any metadata.
         let proposed = first_candidates(&registry, repo, &releases);
         assert_eq!(
             proposed
                 .iter()
                 .map(|first| first.candidate.release.tag_name.as_str())
                 .collect::<Vec<_>>(),
-            ["second/v2.0.0", "other/v1.0.0"]
+            ["other/v0.9.0", "second/v2.0.0"]
         );
     }
 

@@ -17,6 +17,8 @@ concurrency:
 jobs:
   # The attestation proves origin: these bytes came from the author's repository running this shared workflow.
   # It does not prove the bytes equal the tagged commit; the registry bot and reviewer judge the released bytes.
+  # The package's statement also names <id>-<version>.release.json, the package path this trusted workflow
+  # was called with. The registry bot reads a first release's folder only from that signed subject.
   build:
     name: Check and package source
     if: github.event_name == 'push' && github.ref_type == 'tag' && !github.event.deleted
@@ -207,12 +209,15 @@ jobs:
           skip-decompress: true
           digest-mismatch: error
 
-      - name: Validate the transferred filenames and hash the release assets
+      - name: Validate the transferred filenames, write the release metadata and hash the release assets
         id: assets
         working-directory: ${{ runner.temp }}/sunrise-assets
+        env:
+          # Workflow input, passed as data. The build job validated it before it produced the artifacts.
+          PACKAGE_PATH: ${{ inputs.path }}
         run: |
           python3 -I - <<'PY'
-          import hashlib, os, re
+          import hashlib, json, os, re
           from pathlib import Path
 
           tag = os.environ['GITHUB_REF_NAME']
@@ -239,11 +244,21 @@ jobs:
               tar_magic = f.read(5)
           if zip_magic != b'PK\x03\x04' or tar_magic != b'ustar':
               raise SystemExit('expected a ZIP source package and a ustar page archive')
+          # Written here, by the trusted job, from the input alone: nothing from the author's tree is read.
+          meta = stem + '.release.json'
+          files[meta] = Path.cwd() / meta
+          files[meta].write_text(json.dumps({'path': os.environ['PACKAGE_PATH']}, separators=(',', ':')) + '\n',
+                                 encoding='utf-8')
+          subjects = []
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
-              for kind, name in (('mod', mod), ('page', page)):
+              for kind, name in (('mod', mod), ('page', page), ('meta', meta)):
                   with files[name].open('rb') as f:
                       digest = hashlib.file_digest(f, 'sha256').hexdigest()
                   print(f'{kind}={name}', f'{kind}_digest=sha256:{digest}', sep='\n', file=out)
+                  if kind != 'page':
+                      subjects.append(f'{digest}  {name}')
+          # The package and the metadata are the two subjects of one statement; the page keeps its own.
+          (Path(os.environ['RUNNER_TEMP']) / 'sunrise-subjects.txt').write_text('\n'.join(subjects) + '\n')
           PY
 
       - name: Check the remote tag and require an empty draft before attesting
@@ -274,12 +289,13 @@ jobs:
             exit 1
           fi
 
-      - name: Attest the source package
+      - name: Attest the source package and its release metadata
         id: mod-attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-name: ${{ steps.assets.outputs.mod }}
-          subject-digest: ${{ steps.assets.outputs.mod_digest }}
+          # Exact names and digests of the .smod and the .release.json, in the one statement the
+          # package's bundle carries. The page archive is attested separately, as before.
+          subject-checksums: ${{ runner.temp }}/sunrise-subjects.txt
 
       - name: Attest the page archive
         id: page-attestation
@@ -288,12 +304,13 @@ jobs:
           subject-name: ${{ steps.assets.outputs.page }}
           subject-digest: ${{ steps.assets.outputs.page_digest }}
 
-      - name: Upload both assets and their Sigstore bundles to the draft
+      - name: Upload the assets and their Sigstore bundles to the draft
         working-directory: ${{ runner.temp }}/sunrise-assets
         env:
           GH_TOKEN: ${{ github.token }}
           MOD: ${{ steps.assets.outputs.mod }}
           PAGE: ${{ steps.assets.outputs.page }}
+          META: ${{ steps.assets.outputs.meta }}
           MOD_BUNDLE: ${{ steps.mod-attestation.outputs.bundle-path }}
           PAGE_BUNDLE: ${{ steps.page-attestation.outputs.bundle-path }}
         run: |
@@ -309,7 +326,7 @@ jobs:
             printf 'Tag %s moved while attesting; leaving the draft untouched.\n' "$GITHUB_REF_NAME" >&2
             exit 1
           fi
-          gh release upload "$GITHUB_REF_NAME" "$MOD" "$PAGE" "$MOD.sigstore.json" "$PAGE.sigstore.json" \
+          gh release upload "$GITHUB_REF_NAME" "$MOD" "$PAGE" "$META" "$MOD.sigstore.json" "$PAGE.sigstore.json" \
             --repo "$GITHUB_REPOSITORY"
 
       - name: Publish the completed draft

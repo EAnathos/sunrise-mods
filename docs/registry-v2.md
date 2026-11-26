@@ -59,7 +59,7 @@ Modrinth artwork is used, and neither readers nor the checker need to query Modr
 ### `registry/projects/<project>/project.toml`
 
 For a new project, the watcher writes this file in its first-release PR after verifying the
-package, page and caller. The project key is not a manifest field. The watcher does not edit
+package, page and signed package path. The project key is not a manifest field. The watcher does not edit
 the repository row.
 
 | Field | Meaning |
@@ -102,6 +102,14 @@ The named assets are `<mod>-<version>.smod` and `<mod>-<version>.page.tar`; each
 `.sigstore.json` to its asset's name. The owner/repo in a URL may reflect a repository's earlier
 name. The layout checker does not download the assets, compare hashes, or verify that each
 asset's GitHub artifact attestation (Sigstore) matches the registered repository and release ref.
+
+A release made by the shared workflow also carries `<mod>-<version>.release.json`, a fifth asset
+with no bundle of its own. The workflow's trusted `publish` job writes it from its `path` input,
+passed as data, without reading the author's tree: `{"path":"<package path>"}`, with `.` for the
+repository root. It is a second named subject of the same attestation statement as the `.smod`, so
+the package's bundle covers it. It has one key and no version field. Releases made before the
+workflow wrote it have no such file; those, and every release that is not a first release,
+are not affected.
 
 ### `registry/projects/<project>/page/`
 
@@ -392,13 +400,16 @@ starts the next timer run, and a push to `main` restarts a chain that has stoppe
 repository by its numeric GitHub ID. A rename opens a separate maintenance PR for that repository's file;
 it does not change registrants, project owners or IDs, or rewrite old release URLs. The watcher reads
 existing project rows directly, including paused projects and reviewed moves. It also discovers
-first releases in tracked repositories with registrants. Within one tag stream (one namespace, or
-the root), it reads candidates newest first by GitHub's timestamp and stops at the first whose
-package authenticates and whose signed caller proves its path; it reads older ones only if no newer
-one did. That stream stops even if the path is already reserved by another stream, and before the page,
-collisions, handled PR or payload are checked, so a later refusal (for example, a missing page asset)
-does not admit an older release of the stream. A candidate that cannot be verified, or whose caller
-proves no valid path, stops no stream and reserves no path. Paths are deduplicated across streams. After an approval, only releases
+first releases in tracked repositories with registrants. Of each tag stream (one namespace, or the
+root) that no registered project claims, only the newest publication by GitHub's timestamp is
+a candidate, even if it has no metadata; then that stream is not admitted and no older release of it
+is read or downloaded, so a tracked repository whose only tags predate `release.json` publishes one
+more release. The candidate's package must authenticate and its `<mod>-<version>.release.json`
+asset must be a subject of that same verified package statement. The file is the only source of the
+package path. A candidate that cannot be verified, or whose metadata is missing or invalid, reserves
+no path and does not stop another stream. A path an authenticated candidate proves stays reserved for
+the pass even if its page, collisions, handled PR or payload are refused afterwards, and a second
+stream that signs the same path is not admitted. After an approval, only releases
 published later than the latest approved release are eligible. That order comes from the publication
 times in the committed release rows, not from what the author's repository shows now, so taking a
 release down does not stop the watcher. The same order selects the previous approved package for the
@@ -451,6 +462,39 @@ Closing a release PR without merging does one of two things, decided by its bran
 
 Deleting the branch of a refused release later withdraws the refusal the same way.
 
+### Proving a change to the shared release workflow
+
+`release-v1` moves to a workflow change only after one real publish of it from a branch ref shows
+the change working and an ordinary release unaffected. The bot's trust is not relaxed for this:
+`SignerWorkflowRef` still accepts only `refs/tags/release-v<number>`, so the bot refuses such a
+release, and the proof does not go through the bot or any registered repository.
+
+1. Push the workflow change to a branch of this repository, for example `proof/release-json`. No tag
+   is created or moved.
+2. In a scratch public repository that is not in `registry/repositories`, call
+   `sunrise-org/sunrise-mods/.github/workflows/release.yml@proof/release-json` from a tag push, once
+   for a root package (`v0.0.1`, `path: .`) and once for a subfolder (`<id>/v0.0.1`, `path: <folder>`).
+3. The release has five assets: `.smod`, `.page.tar`, `.release.json` and the two `.sigstore.json`
+   bundles. `.release.json` is `{"path":"."}` or `{"path":"<folder>"}`.
+4. Fetch GitHub's trusted root once (`gh attestation trusted-root > trusted_root.jsonl`), then verify
+   both bundles offline against the exact branch signer, not a prefix:
+
+   ```text
+   gh attestation verify <stem>.smod --bundle <stem>.smod.sigstore.json \
+     --custom-trusted-root trusted_root.jsonl --repo <scratch-owner>/<scratch-repo> \
+     --cert-oidc-issuer https://token.actions.githubusercontent.com \
+     --cert-identity https://github.com/sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/heads/proof/release-json \
+     --source-ref refs/tags/<tag> --source-digest <tag commit> --format json > verified.json
+   ```
+
+   Check the flags against the installed `gh attestation verify --help` first. Run it again for the
+   page archive.
+5. In `verified.json`, `buildSignerURI` equals that exact identity, and
+   `verificationResult.statement.subject` holds exactly two `sha256` entries for the package result:
+   `<stem>.smod` and `<stem>.release.json`, each equal to `sha256sum` of the downloaded asset. The page result
+   keeps its one subject. The existing consumers still read the same `.smod` and bundles.
+6. Only then is `release-v1` moved, as a separate reviewed act.
+
 ### Libraries
 
 A library is an ordinary project: it registers, tags and releases like any other mod, and a mod that
@@ -466,9 +510,11 @@ The read-only job downloads the `.smod`, page tar and both bundles. It checks Gi
 available hashes, then uses `gh attestation verify` to check each artifact against the release
 workflow and the same tagged source commit, resolved once. It checks the **verified certificate**
 for the registered numeric repository ID and exact `release-v<number>` workflow ref, and requires
-both bundles to agree. For a first release it also compares the verified certificates' caller and
-signer snapshots, reads the caller workflow from the numeric source repository at that commit, and
-checks one literal `with.path` on a job using the exact verified signer ref. The path must be
+both bundles to agree. For a first release it also reads the `verificationResult.statement.subject`
+list of the verified package result (`gh attestation verify --format json`; the same statement the
+certificate checks above belong to) and requires the exact `<mod>-<version>.release.json` name with
+the SHA-256 of the downloaded asset. It reads that asset only from the live release, through the same
+URL, size and hash checks as the other assets and under a 4096-byte limit. Its `path` must be
 canonical and match the root or subfolder tag, and the package's manifest must agree with the asset
 name and tag. Native packages must pin a commit that a signed Sunrise build names. When a
 content-only package has no SDK pin, the watcher records the current signed Nightly's exact build,
