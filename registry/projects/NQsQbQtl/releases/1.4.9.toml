@@ -1,0 +1,20 @@
+version = "1.4.9"
+kind = "native-mod"
+tag = "v1.4.9"
+published = "2026-11-26T02:39:33Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300422
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/factory_blocks_forge_fabric_neoforge/releases/download/v1.4.9/factory_blocks-1.4.9.smod"
+size = 1676573
+sha256 = "18876509db9c31fc5957b068a7fc0ba9a18f0972bfc14ec83ef34fffa2385f4f"
+attestation = "https://github.com/arismoko/factory_blocks_forge_fabric_neoforge/releases/download/v1.4.9/factory_blocks-1.4.9.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/factory_blocks_forge_fabric_neoforge/releases/download/v1.4.9/factory_blocks-1.4.9.page.tar"
+size = 870912
+sha256 = "cc39654c0ca441afdb97caaf0598ffe7a39e87cc85e01d92b8ac971ce4d85d42"
+attestation = "https://github.com/arismoko/factory_blocks_forge_fabric_neoforge/releases/download/v1.4.9/factory_blocks-1.4.9.page.tar.sigstore.json"
