@@ -1,0 +1,20 @@
+version = "0.3.8"
+kind = "native-mod"
+tag = "v0.3.8"
+published = "2026-11-26T02:40:41Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300177
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/yungs_better_witch_huts/releases/download/v0.3.8/betterwitchhuts-0.3.8.smod"
+size = 952385
+sha256 = "20b46bad5871643f77081273dfa13351cef04faca4c4d02e6b2f22310d191974"
+attestation = "https://github.com/arismoko/yungs_better_witch_huts/releases/download/v0.3.8/betterwitchhuts-0.3.8.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/yungs_better_witch_huts/releases/download/v0.3.8/betterwitchhuts-0.3.8.page.tar"
+size = 907264
+sha256 = "4f8d527e96190487f5915ec22377aa9c1b8ea57f300b60d2ad8c4563f8516595"
+attestation = "https://github.com/arismoko/yungs_better_witch_huts/releases/download/v0.3.8/betterwitchhuts-0.3.8.page.tar.sigstore.json"
