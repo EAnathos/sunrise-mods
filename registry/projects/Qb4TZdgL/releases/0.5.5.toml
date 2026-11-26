@@ -1,0 +1,20 @@
+version = "0.5.5"
+kind = "native-mod"
+tag = "armorstatues/v0.5.5"
+published = "2026-11-26T02:37:00Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/armorstatues/v0.5.5/armorstatues-0.5.5.smod"
+size = 789314
+sha256 = "c4001b8c829222d56c5fce0e7bdf464cfdd2a80c819980b764e9975eac869899"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/armorstatues/v0.5.5/armorstatues-0.5.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/armorstatues/v0.5.5/armorstatues-0.5.5.page.tar"
+size = 708096
+sha256 = "19e765e5709b8dc3f80bacea1b9b770e83654c65e4113d22b889d4251e497f0a"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/armorstatues/v0.5.5/armorstatues-0.5.5.page.tar.sigstore.json"
