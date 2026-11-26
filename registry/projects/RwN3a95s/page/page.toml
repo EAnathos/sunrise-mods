@@ -3,7 +3,7 @@ summary = "Spirits of living lightning born in thunderstorms: they shock whoever
 description = """
 > **Beta.** Played and tested in single player; multiplayer and balance come later. Reports are welcome on the [issues](https://github.com/EAnathos/sunrise-creatures/issues).
 
-A mod of the [Sunrise Creatures](https://github.com/EAnathos/sunrise-creatures/blob/storm_spirits/v0.2.1/README.md) series: spirits of living lightning, born in storms. **Requires**
+A mod of the [Sunrise Creatures](https://github.com/EAnathos/sunrise-creatures/blob/storm_spirits/v0.2.2/README.md) series: spirits of living lightning, born in storms. **Requires**
 [Sunrise Creatures](https://playsunrise.net/mods/creature), the series' library.
 
 ## Finding them
@@ -25,6 +25,14 @@ health, and lightning and fire don't hurt it.
 A spirit drops 1 to 3 **sparks** (more with Looting). Right-click a spark to call a lightning bolt down on the block
 you aim at, up to 32 blocks away, in any weather and any dimension: the spark is used up, with 2 seconds before the
 next.
+
+## Licence
+
+Required Notice: Copyright (c) 2026 EAnathos (https://github.com/EAnathos/sunrise-creatures)
+
+The code is under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+The artwork (models, textures, icons, pictures) is the author's, all rights reserved, under the terms of
+[LICENSE-ART.md](https://github.com/EAnathos/sunrise-creatures/blob/main/LICENSE-ART.md). The sounds are CC0.
 """
 authors = ["EAnathos"]
 license = "PolyForm-Noncommercial-1.0.0 AND LicenseRef-SunriseCreatures-Art"
