@@ -1,0 +1,20 @@
+version = "0.5.5"
+kind = "native-mod"
+tag = "respectmytrims/v0.5.5"
+published = "2026-11-26T02:42:15Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/respectmytrims/v0.5.5/respectmytrims-0.5.5.smod"
+size = 861789
+sha256 = "6427ddf514c9769fda2b8c15add08a4878747f25b2fa39d5f004f1fc24552e53"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/respectmytrims/v0.5.5/respectmytrims-0.5.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/respectmytrims/v0.5.5/respectmytrims-0.5.5.page.tar"
+size = 843264
+sha256 = "f41ec4d5608cf06494b1c2c16d8f17974523e5098e7599be6ffaaa0d4c9d055f"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/respectmytrims/v0.5.5/respectmytrims-0.5.5.page.tar.sigstore.json"
