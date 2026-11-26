@@ -204,6 +204,17 @@ jobs:
           # queued run for the newer commit publishes after it. Checked once, last, because the
           # verification spans network requests: a commit that left main in the meantime is not deployed.
           python3 -I .github/registry-v2/live.py --publishable "$GITHUB_SHA"
+      # Launchers read Sunrise's release list from here when GitHub's API is rate-limiting their
+      # network. This workflow is the site's only writer, so the copy is made here: on every
+      # publish, and every half hour by timer.yml. A failure stops the deployment, and the site
+      # keeps the list it has.
+      - name: Copy Sunrise's release list into the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp 'repos/sunrise-org/sunrise/releases?per_page=100' |
+            python3 -I .github/registry-v2/game_releases.py site/github/repos/sunrise-org/sunrise/releases
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           name: github-pages-${{ github.run_attempt }}

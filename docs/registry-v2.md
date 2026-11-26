@@ -187,6 +187,12 @@ first and the game release dispatches again when it appears. The timer holds no 
 never fails on this look: an API error is a warning and the next run looks again. Running
 `timer.yml` by hand with `force` dispatches `fit.yml` regardless.
 
+The site also serves a copy of Sunrise's own release list, at
+`github/repos/sunrise-org/sunrise/releases`: every published release as GitHub's API returns it,
+in one array, never a draft. A launcher reads it only when GitHub's API is rate-limiting its
+network. `publish.yml` writes it on every publish, and `timer.yml` starts a publish when the last
+one is about half an hour old, so the copy is never much older than that.
+
 The release check judges a proposed release the same way on the builds offered at that moment
 (`registry-bot release-fit`) and shows the result in its report, so a reviewer sees where the release
 will appear before merging. It stores nothing: the job above judges the release again after the

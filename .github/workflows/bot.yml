@@ -110,6 +110,7 @@ jobs:
         run: |
           python3 -B .github/registry-v2/test_publish.py
           python3 -B .github/registry-v2/test_fit_store.py
+          python3 -B .github/registry-v2/test_game_releases.py
       - name: Dry watch of an empty registry (no network)
         working-directory: .
         run: |
