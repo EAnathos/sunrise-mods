@@ -180,6 +180,22 @@ impl Watch<'_, '_> {
             let label = &candidate.release.tag_name;
             let result = (|| {
                 let mod_id = asset_mod_id(&first).map_err(|e| e.to_string())?;
+                // An open or refused PR already holds this exact release: the live release names
+                // the same repository ID, tag and package SHA-256 as its row.
+                let package_name = format!("{}-{}.smod", mod_id.as_str(), candidate.version);
+                if let Ok(asset) = candidate.release.asset(&package_name)
+                    && let Some(digest) = asset
+                        .digest
+                        .as_deref()
+                        .and_then(|d| d.strip_prefix("sha256:"))
+                    && let Ok(sha256) = Sha256::parse(digest.to_owned())
+                    && self
+                        .branches
+                        .examined
+                        .contains(&(live.id, label.clone(), sha256))
+                {
+                    return Ok(false);
+                }
                 let request = first_request(live, candidate, &mod_id, self.workflow, self.github);
                 let work = tempfile::tempdir().map_err(|e| e.to_string())?;
                 let (path, package) =
@@ -420,7 +436,10 @@ mod tests {
         fn releases(&self, _: Repo<'_>) -> Result<Vec<github::Release>, String> {
             unreachable!()
         }
-        fn release_branches(&self) -> Result<github::ReleaseBranches, String> {
+        fn release_branches(
+            &self,
+            _: &BTreeMap<ProjectId, ProjectEntry>,
+        ) -> Result<github::ReleaseBranches, String> {
             unreachable!()
         }
         fn tag_commit(&self, _: Repo<'_>, _: &str) -> Result<String, String> {

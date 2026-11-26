@@ -101,7 +101,7 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
         summary.push_str("No repositories are registered.\n");
         return fs::write(out.join("watch.md"), summary).map_err(|e| e.to_string());
     }
-    let branches = github.release_branches()?;
+    let branches = github.release_branches(&registry.projects)?;
     let mut builds = Builds::new(github)?;
     let categories = categories(&registry)?;
     let workflow = workflow(&registry)?.to_owned();
@@ -1050,7 +1050,10 @@ mod tests {
             }
         }
 
-        fn release_branches(&self) -> Result<github::ReleaseBranches, String> {
+        fn release_branches(
+            &self,
+            _: &std::collections::BTreeMap<ProjectId, ProjectEntry>,
+        ) -> Result<github::ReleaseBranches, String> {
             Ok(github::ReleaseBranches::default())
         }
 
@@ -1305,6 +1308,73 @@ mod tests {
             };
             let result = first::newest_path(&request, None, work.path(), None);
             assert_eq!(result.is_ok(), admitted, "{body}");
+        }
+    }
+
+    #[test]
+    fn a_first_release_matching_a_recorded_pr_tuple_is_skipped_before_any_download() {
+        let registry = load(Path::new(FIXTURE)).unwrap();
+        let id: RepositoryId = serde_json::from_str("123456789").unwrap();
+        let digest = sunrise_mod_package::index::sha256(BODY);
+        let held = |repository: &str, tag: &str, sha256: &str| {
+            BTreeSet::from([(
+                serde_json::from_str::<RepositoryId>(repository).unwrap(),
+                tag.to_owned(),
+                Sha256::parse(sha256.to_owned()).unwrap(),
+            )])
+        };
+        let github_json = Recorded::default().json("fresh");
+        let stream = || {
+            let mut release = live_release(
+                "1.2.0",
+                "2026-11-23T13:00:00Z",
+                Some(format!("sha256:{digest}")),
+            );
+            release.tag_name = "fresh/v1.2.0".into();
+            release
+                .assets
+                .retain(|asset| !asset.name.contains(".page.tar"));
+            for asset in &mut release.assets {
+                asset.name = asset.name.replace("wayfinder-1.2.0", "fresh-1.2.0");
+                asset.browser_download_url = format!(
+                    "https://github.com/{CURRENT}/releases/download/fresh/v1.2.0/{}",
+                    asset.name
+                );
+            }
+            with_release_json(&mut release, "fresh", github_json);
+            release
+        };
+        // The same recorded tuple is skipped; another repository, tag or package, a tuple of
+        // another stream, and no recorded tuple at all are examined.
+        for (examined, skipped) in [
+            (held("123456789", "fresh/v1.2.0", &digest), true),
+            (held("987654321", "fresh/v1.2.0", &digest), false),
+            (held("123456789", "fresh/v1.2.1", &digest), false),
+            (held("123456789", "fresh/v1.2.0", &"b".repeat(64)), false),
+            (held("123456789", "other/v1.2.0", &digest), false),
+            (BTreeSet::new(), false),
+        ] {
+            let github = Recorded::default();
+            let branches = github::ReleaseBranches {
+                examined,
+                ..Default::default()
+            };
+            let live = github.repository(Repo::Registered(id)).unwrap();
+            let mut builds = Builds::new(&github).unwrap();
+            let mut summary = String::new();
+            first::Watch {
+                registry: &registry,
+                branches: &branches,
+                out: Path::new("unused"),
+                github: &github,
+                workflow: schema::RELEASE_WORKFLOW,
+                categories: &categories(&registry).unwrap(),
+                builds: &mut builds,
+            }
+            .observe(&live, &[stream()], &mut summary);
+            let downloads = github.downloads.borrow().len();
+            assert_eq!(downloads == 0, skipped, "{downloads} downloads");
+            assert_eq!(summary.is_empty(), skipped, "{summary}");
         }
     }
 

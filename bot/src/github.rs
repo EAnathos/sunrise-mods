@@ -12,7 +12,10 @@ use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use serde::{Deserialize, de::DeserializeOwned};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-use crate::schema::{Login, RepositoryId, RepositoryName, SignerWorkflowRef};
+use crate::{
+    registry::ProjectEntry,
+    schema::{self, Login, ProjectId, RepositoryId, RepositoryName, Sha256, SignerWorkflowRef},
+};
 
 #[derive(Deserialize)]
 pub struct Repository {
@@ -90,9 +93,56 @@ pub struct ReleaseBranches {
     /// Open release PRs that hold their project's later releases back until they are decided.
     pub waiting: BTreeSet<String>,
     pub handled: BTreeSet<String>,
+    /// The `(repository ID, tag, package SHA-256)` of the first releases that open and refused
+    /// release PRs hold, from their own rows. A live release with the same tuple is the one a PR
+    /// already holds, so it needs no download to be skipped.
+    pub examined: BTreeSet<(RepositoryId, String, Sha256)>,
 }
 
 impl ReleaseBranches {
+    /// Records the release behind a held PR's branch, from the row at the head's
+    /// `registry/projects/<project>/releases/<version>.toml` that `row` reads by path. The branch
+    /// names the path. A project that main already has needs none of this: its releases are skipped
+    /// by branch. A branch of another shape, or a row that is missing, malformed or of another
+    /// version, records nothing and is examined as before.
+    fn examine(
+        &mut self,
+        branch: &str,
+        registered: &BTreeMap<ProjectId, ProjectEntry>,
+        row: impl FnOnce(&str) -> Option<Vec<u8>>,
+    ) {
+        let Some((project, text)) = branch
+            .strip_prefix("release/")
+            .and_then(|rest| rest.split_once('/'))
+        else {
+            return;
+        };
+        let (Ok(project), Ok(version)) = (
+            ProjectId::parse(project.to_owned()),
+            semver::Version::parse(text),
+        ) else {
+            return;
+        };
+        if version.to_string() != text || registered.contains_key(&project) {
+            return;
+        }
+        let path = format!(
+            "registry/projects/{}/releases/{version}.toml",
+            project.as_str()
+        );
+        let Some(bytes) = row(&path) else { return };
+        let Some(row) = std::str::from_utf8(&bytes)
+            .ok()
+            .and_then(|text| toml::from_str::<schema::Release>(text).ok())
+        else {
+            return;
+        };
+        if row.version == version {
+            self.examined
+                .insert((row.repository, row.tag.as_str().to_owned(), row.file.sha256));
+        }
+    }
+
     /// Records one of the bot's release PRs. An open or merged PR handles its version, and so does a
     /// closed, unmerged one while its branch still exists: that release was refused. One whose branch
     /// was deleted was withdrawn, and its release may be opened again. An open PR whose release
@@ -117,7 +167,12 @@ impl ReleaseBranches {
 pub trait GitHub {
     fn repository(&self, repo: Repo<'_>) -> Result<Repository, String>;
     fn releases(&self, repo: Repo<'_>) -> Result<Vec<Release>, String>;
-    fn release_branches(&self) -> Result<ReleaseBranches, String>;
+    /// The bot's release PRs. `registered` is main's projects: a held PR's row is read only for a
+    /// project that is not yet in it.
+    fn release_branches(
+        &self,
+        registered: &BTreeMap<ProjectId, ProjectEntry>,
+    ) -> Result<ReleaseBranches, String>;
     fn tag_commit(&self, repo: Repo<'_>, tag: &str) -> Result<String, String>;
 
     fn account(&self, id: NonZeroU64) -> Result<Account, Observation> {
@@ -151,7 +206,10 @@ impl GitHub for Cli<'_> {
         pages(&format!("{}/releases?per_page=100", repo.endpoint()))
     }
 
-    fn release_branches(&self) -> Result<ReleaseBranches, String> {
+    fn release_branches(
+        &self,
+        registered: &BTreeMap<ProjectId, ProjectEntry>,
+    ) -> Result<ReleaseBranches, String> {
         #[derive(Deserialize)]
         struct Pull {
             head: Head,
@@ -221,13 +279,31 @@ impl GitHub for Cli<'_> {
                         status.context == "registry-v2/release-check" && status.state == "failure"
                     })
                 };
-                branches.record(
-                    p.head.branch,
-                    open,
-                    check_failed,
-                    p.merged_at.is_some(),
-                    exists,
-                );
+                let merged = p.merged_at.is_some();
+                // A PR holds its release while it is open, or when it was closed unmerged and its
+                // branch remains (refused). A merged PR's release is in main, and a withdrawn
+                // one's may be opened again. The head is read by its exact SHA.
+                if open || (!merged && exists) {
+                    branches.examine(&p.head.branch, registered, |path| {
+                        sunrise_mod_package::manifest::revision(&p.head.sha).then_some(())?;
+                        let path = path.split('/').map(|s| encode(s).to_string());
+                        gh(&[
+                            "api",
+                            "--hostname",
+                            "github.com",
+                            "-H",
+                            "Accept: application/vnd.github.raw+json",
+                            &format!(
+                                "repos/{}/contents/{}?ref={}",
+                                self.registry.as_str(),
+                                path.collect::<Vec<_>>().join("/"),
+                                p.head.sha
+                            ),
+                        ])
+                        .ok()
+                    });
+                }
+                branches.record(p.head.branch, open, check_failed, merged, exists);
             }
         }
         Ok(branches)
@@ -729,6 +805,77 @@ mod tests {
             check.claims(b"not gh JSON"),
             Err(Observation::Unknown(_))
         ));
+    }
+
+    #[test]
+    fn an_examined_release_comes_only_from_the_row_an_unregistered_projects_branch_names() {
+        const ROW: &str = include_str!(
+            "../tests/fixtures/two-ports/registry/projects/Ab3dE9xQ/releases/1.2.0.toml"
+        );
+        let tuple = (
+            serde_json::from_str::<RepositoryId>("123456789").unwrap(),
+            "v1.2.0".to_owned(),
+            Sha256::parse("a".repeat(64)).unwrap(),
+        );
+        let main = crate::registry::load(Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/two-ports"
+        )))
+        .unwrap();
+        // A valid project ID that main does not have.
+        const NEW: &str = "Qw7rT2pL";
+        assert!(
+            !main
+                .projects
+                .contains_key(&ProjectId::parse(NEW.to_owned()).unwrap())
+        );
+        assert!(
+            main.projects
+                .contains_key(&ProjectId::parse("Ab3dE9xQ".to_owned()).unwrap())
+        );
+        let examine = |branch: &str, row: Option<&[u8]>| {
+            let mut branches = ReleaseBranches::default();
+            let mut paths = Vec::new();
+            branches.examine(branch, &main.projects, |path| {
+                paths.push(path.to_owned());
+                row.map(<[u8]>::to_vec)
+            });
+            (branches.examined, paths)
+        };
+        let (found, paths) = examine("release/Qw7rT2pL/1.2.0", Some(ROW.as_bytes()));
+        assert_eq!(found, BTreeSet::from([tuple]));
+        assert_eq!(
+            paths,
+            ["registry/projects/Qw7rT2pL/releases/1.2.0.toml".to_owned()]
+        );
+        // A project main already has is skipped by branch and its row is never read.
+        let (found, paths) = examine("release/Ab3dE9xQ/1.2.0", Some(ROW.as_bytes()));
+        assert!(found.is_empty() && paths.is_empty());
+        // A branch that is not a project and a canonical version is never looked up.
+        for branch in [
+            "release/Qw7rT2pL",
+            "release/Qw7rT2p/1.2.0",
+            "release/Qw7rT2pL/1.2",
+            "release/Qw7rT2pL/01.2.0",
+            "release/Qw7rT2pL/../1.2.0",
+            "main",
+        ] {
+            let (found, paths) = examine(branch, Some(ROW.as_bytes()));
+            assert!(found.is_empty() && paths.is_empty(), "{branch}");
+        }
+        // A missing, malformed, non-UTF-8 or other version's row records nothing.
+        let broken = ROW.replace("repository = 123456789", "repository = 0");
+        for row in [
+            None,
+            Some(&b""[..]),
+            Some(&[0xff][..]),
+            Some(broken.as_bytes()),
+        ] {
+            let (found, paths) = examine("release/Qw7rT2pL/1.2.0", row);
+            assert!(found.is_empty() && paths.len() == 1);
+        }
+        let (found, paths) = examine("release/Qw7rT2pL/1.3.0", Some(ROW.as_bytes()));
+        assert!(found.is_empty() && paths.len() == 1);
     }
 
     #[test]
