@@ -1,0 +1,24 @@
+version = "0.1.3"
+kind = "native-mod"
+tag = "seagulls/v0.1.3"
+published = "2026-11-26T13:48:30Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/seagulls/v0.1.3/seagulls-0.1.3.smod"
+size = 245490
+sha256 = "e5431137b642ccfa1fda31bff36342afbe9c1a4ab7f93db15afde76cf7ca24aa"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/seagulls/v0.1.3/seagulls-0.1.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/seagulls/v0.1.3/seagulls-0.1.3.page.tar"
+size = 90112
+sha256 = "898033998d34407ff47e85ef68087480774e995bc6afd22481678fef18f37cb5"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/seagulls/v0.1.3/seagulls-0.1.3.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
