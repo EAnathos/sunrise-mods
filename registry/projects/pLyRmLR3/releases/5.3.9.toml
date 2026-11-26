@@ -1,0 +1,20 @@
+version = "5.3.9"
+kind = "native-mod"
+tag = "v5.3.9"
+published = "2026-11-26T02:38:39Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300454
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/silents_gems/releases/download/v5.3.9/silentgems-5.3.9.smod"
+size = 2739596
+sha256 = "25799fad848b296350700b0140f8a2218f277a71d996ad15e86917109777b71e"
+attestation = "https://github.com/arismoko/silents_gems/releases/download/v5.3.9/silentgems-5.3.9.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/silents_gems/releases/download/v5.3.9/silentgems-5.3.9.page.tar"
+size = 1499136
+sha256 = "4fc3b9dc9e877d206f5051c9a9ae4fb12c8a17ab37a51802f2fad782f4f30b1f"
+attestation = "https://github.com/arismoko/silents_gems/releases/download/v5.3.9/silentgems-5.3.9.page.tar.sigstore.json"
