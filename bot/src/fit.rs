@@ -20,7 +20,7 @@ use crate::{
     builds::{self, Build, Considered, Offered, Outcome, SUNRISE},
     escape,
     registry::{self, Registry},
-    schema::{Asset, BuildName, Commit, Fit, FitRelease, Release, Sha256},
+    schema::{Asset, BuildName, Commit, Fit, FitRelease, Kind, Release, Sha256},
     signed::SMALL,
 };
 
@@ -391,7 +391,8 @@ fn sdk(downloader: &impl Download, mirror: &Path, commit: &Commit) -> Result<Rc<
             sdk::unpack(&index, name, &archive, &into, TOOL_LIMIT).map_err(|e| e.to_string())?;
             Some(into.join("cargo-sunrise-mod"))
         }
-        Err(sdk::Refusal::Route(_)) => None,
+        // No tool at all, or none for this computer.
+        Err(sdk::Refusal::Route(_) | sdk::Refusal::Missing(_)) => None,
         Err(other) => return Err(other.to_string()),
     };
     Ok(Rc::new(Sdk {
@@ -434,6 +435,10 @@ impl<D: Download> Judge for Tool<'_, D> {
         if sha256_hex(&target.surface_bytes) != build.surface.as_str() {
             return Err("the build's surface is not the one it was offered with".into());
         }
+        // Asked again on every run, so answered before the package is downloaded.
+        if release.kind == Kind::NativeMod && target.tool.is_none() {
+            return Ok(None);
+        }
         let Tool {
             root,
             downloads,
@@ -453,11 +458,6 @@ impl<D: Download> Judge for Tool<'_, D> {
         // A native package is judged by the build's own mod tool, the one the launcher runs: only
         // it knows what that build reads of a package.
         let Some(program) = &target.tool else {
-            println!(
-                "no verdict for {} on {}: its SDK has no mod tool for {HOST}",
-                asset.url.as_str(),
-                build.id.as_str()
-            );
             return Ok(None);
         };
         // The package's files as the launcher stages them for the tool.
@@ -488,12 +488,15 @@ impl<D: Download> Judge for Tool<'_, D> {
         };
         loop {
             // The tool reads a package nobody has reviewed yet: it gets none of this job's
-            // environment.
+            // environment, starts in the staged folder, and what it writes besides its reply
+            // (the package's own words among it) stays out of the job's log.
             let mut child = Command::new(program)
                 .arg("native-check")
                 .env_clear()
+                .current_dir(&staged)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
+                .stderr(Stdio::null())
                 .spawn()
                 .map_err(|e| format!("{}: {e}", program.display()))?;
             child
@@ -510,6 +513,11 @@ impl<D: Download> Judge for Tool<'_, D> {
                     output.status
                 )
             };
+            // A tool from before `native-check` prints its usage and no reply: the build has
+            // nothing to judge with.
+            if output.stdout.trim_ascii().is_empty() {
+                return Ok(None);
+            }
             let reply: Reply = serde_json::from_slice(&output.stdout).map_err(|_| unread())?;
             let checked = match (output.status.code(), reply) {
                 // The tool could not read the package: neither can a launcher on this build.

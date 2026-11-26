@@ -314,6 +314,11 @@ fn judged_by_tool(
         .values_mut()
         .next()
         .unwrap();
+    release.kind = if native.is_empty() {
+        Kind::Mod
+    } else {
+        Kind::NativeMod
+    };
     release.file.size = body.len() as u64;
     release.file.sha256 = Sha256::parse(sha256_hex(&body)).unwrap();
     let target = scratch();
@@ -411,12 +416,18 @@ fn the_tool_is_given_the_surface_it_asks_for_once() {
 fn an_answer_that_is_no_reply_is_an_error_not_a_verdict() {
     for reply in [
         "2 no plan",
+        "0 no reply",
         r#"0 {"contract":2,"error":{"kind":"unread","message":"m"}}"#,
         r#"0 {"contract":2,"route":null,"mods":[]}"#,
         &checked(r#""needs":null,"refusal":null,"verdict":null"#),
     ] {
         assert!(native(reply, "").is_err(), "{reply}");
     }
+}
+
+#[test]
+fn a_tool_from_before_native_check_gives_no_verdict() {
+    assert_eq!(native("2", ""), Ok(None));
 }
 
 #[test]

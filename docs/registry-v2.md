@@ -181,8 +181,9 @@ digest `sdk.json` lists, stages the package's files as the launcher does and ask
 release fits when the tool's verdict is `made-for` or `fits`. Any other verdict, a refusal, or a
 package the tool cannot read is "does not fit", and the job's log has the tool's words. So a newer
 package format an older build's tool refuses is never offered to that build. A build whose SDK has no
-tool for the job's computer (Linux x86_64) gets no verdict for native packages, and a launcher on it
-checks them itself. A content-only package fits every build with its content API.
+tool for the job's computer (Linux x86_64), or a tool from before `native-check`, gets no verdict for
+native packages, and a launcher on it checks them itself. The tool runs with an empty environment, in
+a step of `fit.yml` that holds no token. A content-only package fits every build with its content API.
 
 A cell that cannot be judged (a download that fails, a tool that gives no answer) fails the run and
 stores nothing: an unknown is never recorded as "does not fit". A run that
