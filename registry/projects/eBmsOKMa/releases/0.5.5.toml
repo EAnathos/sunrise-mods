@@ -1,0 +1,20 @@
+version = "0.5.5"
+kind = "native-mod"
+tag = "travelerstitles/v0.5.5"
+published = "2026-11-26T02:44:05Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/travelerstitles/v0.5.5/travelerstitles-0.5.5.smod"
+size = 1077157
+sha256 = "66636232c8eb7ac121bbb9e7e2225a659593ceba9c78fac1948635af1c466bc8"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/travelerstitles/v0.5.5/travelerstitles-0.5.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/travelerstitles/v0.5.5/travelerstitles-0.5.5.page.tar"
+size = 963072
+sha256 = "4be6feb6152bcea069bdb091af6e1a8a7ddeebe7e8f8d3babd192e658caf261c"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/travelerstitles/v0.5.5/travelerstitles-0.5.5.page.tar.sigstore.json"
