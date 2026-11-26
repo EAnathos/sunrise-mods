@@ -1,0 +1,24 @@
+version = "0.1.4"
+kind = "native-mod"
+tag = "fireflies/v0.1.4"
+published = "2026-11-26T13:47:27Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/fireflies/v0.1.4/fireflies-0.1.4.smod"
+size = 63129
+sha256 = "1fa5cb9a0945284acf93bf5a9d870264e355a29f0da364f9c3686de209c3eeab"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/fireflies/v0.1.4/fireflies-0.1.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/fireflies/v0.1.4/fireflies-0.1.4.page.tar"
+size = 33280
+sha256 = "0fee19c376bb8480539934e2af675b7f6928b7b7b0d4c1947cd09d92f96f8482"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/fireflies/v0.1.4/fireflies-0.1.4.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
