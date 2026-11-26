@@ -1,0 +1,24 @@
+version = "0.1.5"
+kind = "native-mod"
+tag = "fairies/v0.1.5"
+published = "2026-11-26T13:47:46Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/fairies/v0.1.5/fairies-0.1.5.smod"
+size = 262425
+sha256 = "40cee6c461ec1574ca0d691cb3bffc9c12dde8a039f276f6fa126daa9317507f"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/fairies/v0.1.5/fairies-0.1.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/fairies/v0.1.5/fairies-0.1.5.page.tar"
+size = 105984
+sha256 = "79075f5c07761e62d7a57e817a0b5aca1ebf1f4cdfa2632ba821f7fe29e19dd2"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/fairies/v0.1.5/fairies-0.1.5.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
