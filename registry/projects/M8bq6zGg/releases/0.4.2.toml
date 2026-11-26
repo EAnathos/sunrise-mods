@@ -1,0 +1,20 @@
+version = "0.4.2"
+kind = "native-mod"
+tag = "creature/v0.4.2"
+published = "2026-11-26T18:34:31Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+dependencies = []
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/creature/v0.4.2/creature-0.4.2.smod"
+size = 156432
+sha256 = "5c6e9b12f759b2061295439deaaf4d4caa397723b6af1b8561ba5f73485a5ff0"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/creature/v0.4.2/creature-0.4.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/creature/v0.4.2/creature-0.4.2.page.tar"
+size = 84992
+sha256 = "72385b6b88dd63e53e442987b116321cec52f9f6e04fbe4cd1529bc238cacf42"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/creature/v0.4.2/creature-0.4.2.page.tar.sigstore.json"
