@@ -1,0 +1,20 @@
+version = "0.5.5"
+kind = "native-mod"
+tag = "dynamicfps/v0.5.5"
+published = "2026-11-26T02:39:40Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/dynamicfps/v0.5.5/dynamicfps-0.5.5.smod"
+size = 743009
+sha256 = "39abd1f0eeabab8acaa40d1c4bed6e46f66cb3ce9c8604f1e0177652d560ee9a"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/dynamicfps/v0.5.5/dynamicfps-0.5.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/dynamicfps/v0.5.5/dynamicfps-0.5.5.page.tar"
+size = 699392
+sha256 = "55dd0b8e27a54ff86ace25d32d83525f55758e6be482465ac0a290cda5eb77ec"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/dynamicfps/v0.5.5/dynamicfps-0.5.5.page.tar.sigstore.json"
