@@ -1,0 +1,24 @@
+version = "0.1.5"
+kind = "native-mod"
+tag = "cyclops/v0.1.5"
+published = "2026-11-26T13:47:18Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/cyclops/v0.1.5/cyclops-0.1.5.smod"
+size = 316361
+sha256 = "d9db8ab2dc3cb437f73d93a238bf54280376e853ad81e333a9cdbd3ef60de7f4"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/cyclops/v0.1.5/cyclops-0.1.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/cyclops/v0.1.5/cyclops-0.1.5.page.tar"
+size = 151552
+sha256 = "bfa0837bb468e029502eb13863908662c950e90bdaa99839bb417d72c1d8086f"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/cyclops/v0.1.5/cyclops-0.1.5.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
