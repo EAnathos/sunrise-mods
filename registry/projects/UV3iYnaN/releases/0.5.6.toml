@@ -1,0 +1,20 @@
+version = "0.5.6"
+kind = "native-mod"
+tag = "cropsloverain/v0.5.6"
+published = "2026-11-26T02:39:13Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/cropsloverain/v0.5.6/cropsloverain-0.5.6.smod"
+size = 917012
+sha256 = "d85af87b66aec3f65502a521184ccf0f682eeb3b3618f59357681770872110bd"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/cropsloverain/v0.5.6/cropsloverain-0.5.6.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/cropsloverain/v0.5.6/cropsloverain-0.5.6.page.tar"
+size = 885248
+sha256 = "7b3e891e9179e71f84d11840ed1422cf000fb056446e47826b109db3251dc1a8"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/cropsloverain/v0.5.6/cropsloverain-0.5.6.page.tar.sigstore.json"
