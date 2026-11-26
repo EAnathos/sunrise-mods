@@ -1,0 +1,20 @@
+version = "1.1.6"
+kind = "native-mod"
+tag = "v1.1.6"
+published = "2026-11-26T02:39:04Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468944948
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/cloud_glass/releases/download/v1.1.6/cloudglass-1.1.6.smod"
+size = 929879
+sha256 = "a53918aef7dc83ecf57fbce7db1effe8aa40450eaa8df7d61b7546081ebf6e77"
+attestation = "https://github.com/arismoko/cloud_glass/releases/download/v1.1.6/cloudglass-1.1.6.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/cloud_glass/releases/download/v1.1.6/cloudglass-1.1.6.page.tar"
+size = 864768
+sha256 = "10a02dea145a93850c17eb5063e1f73f882c50b441ac63646e04e4878e1355eb"
+attestation = "https://github.com/arismoko/cloud_glass/releases/download/v1.1.6/cloudglass-1.1.6.page.tar.sigstore.json"
