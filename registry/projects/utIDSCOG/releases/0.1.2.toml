@@ -1,0 +1,24 @@
+version = "0.1.2"
+kind = "native-mod"
+tag = "phasmids/v0.1.2"
+published = "2026-11-26T13:47:57Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/phasmids/v0.1.2/phasmids-0.1.2.smod"
+size = 85194
+sha256 = "d557f1dc7358cbd9f8123ec8087c9ead1972d281255597622033d974ff2b34cf"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/phasmids/v0.1.2/phasmids-0.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/phasmids/v0.1.2/phasmids-0.1.2.page.tar"
+size = 146432
+sha256 = "3b36ffd11399070b13db93114268f83dffbb227f820cd9316ef2666a607a055f"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/phasmids/v0.1.2/phasmids-0.1.2.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true

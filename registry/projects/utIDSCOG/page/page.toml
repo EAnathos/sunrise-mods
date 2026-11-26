@@ -3,7 +3,7 @@ summary = "Stick and leaf insects hiding in the trees as twigs and leaves: spot 
 description = """
 > **Beta.** Played and tested in single player; multiplayer and balance come later. Reports are welcome on the [issues](https://github.com/EAnathos/sunrise-creatures/issues).
 
-A mod of the [Sunrise Creatures](https://github.com/EAnathos/sunrise-creatures/blob/phasmids/v0.1.1/README.md) series: stick insects and leaf insects hiding in the trees as twigs
+A mod of the [Sunrise Creatures](https://github.com/EAnathos/sunrise-creatures/blob/phasmids/v0.1.2/README.md) series: stick insects and leaf insects hiding in the trees as twigs
 and leaves. **Requires** [Sunrise Creatures](https://playsunrise.net/mods/creature), the series' library.
 
 ## Finding them
@@ -32,6 +32,14 @@ it walks to the trunk and climbs back up to the canopy. A stick insect drops a s
 
 Catch one with the series' glass jar and let it out on the leaves or the trunk of a tree of yours (one with at least 10
 leaves): it settles in that tree.
+
+## Licence
+
+Required Notice: Copyright (c) 2026 EAnathos (https://github.com/EAnathos/sunrise-creatures)
+
+The code is under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+The artwork (models, textures, icons, pictures) is the author's, all rights reserved, under the terms of
+[LICENSE-ART.md](https://github.com/EAnathos/sunrise-creatures/blob/main/LICENSE-ART.md). The sounds are CC0.
 """
 authors = ["EAnathos"]
 license = "PolyForm-Noncommercial-1.0.0 AND LicenseRef-SunriseCreatures-Art"
