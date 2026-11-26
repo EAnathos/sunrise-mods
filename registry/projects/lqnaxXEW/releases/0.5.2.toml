@@ -1,0 +1,20 @@
+version = "0.5.2"
+kind = "native-mod"
+tag = "morechathistory/v0.5.2"
+published = "2026-11-26T02:58:38Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/morechathistory/v0.5.2/morechathistory-0.5.2.smod"
+size = 302093
+sha256 = "fa73c344d278d115112e2dc88edb04548042607b5328863a667dd69f537a2a41"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/morechathistory/v0.5.2/morechathistory-0.5.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/morechathistory/v0.5.2/morechathistory-0.5.2.page.tar"
+size = 292352
+sha256 = "09133af824cd23e5444696252e28c87db17f2fcfaf2536a0a320b6af1ae1caf1"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/morechathistory/v0.5.2/morechathistory-0.5.2.page.tar.sigstore.json"
