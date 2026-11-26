@@ -1,0 +1,20 @@
+version = "0.1.1"
+kind = "native-mod"
+tag = "v0.1.1"
+published = "2026-11-26T06:57:46Z"
+sunrise = "dev-2026-11-24-f8aa80e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1472779719
+dependencies = []
+
+[file]
+url = "https://github.com/Joeypc6/GuideME-Sunrise/releases/download/v0.1.1/guideme-0.1.1.smod"
+size = 294647
+sha256 = "44bad07973418fa9f7444813c7a67bad34e4653001dadc01b9b53659f92218ce"
+attestation = "https://github.com/Joeypc6/GuideME-Sunrise/releases/download/v0.1.1/guideme-0.1.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Joeypc6/GuideME-Sunrise/releases/download/v0.1.1/guideme-0.1.1.page.tar"
+size = 301056
+sha256 = "c188720e68e6f5d3b0563fb3322cd01f2bfe19c47d97b2af289e0a11e20fe1d6"
+attestation = "https://github.com/Joeypc6/GuideME-Sunrise/releases/download/v0.1.1/guideme-0.1.1.page.tar.sigstore.json"
