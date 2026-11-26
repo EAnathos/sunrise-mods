@@ -1,0 +1,20 @@
+version = "0.5.4"
+kind = "native-mod"
+tag = "universalgraves/v0.5.4"
+published = "2026-11-26T02:44:37Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/universalgraves/v0.5.4/universalgraves-0.5.4.smod"
+size = 322401
+sha256 = "7ef7404a3b45e9e022624845b9c0f198bc7c55fc707915bbda24b224a6afe1ee"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/universalgraves/v0.5.4/universalgraves-0.5.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/universalgraves/v0.5.4/universalgraves-0.5.4.page.tar"
+size = 287232
+sha256 = "4a6545d026f596cd6e33a8ca540942f15fdb89fca26e7412c840c3591d793204"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/universalgraves/v0.5.4/universalgraves-0.5.4.page.tar.sigstore.json"
