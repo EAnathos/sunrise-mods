@@ -1,0 +1,20 @@
+version = "0.5.5"
+kind = "native-mod"
+tag = "yungsbridges/v0.5.5"
+published = "2026-11-26T02:44:49Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/yungsbridges/v0.5.5/yungsbridges-0.5.5.smod"
+size = 1098310
+sha256 = "84a7023630e9713791e57d89e5d8cc485705575bc4c2a9183dd31fdf61d9dc86"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/yungsbridges/v0.5.5/yungsbridges-0.5.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/yungsbridges/v0.5.5/yungsbridges-0.5.5.page.tar"
+size = 1016832
+sha256 = "0079b8cf475d494a343a543056d996ffcf3117dcdad2798deeb15035b8f36a45"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/yungsbridges/v0.5.5/yungsbridges-0.5.5.page.tar.sigstore.json"
