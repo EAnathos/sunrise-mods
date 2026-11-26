@@ -1,0 +1,24 @@
+version = "0.1.4"
+kind = "native-mod"
+tag = "dung_beetles/v0.1.4"
+published = "2026-11-26T13:47:31Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/dung_beetles/v0.1.4/dung_beetles-0.1.4.smod"
+size = 66464
+sha256 = "cee4050bb4f73c63cb8fac814650fdaea060619f8750e30431aa80ba083b6a6c"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/dung_beetles/v0.1.4/dung_beetles-0.1.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/dung_beetles/v0.1.4/dung_beetles-0.1.4.page.tar"
+size = 134656
+sha256 = "9ee253169f5058ae799f1c19b50dcf371129fc7f2b4e7ba8bf6b593e64f2a124"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/dung_beetles/v0.1.4/dung_beetles-0.1.4.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
