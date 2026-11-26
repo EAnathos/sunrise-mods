@@ -1,0 +1,24 @@
+version = "0.2.5"
+kind = "native-mod"
+tag = "vulture/v0.2.5"
+published = "2026-11-26T13:48:49Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/vulture/v0.2.5/vulture-0.2.5.smod"
+size = 297218
+sha256 = "8db37cec9e5ae70af135ea6c7a6d2564a3559d65930673780c18b2689c15908c"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/vulture/v0.2.5/vulture-0.2.5.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/vulture/v0.2.5/vulture-0.2.5.page.tar"
+size = 137216
+sha256 = "6ce83ad3c44be0c41cc53edbc22228f2eefc577177506952e0c88ef09f3bfc0a"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/vulture/v0.2.5/vulture-0.2.5.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
