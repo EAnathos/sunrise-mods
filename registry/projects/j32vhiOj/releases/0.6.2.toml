@@ -1,0 +1,20 @@
+version = "0.6.2"
+kind = "native-mod"
+tag = "clumps/v0.6.2"
+published = "2026-11-26T02:38:41Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/clumps/v0.6.2/clumps-0.6.2.smod"
+size = 1036626
+sha256 = "fcd7751e8ad782ae1ce88b360661a54c83086a938d89a29099cf3a0351fe01a3"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/clumps/v0.6.2/clumps-0.6.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/clumps/v0.6.2/clumps-0.6.2.page.tar"
+size = 1028608
+sha256 = "525f8cef83be51a8423e61efa32138cfbdb44580ad43c1f545b085e5fc45d238"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/clumps/v0.6.2/clumps-0.6.2.page.tar.sigstore.json"
