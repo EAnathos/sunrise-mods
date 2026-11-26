@@ -1,0 +1,9 @@
+id = "0NGqlII7"
+slug = "villagefolk"
+mod = "villagefolk"
+kind = "native-mod"
+owners = ["EAnathos"]
+repository = 1472464577
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-26"
