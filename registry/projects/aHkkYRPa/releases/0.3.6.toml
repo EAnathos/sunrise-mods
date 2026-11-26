@@ -1,0 +1,20 @@
+version = "0.3.6"
+kind = "native-mod"
+tag = "appleskin/v0.3.6"
+published = "2026-11-26T02:39:02Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468944988
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/horizon-rust-mods/releases/download/appleskin/v0.3.6/appleskin-0.3.6.smod"
+size = 1481259
+sha256 = "4419cfebe00eea82ccb78c48be1f0250da347f5151351ae413ba033609a1cbce"
+attestation = "https://github.com/arismoko/horizon-rust-mods/releases/download/appleskin/v0.3.6/appleskin-0.3.6.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/horizon-rust-mods/releases/download/appleskin/v0.3.6/appleskin-0.3.6.page.tar"
+size = 1436160
+sha256 = "ca91a2ae344ad38c46683e5d2805f53f25a5ad8259f8f405c0b18bc8e2b1269d"
+attestation = "https://github.com/arismoko/horizon-rust-mods/releases/download/appleskin/v0.3.6/appleskin-0.3.6.page.tar.sigstore.json"
