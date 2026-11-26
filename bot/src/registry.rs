@@ -151,6 +151,8 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
             repositories.insert(id, (path, repository));
         }
     }
+    // CUTOVER: delete this cross-check of legacy `[[package]]` lists against project files, with
+    // `Repository::package` (`Option<Vec<Package>>`) and the `registrations` use below.
     let mut registrations = BTreeMap::new();
     for (id, (path, repo)) in &repositories {
         let mut package_paths = BTreeSet::new();
@@ -227,6 +229,7 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
             }
         };
         tree.unknown(&dir, entries);
+        // CUTOVER: delete (legacy package-list cross-check, see above).
         let registration = registrations.remove(&id);
         if let Some(project) = project {
             if project.id != id {
@@ -274,6 +277,7 @@ fn load_inner(checkout: &Path, generated: bool) -> Result<Registry, Vec<String>>
             }
         }
     }
+    // CUTOVER: delete (legacy package-list cross-check, see above).
     for (id, (_, path, _)) in &registrations {
         tree.problem(path, format!("project {} has no project.toml", id.as_str()));
     }
@@ -491,11 +495,7 @@ impl Registry {
                 "first-release project ID does not match its repository and package path".into(),
             );
         }
-        self.check_new_project(project)?;
-        if project.slug != self.first_slug(&project.id, &project.mod_id)? {
-            return Err("first-release slug no longer matches the available slug on main".into());
-        }
-        Ok(())
+        self.check_new_project(project)
     }
 }
 

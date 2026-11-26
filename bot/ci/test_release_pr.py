@@ -199,22 +199,20 @@ class ReleasePRTests(unittest.TestCase):
 
         def regenerate(*args):
             self.assertEqual(args[:4], ("verify-first-release", release.ROOT, REPO, "Ab3dE9xQ"))
-            self.assertEqual(args[-2].read_bytes(), b"base evidence")
+            self.assertEqual(len(args), 6)
             for name in files:
                 path = out / "expected" / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.touch()
 
         only_release = f"100644 blob {files[row]}\t{row}\0".encode()
-        repository = b"100644 blob " + b"a" * 40 + b"\tregistry/repositories/42.toml\0"
-        git_reads = iter([b"", b"b" * 40, changes, b"", b"", only_release, actual,
-                          b"repository = 42\n", repository, b"base evidence"])
+        git_reads = iter([b"", b"b" * 40, changes, b"", b"", only_release, actual, b"repository = 42\n"])
         with patch.object(release, "api", return_value=pull()), patch.object(release, "git", side_effect=git_call), \
              patch.object(release, "bot", side_effect=regenerate):
             with self.assertRaisesRegex(ValueError, "not exactly the release tree regenerated"):
                 release.verify(out)
 
-    def test_registration_uses_exact_app_merge_without_replacing_legacy_checks(self):
+    def test_registration_checks_only_the_test_merge_diff_without_replacing_legacy_checks(self):
         base, merge = "b" * 40, "e" * 40
         event = self.folder / "event.json"
         tested_base = "f" * 40
@@ -223,7 +221,6 @@ class ReleasePRTests(unittest.TestCase):
         addition = f"A\0{file}\0".encode()
         modification = f"M\0{file}\0".encode()
         entry = f"100644 blob {'c'*40}\t{file}\0".encode()
-        changed_entry = entry.replace(b"c" * 40, b"d" * 40)
         valid = b"name='org/mod'\n[[registrant]]\nid=19\nlogin='Admin'\n"
         invalid = b"name='org/mod'\n"
         pr = {"user": {"login": release.REGISTRATION_APP},
@@ -242,18 +239,16 @@ class ReleasePRTests(unittest.TestCase):
             b"A\0registry/projects/R34s5xaF/project.toml\0A\0registry/repositories/1443415428.toml\0",
             b"A\0registry/projects/ZnPqHvTo/project.toml\0M\0registry/repositories/1449407242.toml\0",
         )
-        cases = [(shape, shape, [], None, False) for shape in legacy] + [
-            (addition, addition, [entry, entry, valid], None, True),
-            (addition, addition, [entry, entry, invalid], "absent registrant", True),
-            (modification, modification, [], "add exactly one", False),
-            (addition + b"A\0README.md\0", addition + b"A\0README.md\0", [], "add exactly one", False),
-            (addition, modification, [], "changes disagree", False),
-            (addition, addition, [entry, changed_entry], "row blobs disagree", False),
+        cases = [(shape, [], None, False) for shape in legacy] + [
+            (addition, [entry, valid], None, True),
+            (addition, [entry, invalid], "absent registrant", True),
+            (modification, [], "add exactly one", False),
+            (addition + b"A\0README.md\0", [], "add exactly one", False),
         ]
-        for merged, branch, reads, error, strict_called in cases:
-            with self.subTest(merged=merged, branch=branch, error=error), \
+        for merged, reads, error, strict_called in cases:
+            with self.subTest(merged=merged, error=error), \
                  patch.dict(os.environ, GITHUB_EVENT_PATH=str(event), GITHUB_SHA=merge), \
-                 patch.object(release, "git", side_effect=[parents, merged, branch, *reads]) as git, \
+                 patch.object(release, "git", side_effect=[parents, merged, *reads]) as git, \
                  patch.object(release, "bot", side_effect=strict) as bot:
                 if error:
                     with self.assertRaisesRegex(ValueError, error):
@@ -262,7 +257,6 @@ class ReleasePRTests(unittest.TestCase):
                     release.check_registration()
                 self.assertEqual(bot.call_count, int(strict_called))
                 self.assertEqual(git.call_args_list[1].args[-3:], (tested_base, merge, "--"))
-                self.assertEqual(git.call_args_list[2].args[-2:], (f"{base}...{SHA}", "--"))
 
     def test_a_maintenance_pr_is_sent_to_the_non_release_classifier_once(self):
         rename = pull("registry/refresh-repository-names", number=12)

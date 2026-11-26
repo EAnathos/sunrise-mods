@@ -154,32 +154,25 @@ def check_registration():
             and base["ref"] == "main" and head["repo"]["id"] == base["repo"]["id"],
             "registration must be opened to main by the registry app from its own register/ branch")
     merge = os.environ["GITHUB_SHA"]
-    require(all(SHA.fullmatch(sha) for sha in (base["sha"], head["sha"], merge)),
-            "invalid registration base, head or test merge SHA")
+    require(all(SHA.fullmatch(sha) for sha in (head["sha"], merge)), "invalid registration head or test merge SHA")
     tested_base, tested_head = git("rev-parse", f"{merge}^1", f"{merge}^2").decode().splitlines()
     require(tested_head == head["sha"], "registration check did not get the exact PR merge commit")
     diff = ("diff", "--name-status", "-z", "--no-renames", "--no-ext-diff", "--no-textconv")
-    # The tested merge's main parent may be newer than the PR event's base.
-    merged = git(*diff, tested_base, merge, "--")
-    require(git(*diff, f"{base['sha']}...{head['sha']}", "--") == merged,
-            "registration branch and test merge changes disagree")
-    changes = merged.decode().split("\0")[:-1]
+    changes = git(*diff, tested_base, merge, "--").decode().split("\0")[:-1]
     changed = list(zip(changes[::2], changes[1::2], strict=True))
     repositories = [(status, path) for status, path in changed if REPOSITORY.fullmatch(path)]
     if (len(repositories) == 1 and len(changed) == 2 and repositories[0][0] in ("A", "M")
             and all((status, path) == repositories[0] or status == "A" and PROJECT_FILE.fullmatch(path)
                     for status, path in changed)):
-        # The old writer adds one project row and adds or appends to its repository row (#501, #619).
-        # This does not exempt it from the ordinary layout, DCO or non-release checks.
+        # CUTOVER: delete. The old writer adds one project row and adds or appends to its repository row
+        # (#501, #619). This does not exempt it from the ordinary layout, DCO or non-release checks.
         return
     require(len(changed) == 1 and repositories == changed and changed[0][0] == "A",
             "registration must add exactly one registry/repositories/<numeric id>.toml and nothing else")
     _, path = changed[0]
-    blob = repository_blob(head["sha"], path)
-    require(repository_blob(merge, path) == blob, "registration branch and test merge row blobs disagree")
     with tempfile.TemporaryDirectory() as folder:
         row = Path(folder) / Path(path).name
-        row.write_bytes(git("cat-file", "blob", blob))
+        row.write_bytes(git("cat-file", "blob", repository_blob(merge, path)))
         bot("check-registration", row)
 
 
@@ -230,12 +223,7 @@ def verify(out):
     claim = out / "claim.toml"
     claim.write_bytes(git("cat-file", "blob", actual[row]))
     if first:
-        # Use the original registrant authority, which the serial merger can also extract
-        # from the branch base without trusting a mutable PR artifact.
-        repository = source_repository(claim)
-        evidence = out / Path(repository).name
-        evidence.write_bytes(git("cat-file", "blob", repository_blob(base, repository)))
-        bot("verify-first-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, evidence, out)
+        bot("verify-first-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, out)
     else:
         bot("verify-release", ROOT, os.environ["GITHUB_REPOSITORY"], project, claim, out)
     regenerated = out / "expected"

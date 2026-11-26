@@ -406,10 +406,10 @@ a candidate, even if it has no metadata; then that stream is not admitted and no
 is read or downloaded, so a tracked repository whose only tags predate `release.json` publishes one
 more release. The candidate's package must authenticate and its `<mod>-<version>.release.json`
 asset must be a subject of that same verified package statement. The file is the only source of the
-package path. A candidate that cannot be verified, or whose metadata is missing or invalid, reserves
-no path and does not stop another stream. A path an authenticated candidate proves stays reserved for
-the pass even if its page, collisions, handled PR or payload are refused afterwards, and a second
-stream that signs the same path is not admitted. After an approval, only releases
+package path. A candidate that cannot be verified, or whose metadata is missing or invalid, does not
+stop another stream. Two streams that sign one path derive one project key from the repository ID
+and the path, so one project per path is admitted by the open-PR check, the publish-time skip of a
+project that has an open PR, and the ID and path collision check. After an approval, only releases
 published later than the latest approved release are eligible. That order comes from the publication
 times in the committed release rows, not from what the author's repository shows now, so taking a
 release down does not stop the watcher. The same order selects the previous approved package for the
@@ -424,19 +424,21 @@ one, and a closed, unmerged one while its `release/<project>/<version>` branch s
 does not recreate it. Drafts never count; signed prereleases can count.
 Observation and publication failures appear in the watch summary.
 
-A first-release PR must have the same registrant account IDs for its repository on its branch base
-and the trusted verification snapshot. Immediately before merging the already verified exact head, the serial
-merger runs the attested prebuilt bot against a fresh, read-only snapshot of `main`:
+The release check regenerates a first release's `project.toml` on `main`, with its owners resolved
+from the registrants of the repository's row on `main`, and compares it byte for byte with the PR's.
+Immediately before merging the already verified exact head, the serial merger runs the attested
+prebuilt bot against a fresh, read-only snapshot of `main`:
 
 ```text
-registry-bot check-first-project <main-checkout> sunrise-org/sunrise-mods <branch-base-repository-row> <verified-head-project.toml>
+registry-bot check-first-project <main-checkout> sunrise-org/sunrise-mods <verified-head-project.toml>
 ```
 
-Extract the repository row from the first-release branch's merge base with main and the project
-row from the exact verified head, as Git blobs into separate files. Do not copy a PR directory over
-main. The command refuses an occupied key (project or collection), a reserved, occupied or stale slug,
-an occupied repository/path or subfolder in-game namespace, a changed or missing set of registrant
-account IDs, and owners that differ from those accounts' current logins. It does not reverify the release or substitute for the exact-head check and review.
+Extract the project row from the exact verified head as a Git blob. Do not copy a PR directory over
+main. The command refuses an occupied key (project or collection), a reserved or occupied slug,
+an occupied repository/path or subfolder in-game namespace, and owners that differ from the
+current logins of the repository's registrants on `main`. It does not reverify the release or
+substitute for the exact-head check and review. After a merge-time slug or owner refusal the PR is
+closed and its branch deleted, so the watcher proposes the release again.
 
 ### Moving a project to another repository
 
@@ -528,9 +530,9 @@ The release check reads the PR's Git tree as data, without checking it out. Only
 and that project's page are ordinarily allowed to change; an existing change of kind also replaces the
 project kind and removes older release rows. A first release may only add a project row, one release
 row and the resolved page as regular files. It must not replace an existing project directory or
-change its repository row. The repository's numeric ID and set of numeric registrant IDs must match
-between the branch base and current main; display names, stored logins and old package links are not
-authority. The checker and pre-merge check resolve current GitHub logins for those accounts. The
+change its repository row. Owners come only from the registrants' numeric account IDs on `main`;
+display names, stored logins and old package links are not authority. The release check and the
+pre-merge check resolve current GitHub logins for those accounts. The
 release check takes all four download URLs from the live release
 of the registered repository, verifies the downloaded hashes and attestations, and requires the
 release tree to match what it regenerated. GitHub API digests may be absent; the local SHA-256

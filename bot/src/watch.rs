@@ -151,8 +151,9 @@ pub fn run(checkout: &Path, out: &Path, github: &dyn GitHub) -> Result<(), Strin
             let approved = latest_approved(entry);
             let mut candidates = candidates(entry, &releases, approved.as_ref());
             if approved.is_none() {
-                // A legacy project with no approvals observes only the newest publication. Neither an unsigned or
-                // rejected release nor an inconclusive verification opens an older release.
+                // CUTOVER: delete. A legacy project with no approvals observes only the newest
+                // publication. Neither an unsigned or rejected release nor an inconclusive
+                // verification opens an older release.
                 candidates.truncate(1);
             }
             for candidate in candidates {
@@ -1213,7 +1214,6 @@ mod tests {
         let repository = serde_json::from_str("123456789").unwrap();
         let name = RepositoryName::parse(CURRENT.into()).unwrap();
         let version = Version::new(1, 2, 0);
-        let mut paths = BTreeSet::new();
         // Each stream is one release, as discovery hands them over: the newest of its tag stream.
         // `newest` and `other` both sign mods/shared, and the rest each fail in their own way.
         for stream in [
@@ -1260,7 +1260,7 @@ mod tests {
             };
             let work = tempfile::tempdir().unwrap();
             let before = github.downloads.borrow().len();
-            let result = first::newest_path(&mut paths, &request, Some(&mod_id), work.path(), None);
+            let result = first::newest_path(&request, Some(&mod_id), work.path(), None);
             let reads = github.downloads.borrow().len() - before;
             match stream {
                 "offline" => assert!(matches!(result, Err(Observation::Unknown(_)))),
@@ -1269,20 +1269,15 @@ mod tests {
                     assert!(matches!(result, Err(Observation::Ineligible(_))));
                     assert_eq!(reads, 0);
                 }
-                "newest" | "separate" => assert!(result.unwrap().is_some(), "{stream}"),
-                // A second stream signing a reserved path is not admitted a second time.
-                "other" => assert!(result.unwrap().is_none()),
+                // Streams signing one path each name it: one key, so one project, is decided later.
+                "newest" | "other" => assert_eq!(result.unwrap().0.as_str(), "mods/shared"),
+                "separate" => assert_eq!(result.unwrap().0.as_str(), "mods/separate"),
                 _ => assert!(
                     matches!(result, Err(Observation::Ineligible(_))),
                     "{stream}"
                 ),
             }
         }
-        // Only the two admitted streams reserved a path: no refusal above took one.
-        assert_eq!(
-            paths.iter().map(PackagePath::as_str).collect::<Vec<_>>(),
-            ["mods/separate", "mods/shared"]
-        );
     }
 
     #[test]
@@ -1308,8 +1303,7 @@ mod tests {
                 release: &release,
                 version: &Version::new(1, 2, 0),
             };
-            let result =
-                first::newest_path(&mut BTreeSet::new(), &request, None, work.path(), None);
+            let result = first::newest_path(&request, None, work.path(), None);
             assert_eq!(result.is_ok(), admitted, "{body}");
         }
     }

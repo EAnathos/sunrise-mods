@@ -82,20 +82,17 @@ fn asset_mod_id(first: &FirstCandidate<'_>) -> Result<ModId, Observation> {
     }
 }
 
-/// Called for the newest candidate of each stream, newest publication first, with the paths the
-/// earlier ones named. The package must authenticate, and the release must carry its
-/// `<mod>-<version>.release.json` as an asset whose name and SHA-256 are a subject of the same
-/// verified statement as the package. The path comes from that file alone. It is reserved even if
-/// the page, collisions, PR or payload are refused later, so nothing older is ever admitted in
-/// its place; a candidate that proves no path reserves none and stops no other stream. `Ok(None)`
-/// means a newer stream already holds the path.
+/// Called for the newest candidate of a stream. The package must authenticate, and the release
+/// must carry its `<mod>-<version>.release.json` as an asset whose name and SHA-256 are a subject
+/// of the same verified statement as the package. The path comes from that file alone. Two streams
+/// that sign one path derive one project key, so the open-PR, publish and collision checks admit
+/// only one project for it.
 pub(super) fn newest_path(
-    paths: &mut BTreeSet<PackagePath>,
     request: &Request<'_>,
     namespace: Option<&ModId>,
     dir: &Path,
     claim: Option<&Release>,
-) -> Result<Option<(PackagePath, SignedPackage)>, Observation> {
+) -> Result<(PackagePath, SignedPackage), Observation> {
     #[derive(Deserialize)]
     #[serde(deny_unknown_fields)]
     struct ReleaseJson {
@@ -139,7 +136,7 @@ pub(super) fn newest_path(
             "{name} path does not match the release tag namespace"
         )));
     }
-    Ok(paths.insert(path.clone()).then_some((path, package)))
+    Ok((path, package))
 }
 
 fn first_request<'a>(
@@ -178,7 +175,6 @@ impl Watch<'_, '_> {
         releases: &[github::Release],
         summary: &mut String,
     ) {
-        let mut paths = BTreeSet::new();
         for first in first_candidates(self.registry, live.id, releases) {
             let candidate = &first.candidate;
             let label = &candidate.release.tag_name;
@@ -186,17 +182,9 @@ impl Watch<'_, '_> {
                 let mod_id = asset_mod_id(&first).map_err(|e| e.to_string())?;
                 let request = first_request(live, candidate, &mod_id, self.workflow, self.github);
                 let work = tempfile::tempdir().map_err(|e| e.to_string())?;
-                let Some((path, package)) = newest_path(
-                    &mut paths,
-                    &request,
-                    first.namespace.as_ref(),
-                    work.path(),
-                    None,
-                )
-                .map_err(|e| e.to_string())?
-                else {
-                    return Ok(false);
-                };
+                let (path, package) =
+                    newest_path(&request, first.namespace.as_ref(), work.path(), None)
+                        .map_err(|e| e.to_string())?;
                 if self.registry.has_package_path(live.id, &path) {
                     return Ok(false);
                 }
@@ -296,52 +284,12 @@ fn owners(
     Ok(logins.into_values().collect())
 }
 
-fn same_registration_authority(
-    registry: &Registry,
-    branch_row: &Path,
-    id: RepositoryId,
-) -> Result<(), String> {
-    let current = registry
-        .repositories
-        .get(&id)
-        .ok_or("first-release repository is not registered on main")?;
-    if branch_row
-        .file_name()
-        .and_then(|name| name.to_str())
-        .and_then(RepositoryId::of_file)
-        != Some(id)
-    {
-        return Err("first-release base row does not name the verified repository ID".into());
-    }
-    let observed: schema::Repository = toml::from_str(
-        &fs::read_to_string(branch_row)
-            .map_err(|e| format!("first-release base repository row: {e}"))?,
-    )
-    .map_err(|e| format!("first-release base repository row: {e}"))?;
-    let ids = |row: &schema::Repository| {
-        row.registrant
-            .iter()
-            .map(|account| account.id)
-            .collect::<BTreeSet<_>>()
-    };
-    if current.registrant.is_empty() || ids(&observed) != ids(current) {
-        return Err("repository registrant authority is missing or changed".into());
-    }
-    Ok(())
-}
-
 /// Only for a previously verified exact-head claim. Does not install it over main.
-pub fn check_claim(
-    main: &Path,
-    branch_row: &Path,
-    claim: &Path,
-    github: &dyn GitHub,
-) -> Result<(), String> {
+pub fn check_claim(main: &Path, claim: &Path, github: &dyn GitHub) -> Result<(), String> {
     let registry = load(main)?;
     let project: Project = toml::from_str(&fs::read_to_string(claim).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
     registry.check_first_project(&project)?;
-    same_registration_authority(&registry, branch_row, project.repository)?;
     if project.owners != owners(&registry, project.repository, github).map_err(|e| e.to_string())? {
         return Err(
             "first-release owners no longer match the repository registrants' GitHub logins".into(),
@@ -352,7 +300,6 @@ pub fn check_claim(
 
 pub fn verify(
     main: &Path,
-    branch_row: &Path,
     id: &ProjectId,
     claim: &Path,
     out: &Path,
@@ -361,73 +308,58 @@ pub fn verify(
     let registry = load(main)?;
     let claim: Release = toml::from_str(&fs::read_to_string(claim).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
-    same_registration_authority(&registry, branch_row, claim.repository)?;
     let workflow = workflow(&registry)?;
     let live = github.repository(Repo::Registered(claim.repository))?;
     if live.id != claim.repository || live.private {
         return Err("registered repository is no longer public or has the wrong ID".into());
     }
     let releases = github.releases(Repo::Registered(live.id))?;
-    let mut paths = BTreeSet::new();
-    let target_root = !claim.tag.as_str().contains('/');
-    for first in first_candidates(&registry, live.id, &releases) {
-        // Root and subfolder namespaces cannot share paths.
-        if target_root != first.namespace.is_none() {
-            continue;
-        }
-        let candidate = &first.candidate;
-        let target =
-            candidate.release.tag_name == claim.tag.as_str() && candidate.version == claim.version;
-        let mod_id = match asset_mod_id(&first) {
-            Ok(id) => id,
-            Err(error) if target => return Err(error.to_string()),
-            Err(_) => continue, // An unverifiable tag cannot reserve a package path.
-        };
-        let request = first_request(&live, candidate, &mod_id, workflow, github);
-        let work = tempfile::tempdir().map_err(|e| e.to_string())?;
-        let observed = newest_path(
-            &mut paths,
-            &request,
-            first.namespace.as_ref(),
-            work.path(),
-            target.then_some(&claim),
-        );
-        if !target {
-            continue;
-        }
-        let (path, package) = observed
-            .map_err(|e| e.to_string())?
-            .ok_or("release is not the newest publication for this package path")?;
-        let key = registry::first_project_id(live.id, &path)?;
-        if &key != id {
-            return Err("first-release project ID does not match the release branch".into());
-        }
-        let assets =
-            signed_page(&request, work.path(), Some(&claim), package).map_err(|e| e.to_string())?;
-        let (row, payload) = prepared(
-            &request,
-            candidate.published,
-            assets,
-            work.path(),
-            &categories(&registry)?,
-            &mut Builds::new(github)?,
-            Some(&claim),
+    let first = first_candidates(&registry, live.id, &releases)
+        .into_iter()
+        .find(|first| {
+            first.candidate.release.tag_name == claim.tag.as_str()
+                && first.candidate.version == claim.version
+        })
+        .ok_or(
+            "the proposed first release is not the newest publication of a new package stream",
         )?;
-        if row != claim {
-            return Err(
-                "release row does not match the attested assets and published metadata".into(),
-            );
-        }
-        let project = first_project(&registry, &request, key, path, &row)?;
-        check_payload(&registry, id, &row, &payload, work.path())?;
-        write_first(&project, &row, &payload, &out.join("expected"))?;
-        return release_payload::source(
-            &work.path().join("package.smod"),
-            &out.join("source"),
-            payload.package.is_native(),
-        );
+    let candidate = &first.candidate;
+    let mod_id = asset_mod_id(&first).map_err(|e| e.to_string())?;
+    let request = first_request(&live, candidate, &mod_id, workflow, github);
+    let work = tempfile::tempdir().map_err(|e| e.to_string())?;
+    let (path, package) = newest_path(
+        &request,
+        first.namespace.as_ref(),
+        work.path(),
+        Some(&claim),
+    )
+    .map_err(|e| e.to_string())?;
+    let key = registry::first_project_id(live.id, &path)?;
+    if &key != id {
+        return Err("first-release project ID does not match the release branch".into());
     }
-    Err("the proposed first release is not the newest publication of a new package stream".into())
+    let assets =
+        signed_page(&request, work.path(), Some(&claim), package).map_err(|e| e.to_string())?;
+    let (row, payload) = prepared(
+        &request,
+        candidate.published,
+        assets,
+        work.path(),
+        &categories(&registry)?,
+        &mut Builds::new(github)?,
+        Some(&claim),
+    )?;
+    if row != claim {
+        return Err("release row does not match the attested assets and published metadata".into());
+    }
+    let project = first_project(&registry, &request, key, path, &row)?;
+    check_payload(&registry, id, &row, &payload, work.path())?;
+    write_first(&project, &row, &payload, &out.join("expected"))?;
+    release_payload::source(
+        &work.path().join("package.smod"),
+        &out.join("source"),
+        payload.package.is_native(),
+    )
 }
 
 pub(super) fn write_first(
@@ -474,32 +406,6 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["other/v0.9.0", "second/v2.0.0"]
         );
-    }
-
-    #[test]
-    fn first_release_compares_only_numeric_registration_authority() {
-        let temp = tempfile::tempdir().unwrap();
-        let mut registry = load(Path::new(FIXTURE)).unwrap();
-        let repository: RepositoryId = serde_json::from_str("123456789").unwrap();
-        let branch = temp.path().join(repository.file());
-        let old = "name = 'org/old'\n[[package]]\npath = '.'\nproject = 'Ab3dE9xQ'\n\n[[registrant]]\nid = 19\nlogin = 'OldAdmin'\n[[registrant]]\nid = 20\nlogin = 'OtherAdmin'\n";
-        fs::write(&branch, old).unwrap();
-        let current =
-            "name='org/renamed'\nregistrant=[{id=20,login='OtherAdmin'},{id=19,login='NewAdmin'}]";
-        registry
-            .repositories
-            .insert(repository, toml::from_str(current).unwrap());
-        assert!(same_registration_authority(&registry, &branch, repository).is_ok());
-        fs::write(&branch, old.replace("id = 19", "id = 21")).unwrap();
-        assert!(
-            same_registration_authority(&registry, &branch, repository)
-                .unwrap_err()
-                .contains("authority is missing or changed")
-        );
-        fs::write(&branch, "name = 'org/old'").unwrap();
-        assert!(same_registration_authority(&registry, &branch, repository).is_err());
-        registry.repositories.remove(&repository);
-        assert!(same_registration_authority(&registry, &branch, repository).is_err());
     }
 
     struct Accounts {
