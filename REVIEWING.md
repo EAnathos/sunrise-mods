@@ -60,6 +60,21 @@ take down the whole project.
 A repository-only registration adds exactly one `registry/repositories/<repository ID>.toml`
 with one authenticated registrant and no package list. The registry app opens it to `main` on a
 `register/` branch, and the `bot` layout check must pass. It needs no agent verdict. Registering
-tracks the repository but does not add a listing or approve any release code. Until the writer
-switches, its repository add or append plus new project rows still require the ordinary checks
-and are not eligible for the repository-only exemption.
+tracks the repository but does not add a listing or approve any release code.
+
+### Legacy project-adding registration PRs (transition)
+
+Until the cutover, the registry's old writer may still open a PR that adds a package to its
+repository's `registry/repositories/<repository ID>.toml` and creates its `project.toml`. It still
+needs the ordinary checks and is not eligible for the repository-only exemption. The cutover removes
+the old-writer pass-through from the `bot` check once the legacy proposals are resolved. Review
+such a PR by hand as before.
+
+The [Submit a mod](https://playsunrise.net/mods/submit) form opens most of them, and the registry opens
+the rest from Register issues; both have already checked what follows. One opened by hand has been
+checked by nobody before you: confirm that the PR's author
+administers the named repository (or is one of its organisation's owners), that the numeric
+repository ID is that repository's, that the caller workflow and both manifests are on its default
+branch, and that the PR changes nothing but those two kinds of file. This is the one human review that claims the project ID. Check that the claimed repository and package belong
+to the submitter and that the ID and slug are not being squatted. Sharing an in-game ID is allowed:
+different ports are distinct projects. Registration does not approve any release code.

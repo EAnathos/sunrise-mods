@@ -145,15 +145,36 @@ fn caller_path(
     Ok(path)
 }
 
-/// Called newest first. Only an authenticated caller can reserve its path, and does so
-/// before the page, payload or PR is checked, so refusal does not admit an older release.
+/// What first-release discovery has settled so far in one pass. A tag stream is a namespace
+/// (or the root); package paths are deduplicated across streams independently of it.
+#[derive(Default)]
+pub(super) struct Streams {
+    settled: BTreeSet<Option<ModId>>,
+    paths: BTreeSet<PackagePath>,
+}
+
+impl Streams {
+    pub(super) fn settled(&self, namespace: Option<&ModId>) -> bool {
+        self.settled.contains(&namespace.cloned())
+    }
+}
+
+/// Called newest first within each stream. A stream stops at its newest candidate whose package
+/// authenticates and whose caller proves a path, even when another stream already reserved that
+/// path, and does so before the page, collisions, PR or payload are checked, so a later refusal
+/// never admits an older release. A candidate that fails to authenticate or prove a path settles
+/// nothing. Older candidates of a settled stream are not read. `Ok(None)` means nothing is left
+/// to propose from this candidate.
 pub(super) fn newest_path(
-    paths: &mut BTreeSet<PackagePath>,
+    streams: &mut Streams,
     request: &Request<'_>,
     namespace: Option<&ModId>,
     dir: &Path,
     claim: Option<&Release>,
 ) -> Result<Option<(PackagePath, SignedPackage)>, Observation> {
+    if streams.settled(namespace) {
+        return Ok(None);
+    }
     let package = signed_package(request, dir, claim)?;
     let (caller, _) = package.attestation.caller.as_ref().ok_or_else(|| {
         Observation::Ineligible("first release must attest the caller workflow".into())
@@ -162,7 +183,11 @@ pub(super) fn newest_path(
         .github
         .caller_workflow(request.repository_id, caller)?;
     let path = caller_path(&bytes, &package.attestation.signer, namespace)?;
-    Ok(paths.insert(path.clone()).then_some((path, package)))
+    streams.settled.insert(namespace.cloned());
+    Ok(streams
+        .paths
+        .insert(path.clone())
+        .then_some((path, package)))
 }
 
 fn first_request<'a>(
@@ -201,8 +226,11 @@ impl Watch<'_, '_> {
         releases: &[github::Release],
         summary: &mut String,
     ) {
-        let mut paths = BTreeSet::new();
+        let mut streams = Streams::default();
         for first in first_candidates(self.registry, live.id, releases) {
+            if streams.settled(first.namespace.as_ref()) {
+                continue;
+            }
             let candidate = &first.candidate;
             let label = &candidate.release.tag_name;
             let result = (|| {
@@ -210,7 +238,7 @@ impl Watch<'_, '_> {
                 let request = first_request(live, candidate, &mod_id, self.workflow, self.github);
                 let work = tempfile::tempdir().map_err(|e| e.to_string())?;
                 let Some((path, package)) = newest_path(
-                    &mut paths,
+                    &mut streams,
                     &request,
                     first.namespace.as_ref(),
                     work.path(),
@@ -391,7 +419,7 @@ pub fn verify(
         return Err("registered repository is no longer public or has the wrong ID".into());
     }
     let releases = github.releases(Repo::Registered(live.id))?;
-    let mut paths = BTreeSet::new();
+    let mut streams = Streams::default();
     let target_root = !claim.tag.as_str().contains('/');
     for first in first_candidates(&registry, live.id, &releases) {
         // Root and subfolder namespaces cannot share paths.
@@ -409,7 +437,7 @@ pub fn verify(
         let request = first_request(&live, candidate, &mod_id, workflow, github);
         let work = tempfile::tempdir().map_err(|e| e.to_string())?;
         let observed = newest_path(
-            &mut paths,
+            &mut streams,
             &request,
             first.namespace.as_ref(),
             work.path(),

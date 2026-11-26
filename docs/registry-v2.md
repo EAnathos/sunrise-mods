@@ -40,6 +40,8 @@ in a package list. A reviewed migration can record several registrants for a leg
 The registry app's repository-only registration check expects exactly one registrant and no package
 list. Until the website's writer switches, its repository add or append with new project rows
 still goes through the ordinary layout, DCO and non-release checks, not the repository-only exemption.
+The cutover removes this old-writer pass-through from the `bot` check after the legacy proposals
+are resolved.
 
 ### `registry/release-workflow.toml`
 
@@ -390,10 +392,13 @@ starts the next timer run, and a push to `main` restarts a chain that has stoppe
 repository by its numeric GitHub ID. A rename opens a separate maintenance PR for that repository's file;
 it does not change registrants, project owners or IDs, or rewrite old release URLs. The watcher reads
 existing project rows directly, including paused projects and reviewed moves. It also discovers
-first releases in tracked repositories with registrants. It considers only the newest publication
-whose signed caller proves an unclaimed package path, by GitHub's timestamp. An unverifiable tag
-cannot reserve a path. Once a verified caller reserves it, a later refusal (for example, a missing
-page asset) does not admit an older release for that path. After an approval, only releases
+first releases in tracked repositories with registrants. Within one tag stream (one namespace, or
+the root), it reads candidates newest first by GitHub's timestamp and stops at the first whose
+package authenticates and whose signed caller proves its path; it reads older ones only if no newer
+one did. That stream stops even if the path is already reserved by another stream, and before the page,
+collisions, handled PR or payload are checked, so a later refusal (for example, a missing page asset)
+does not admit an older release of the stream. A candidate that cannot be verified, or whose caller
+proves no valid path, stops no stream and reserves no path. Paths are deduplicated across streams. After an approval, only releases
 published later than the latest approved release are eligible. That order comes from the publication
 times in the committed release rows, not from what the author's repository shows now, so taking a
 release down does not stop the watcher. The same order selects the previous approved package for the

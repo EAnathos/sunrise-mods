@@ -1022,7 +1022,13 @@ mod tests {
 
         fn tag_commit(&self, repo: Repo<'_>, tag: &str) -> Result<String, String> {
             assert!(matches!(repo, Repo::Registered(id) if id.get() == 123456789));
-            assert!(tag == "v1.2.0" || self.folder_callers && tag.ends_with("/v1.2.0"));
+            assert!(
+                tag == "v1.2.0"
+                    || self.folder_callers
+                        && tag
+                            .split_once('/')
+                            .is_some_and(|(_, v)| v.starts_with("v1."))
+            );
             let count = self.tag_lookups.get();
             self.tag_lookups.set(count + 1);
             Ok(if count == 0 { "a" } else { "b" }.repeat(40))
@@ -1166,21 +1172,37 @@ mod tests {
         };
         let repository = serde_json::from_str("123456789").unwrap();
         let name = RepositoryName::parse(CURRENT.into()).unwrap();
-        let version = Version::new(1, 2, 0);
-        let mut paths = BTreeSet::new();
-        // The newest unrelated callers cannot establish a path. The first verified caller
-        // for mods/shared has no page: that later failure must not free the path.
-        for tag in ["offline", "invalid", "newest", "separate", "older"] {
+        let mut streams = first::Streams::default();
+        // Each step is one candidate of the stream named by its tag, newest first, with a
+        // distinct version so that an older tag is visibly a different release.
+        let steps = [
+            ("offline", "1.2.0"),
+            ("offline", "1.1.0"),
+            ("invalid", "1.2.0"),
+            ("invalid", "1.1.0"),
+            ("newest", "1.2.0"),
+            ("newest", "1.1.0"),
+            ("other", "1.2.0"),
+            ("other", "1.1.0"),
+            ("separate", "1.2.0"),
+            ("separate", "1.1.0"),
+        ];
+        // The newest unrelated callers cannot establish a path: a caller that cannot be read or
+        // is invalid settles nothing, so the same stream is read again at its older tag, and
+        // the streams of other namespaces are unaffected. The first verified caller for
+        // mods/shared has no page: that later failure must not free the path.
+        for (tag, number) in steps {
             let mod_id = ModId::parse(tag.into()).unwrap();
-            let mut release = live_release("1.2.0", "2026-11-23T13:00:00Z", None);
-            release.tag_name = format!("{tag}/v1.2.0");
+            let version = Version::parse(number).unwrap();
+            let mut release = live_release(number, "2026-11-23T13:00:00Z", None);
+            release.tag_name = format!("{tag}/v{number}");
             release
                 .assets
                 .retain(|asset| !asset.name.contains(".page.tar"));
             for asset in &mut release.assets {
                 asset.name = asset
                     .name
-                    .replace("wayfinder-1.2.0", &format!("{tag}-1.2.0"));
+                    .replace(&format!("wayfinder-{number}"), &format!("{tag}-{number}"));
                 asset.browser_download_url = format!(
                     "https://github.com/{CURRENT}/releases/download/{}/{}",
                     release.tag_name, asset.name
@@ -1197,17 +1219,47 @@ mod tests {
                 release: &release,
                 version: &version,
             };
-            let result = first::newest_path(&mut paths, &request, Some(&mod_id), work.path(), None);
-            match tag {
-                "offline" => assert!(matches!(result, Err(Observation::Unknown(_)))),
-                "invalid" => assert!(matches!(result, Err(Observation::Ineligible(_)))),
-                "newest" => {
+            let before = github.downloads.borrow().len();
+            let result =
+                first::newest_path(&mut streams, &request, Some(&mod_id), work.path(), None);
+            let reads = github.downloads.borrow().len() - before;
+            match (tag, number) {
+                ("offline", _) => {
+                    assert!(
+                        matches!(result, Err(Observation::Unknown(_))),
+                        "{tag} {number}"
+                    );
+                    assert!(reads > 0, "{tag} {number}");
+                }
+                ("invalid", _) => {
+                    assert!(
+                        matches!(result, Err(Observation::Ineligible(_))),
+                        "{tag} {number}"
+                    );
+                    assert!(reads > 0, "{tag} {number}");
+                }
+                ("newest", "1.2.0") => {
                     let (path, package) = result.unwrap().unwrap();
                     assert_eq!(path.as_str(), "mods/shared");
+                    assert!(reads > 0);
                     assert!(signed_page(&request, work.path(), None, package).is_err());
                 }
-                "separate" => assert_eq!(result.unwrap().unwrap().0.as_str(), "mods/separate"),
-                _ => assert!(result.unwrap().is_none()),
+                // An authenticated claim of an already reserved path still settles its own
+                // stream, so its older tag is not read at all.
+                ("other", "1.2.0") => {
+                    assert!(result.unwrap().is_none());
+                    assert!(reads > 0);
+                }
+                // An independent path in another stream is still found.
+                ("separate", "1.2.0") => {
+                    assert_eq!(result.unwrap().unwrap().0.as_str(), "mods/separate");
+                    assert!(reads > 0);
+                }
+                // Older tags of a settled stream are not read at all.
+                _ => {
+                    assert!(result.unwrap().is_none(), "{tag} {number}");
+                    assert_eq!(reads, 0, "{tag} {number}");
+                }
             }
         }
     }
