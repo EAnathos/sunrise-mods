@@ -1,0 +1,24 @@
+version = "0.1.4"
+kind = "native-mod"
+tag = "flying_fish/v0.1.4"
+published = "2026-11-26T13:47:50Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/flying_fish/v0.1.4/flying_fish-0.1.4.smod"
+size = 200351
+sha256 = "fd8f6d61d9c5d292202f2ea45c59585818d53529b85c719f932e14017f8c30c7"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/flying_fish/v0.1.4/flying_fish-0.1.4.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/flying_fish/v0.1.4/flying_fish-0.1.4.page.tar"
+size = 80896
+sha256 = "333f46835fc0576b0403e51338e4ec7485abd53ba6aba832dcec5016f65a17c3"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/flying_fish/v0.1.4/flying_fish-0.1.4.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
