@@ -1,0 +1,20 @@
+version = "0.1.3"
+kind = "native-mod"
+tag = "spelunkery/v0.1.3"
+published = "2026-11-26T02:44:02Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/spelunkery/v0.1.3/spelunkery-0.1.3.smod"
+size = 2346494
+sha256 = "2bfa5f41ea42d7d64fd05c30477c633b99c102e56606961816c6da03dd348fad"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/spelunkery/v0.1.3/spelunkery-0.1.3.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/spelunkery/v0.1.3/spelunkery-0.1.3.page.tar"
+size = 292352
+sha256 = "0708ab37d527b287aa9c2b0ee0bff2dafcd7ba46aef5dbd04cf31e6cc32d8749"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/spelunkery/v0.1.3/spelunkery-0.1.3.page.tar.sigstore.json"
