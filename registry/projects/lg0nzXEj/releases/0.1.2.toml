@@ -1,0 +1,24 @@
+version = "0.1.2"
+kind = "native-mod"
+tag = "ladybugs/v0.1.2"
+published = "2026-11-26T13:47:55Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/ladybugs/v0.1.2/ladybugs-0.1.2.smod"
+size = 57448
+sha256 = "74b03793bf6b1050db2b69b3fbcb2b654879430b1cd9c2dcc301ec5dbeab28fb"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/ladybugs/v0.1.2/ladybugs-0.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/ladybugs/v0.1.2/ladybugs-0.1.2.page.tar"
+size = 139264
+sha256 = "f1239ad590c2b0d2dd97b85ce67d8a84d8e9db7486b21f41eb77586a2334b933"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/ladybugs/v0.1.2/ladybugs-0.1.2.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.0"
+required = true
