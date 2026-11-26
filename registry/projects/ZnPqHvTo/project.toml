@@ -1,0 +1,9 @@
+id = "ZnPqHvTo"
+slug = "elephant"
+mod = "elephant"
+kind = "native-mod"
+owners = ["EAnathos"]
+repository = 1449407242
+path = "mods/elephant"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-26"
