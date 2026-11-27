@@ -1,0 +1,20 @@
+version = "0.1.1"
+kind = "mod"
+tag = "jrftl/v0.1.1"
+published = "2026-11-27T05:20:31Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1468300372
+dependencies = []
+
+[file]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/jrftl/v0.1.1/jrftl-0.1.1.smod"
+size = 1799
+sha256 = "ad10de68d2e39099fa670d4dec93c17c8d51bdd85c05e9d43e6bea940f2aca31"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/jrftl/v0.1.1/jrftl-0.1.1.smod.sigstore.json"
+
+[page]
+url = "https://github.com/arismoko/sunrise-ports/releases/download/jrftl/v0.1.1/jrftl-0.1.1.page.tar"
+size = 974336
+sha256 = "54b0dbff4b1d1300ad7424922c2f9fb9bb55ab2745d512a0ae95f6683c22ff2e"
+attestation = "https://github.com/arismoko/sunrise-ports/releases/download/jrftl/v0.1.1/jrftl-0.1.1.page.tar.sigstore.json"
