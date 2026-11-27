@@ -2,7 +2,7 @@ id = "Af3mCwGJ"
 name = "YUNG's Better Structures"
 summary = "YUNG's rebuilt vanilla structures and world details, for Sunrise."
 description = """
-YUNG's Better series reworks Minecraft's vanilla structures: bigger temples with traps and puzzles, a new End island and gateways, ocean monuments with new rooms, strongholds, Nether fortresses, witch huts, mineshafts and dungeons, plus natural river bridges and small world decorations.
+YUNG's Better series reworks Minecraft's vanilla structures: bigger temples with traps and puzzles, a new End island and gateways, ocean monuments with new rooms, witch huts, mineshafts and dungeons, plus natural river bridges and small world decorations.
 
 These are ports of YungNickYoung's mods to Sunrise. Each is its own project with its own page; pick the ones you want.
 """
@@ -18,12 +18,6 @@ project = "nhritf02"  # YUNG's Better Jungle Temples
 
 [[member]]
 project = "hPuZyXQ0"  # YUNG's Better Ocean Monuments
-
-[[member]]
-project = "pvf5JSuK"  # YUNG's Better Strongholds
-
-[[member]]
-project = "Bo91N4R1"  # YUNG's Better Nether Fortresses
 
 [[member]]
 project = "brgDt5sT"  # YUNG's Better Witch Huts
