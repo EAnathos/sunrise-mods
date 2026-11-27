@@ -488,15 +488,6 @@ impl Registry {
             Err(problems.join("; "))
         }
     }
-
-    pub fn check_first_project(&self, project: &Project) -> Result<(), String> {
-        if project.id != first_project_id(project.repository, &project.path)? {
-            return Err(
-                "first-release project ID does not match its repository and package path".into(),
-            );
-        }
-        self.check_new_project(project)
-    }
 }
 
 pub fn first_project_id(
@@ -987,16 +978,16 @@ mod tests {
                 paused: false,
             }
         };
-        let mut claim = project(&registry);
+        let claim = project(&registry);
         assert_eq!(
             claim.slug.as_str(),
             format!("wayfinder-{}", id.as_str().to_ascii_lowercase())
         );
-        assert!(registry.check_first_project(&claim).is_ok());
+        assert!(registry.check_new_project(&claim).is_ok());
         registry.claims.slugs.insert(claim.slug.clone());
         assert!(
             registry
-                .check_first_project(&claim)
+                .check_new_project(&claim)
                 .unwrap_err()
                 .contains("duplicate slug")
         );
@@ -1007,7 +998,7 @@ mod tests {
             .insert((repository, claim.mod_id.clone()));
         assert!(
             registry
-                .check_first_project(&claim)
+                .check_new_project(&claim)
                 .unwrap_err()
                 .contains("same in-game ID")
         );
@@ -1018,7 +1009,7 @@ mod tests {
         registry.claims.paths.insert((repository, path.clone()));
         assert!(
             registry
-                .check_first_project(&claim)
+                .check_new_project(&claim)
                 .unwrap_err()
                 .contains("duplicate package path")
         );
@@ -1026,16 +1017,9 @@ mod tests {
         registry.claims.ids.insert(id);
         assert!(
             registry
-                .check_first_project(&claim)
+                .check_new_project(&claim)
                 .unwrap_err()
                 .contains("project or collection already uses ID")
-        );
-        claim.id = ProjectId::parse("Ab3dE9xQ".into()).unwrap();
-        assert!(
-            registry
-                .check_first_project(&claim)
-                .unwrap_err()
-                .contains("does not match its repository and package path")
         );
     }
 }

@@ -426,19 +426,10 @@ Observation and publication failures appear in the watch summary.
 
 The release check regenerates a first release's `project.toml` on `main`, with its owners resolved
 from the registrants of the repository's row on `main`, and compares it byte for byte with the PR's.
-Immediately before merging the already verified exact head, the serial merger runs the attested
-prebuilt bot against a fresh, read-only snapshot of `main`:
-
-```text
-registry-bot check-first-project <main-checkout> sunrise-org/sunrise-mods <verified-head-project.toml>
-```
-
-Extract the project row from the exact verified head as a Git blob. Do not copy a PR directory over
-main. The command refuses an occupied key (project or collection), a reserved or occupied slug,
-an occupied repository/path or subfolder in-game namespace, and owners that differ from the
-current logins of the repository's registrants on `main`. It does not reverify the release or
-substitute for the exact-head check and review. After a merge-time slug or owner refusal the PR is
-closed and its branch deleted, so the watcher proposes the release again.
+It refuses an occupied key (project or collection), a reserved or occupied slug, an occupied
+repository/path or subfolder in-game namespace, and owners that differ from the current logins of
+the repository's registrants. After a merge-time refusal the PR is closed and its branch deleted, so
+the watcher proposes the release again.
 
 ### Moving a project to another repository
 
@@ -531,8 +522,8 @@ and that project's page are ordinarily allowed to change; an existing change of 
 project kind and removes older release rows. A first release may only add a project row, one release
 row and the resolved page as regular files. It must not replace an existing project directory or
 change its repository row. Owners come only from the registrants' numeric account IDs on `main`;
-display names, stored logins and old package links are not authority. The release check and the
-pre-merge check resolve current GitHub logins for those accounts. The
+display names, stored logins and old package links are not authority. The release check
+resolves current GitHub logins for those accounts. The
 release check takes all four download URLs from the live release
 of the registered repository, verifies the downloaded hashes and attestations, and requires the
 release tree to match what it regenerated. GitHub API digests may be absent; the local SHA-256
