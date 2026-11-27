@@ -1,0 +1,24 @@
+version = "0.1.2"
+kind = "native-mod"
+tag = "magma_golem/v0.1.2"
+published = "2026-11-27T18:39:28Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/magma_golem/v0.1.2/magma_golem-0.1.2.smod"
+size = 310347
+sha256 = "7ab8b2d4b95f4b0f964573d2d51729bb175d75c98bcde72ade2e8cff34ae2163"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/magma_golem/v0.1.2/magma_golem-0.1.2.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/magma_golem/v0.1.2/magma_golem-0.1.2.page.tar"
+size = 364032
+sha256 = "99ec327a68c50ed629cf309b50d8e104d018c09bf02d85df935f45cd5524c860"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/magma_golem/v0.1.2/magma_golem-0.1.2.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.1"
+required = true
