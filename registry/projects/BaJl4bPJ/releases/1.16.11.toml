@@ -1,0 +1,24 @@
+version = "1.16.11"
+kind = "native-mod"
+tag = "v1.16.11"
+published = "2026-11-27T09:28:24Z"
+sunrise = "dev-2026-11-26-ba1f24e"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1474217872
+
+[file]
+url = "https://github.com/Joeypc6/Elevator-Sunrise/releases/download/v1.16.11/elevatorid-1.16.11.smod"
+size = 205499
+sha256 = "a60e6fd7aa13a16eac96a9b20ad3ef1431a211de74ff250c2455f85b39e5bcca"
+attestation = "https://github.com/Joeypc6/Elevator-Sunrise/releases/download/v1.16.11/elevatorid-1.16.11.smod.sigstore.json"
+
+[page]
+url = "https://github.com/Joeypc6/Elevator-Sunrise/releases/download/v1.16.11/elevatorid-1.16.11.page.tar"
+size = 353792
+sha256 = "64931ce46c3f7641140d1a27fc3687a6812392dab8f2a05b802feb4e811d5649"
+attestation = "https://github.com/Joeypc6/Elevator-Sunrise/releases/download/v1.16.11/elevatorid-1.16.11.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "guideme"
+version = "^0.1"
+required = false

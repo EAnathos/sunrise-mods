@@ -1,0 +1,39 @@
+name = "Elevator"
+summary = "Elevators: stand on one, jump to go up, sneak to go down."
+description = """
+Elevators: stand on one, jump to go up to the next elevator above, sneak to go down to the next one below.
+
+A port of [Elevator](https://github.com/VsnGamer/ElevatorMod) by VsnGamer to [Sunrise](https://playsunrise.net) (Minecraft Java 26.3). One native mod on Sunrise's mod API: the code is a rewrite, checked against the original 1.16.6 release; the textures, models, sounds, recipes and language files are the original mod's. See `LICENSE` and `NOTICE`.
+
+What it does:
+
+- Sixteen coloured elevators; any elevator with a dye becomes that colour.
+- Jump or sneak to ride to the next elevator in the column, within 384 blocks by default, skipping one with something solid on top.
+- Camouflage: right-click with a block and the elevator looks like it, with its shape, light and redstone signal, joined to its neighbours (fences, walls, panes); sneak-click with an empty hand or use the options to take it off.
+- Directional elevators turn you to a set direction on arrival and level your view, with an optional arrow.
+- The server decides every ride: the client only says where it stands and which way.
+- The Java mod's options in `config/elevatorid-common.toml`: `sameColor`, `range`, `activationRange`, `precisionTarget`, `mobSpawn`, `resetPitchNormal`, `resetPitchDirectional`, `useXP`, `XPPointsAmount`.
+- Optional: with the `guideme` library, W over an elevator opens its guide (English, German, Spanish).
+
+Differences from the original:
+
+- A camouflage is drawn by the elevator's block entity renderer, not baked into the chunk: it has no ambient occlusion, its faces aren't culled against neighbours, and grass or leaves aren't biome-tinted.
+- A camouflage catches up with a changed neighbour one tick later than in Java.
+"""
+authors = [
+    "Sunrise port: Joeypc6",
+    "VsnGamer",
+]
+license = "MIT"
+homepage = "https://github.com/Joeypc6/Elevator-Sunrise"
+issues = "https://github.com/Joeypc6/Elevator-Sunrise/issues"
+icon = "icon.png"
+categories = ["transportation"]
+
+[[screenshots]]
+path = "1-elevators.jpg"
+caption = "Coloured elevators, two directional ones with their arrows, and three camouflaged as a slab, glowstone and stairs."
+
+[[screenshots]]
+path = "2-options.jpg"
+caption = "An elevator's options."
