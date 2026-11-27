@@ -74,7 +74,7 @@ class ReleasePRTests(unittest.TestCase):
             with self.subTest(message=message, changed=changed):
                 calls = [b"", b"b" * 40, "".join(name + "\0" for name in changed).encode()]
                 if head_rows is not None:
-                    calls += [b"", b"".join(entry(name) + b"\0" for name in head_rows)]
+                    calls += [b"", b"existing root", b"".join(entry(name) + b"\0" for name in head_rows)]
                 with patch.object(release, "api", return_value=pull()), patch.object(release, "git") as git:
                     git.side_effect = calls
                     with self.assertRaisesRegex(ValueError, message):
@@ -150,6 +150,114 @@ class ReleasePRTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside its release row and page"):
             release.install_tree(generated, work, "release/Ab3dE9xQ/1.2.0")
 
+    def test_first_install_adds_one_project_without_editing_its_repository(self):
+        generated, work = self.folder / "release", self.folder / "work"
+        root = Path("registry/projects/Ab3dE9xQ")
+        row, project, page = root / "releases/1.0.0.toml", root / "project.toml", root / "page/page.toml"
+        for name in (row, project, page):
+            (generated / name).parent.mkdir(parents=True, exist_ok=True)
+            (generated / name).write_text(name.name)
+        repository = work / "registry/repositories/42.toml"
+        repository.parent.mkdir(parents=True)
+        repository.write_text("repository evidence")
+        (work / root).parent.mkdir(parents=True)
+        with patch.object(release, "git"):
+            release.install_tree(generated, work, "release/Ab3dE9xQ/1.0.0", first=True)
+        self.assertEqual({p.relative_to(work) for p in work.rglob("*") if p.is_file()},
+                         {row, project, page, repository.relative_to(work)})
+        self.assertEqual(repository.read_text(), "repository evidence")
+        # Another first proposal cannot be treated as a kind change over this project.
+        (work / row).unlink()
+        with self.assertRaisesRegex(ValueError, "add a new project directory"):
+            release.install_tree(generated, work, "release/Ab3dE9xQ/1.0.0", first=True)
+
+    def test_trusted_first_verification_rejects_an_extra_file_or_an_incomplete_page(self):
+        root = "registry/projects/Ab3dE9xQ"
+        row, project = f"{root}/releases/1.0.0.toml", f"{root}/project.toml"
+        entry = lambda name: f"100644 blob {'c' * 40}\t{name}\0".encode()
+        for files, result in (([row, project, "registry/repositories/42.toml"], "may only add its own release row"),
+                              ([row, project], "must add only the project row")):
+            with patch.object(release, "api", return_value=pull()), patch.object(release, "git") as git:
+                git.side_effect = [b"", b"b" * 40, "".join(name + "\0" for name in files).encode(),
+                                   b"", b"", entry(row), entry(row) + entry(project)]
+                with self.assertRaisesRegex(ValueError, result):
+                    release.verify(self.folder / "out")
+
+    def test_trusted_first_verification_compares_regenerated_project_as_well_as_release(self):
+        root = "registry/projects/Ab3dE9xQ"
+        row, project, page = f"{root}/releases/1.0.0.toml", f"{root}/project.toml", f"{root}/page/page.toml"
+        files = {row: "c" * 40, project: "d" * 40, page: "e" * 40}
+        actual = b"".join(f"100644 blob {blob}\t{name}\0".encode() for name, blob in files.items())
+        changes = "".join(name + "\0" for name in files).encode()
+        out = self.folder / "out"
+
+        def git_call(*args):
+            if args[0] == "hash-object":
+                path = args[-1].relative_to(out / "expected").as_posix()
+                return ("f" * 40 if path == project else files[path]).encode()
+            return next(git_reads)
+
+        def regenerate(*args):
+            self.assertEqual(args[:4], ("verify-first-release", release.ROOT, REPO, "Ab3dE9xQ"))
+            self.assertEqual(len(args), 6)
+            for name in files:
+                path = out / "expected" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
+
+        only_release = f"100644 blob {files[row]}\t{row}\0".encode()
+        git_reads = iter([b"", b"b" * 40, changes, b"", b"", only_release, actual, b"repository = 42\n"])
+        with patch.object(release, "api", return_value=pull()), patch.object(release, "git", side_effect=git_call), \
+             patch.object(release, "bot", side_effect=regenerate):
+            with self.assertRaisesRegex(ValueError, "not exactly the release tree regenerated"):
+                release.verify(out)
+
+    def test_registration_checks_only_the_test_merge_diff_without_replacing_legacy_checks(self):
+        base, merge = "b" * 40, "e" * 40
+        event = self.folder / "event.json"
+        tested_base = "f" * 40
+        parents = f"{tested_base}\n{SHA}\n".encode()
+        file = "registry/repositories/42.toml"
+        addition = f"A\0{file}\0".encode()
+        modification = f"M\0{file}\0".encode()
+        entry = f"100644 blob {'c'*40}\t{file}\0".encode()
+        valid = b"name='org/mod'\n[[registrant]]\nid=19\nlogin='Admin'\n"
+        invalid = b"name='org/mod'\n"
+        pr = {"user": {"login": release.REGISTRATION_APP},
+              "base": {"sha": base, "ref": "main", "repo": {"id": 8}},
+              "head": {"sha": SHA, "ref": "register/42", "repo": {"id": 8}}}
+        event.write_text(json.dumps({"pull_request": pr}))
+
+        def strict(command, row):
+            self.assertEqual((command, row.name), ("check-registration", "42.toml"))
+            if row.read_bytes() == invalid:
+                raise ValueError("strict row check refused an absent registrant")
+            self.assertEqual(row.read_bytes(), valid)
+
+        # Exact paths and diff kinds of old app PRs #501 (add) and #619 (append).
+        legacy = (
+            b"A\0registry/projects/R34s5xaF/project.toml\0A\0registry/repositories/1443415428.toml\0",
+            b"A\0registry/projects/ZnPqHvTo/project.toml\0M\0registry/repositories/1449407242.toml\0",
+        )
+        cases = [(shape, [], None, False) for shape in legacy] + [
+            (addition, [entry, valid], None, True),
+            (addition, [entry, invalid], "absent registrant", True),
+            (modification, [], "add exactly one", False),
+            (addition + b"A\0README.md\0", [], "add exactly one", False),
+        ]
+        for merged, reads, error, strict_called in cases:
+            with self.subTest(merged=merged, error=error), \
+                 patch.dict(os.environ, GITHUB_EVENT_PATH=str(event), GITHUB_SHA=merge), \
+                 patch.object(release, "git", side_effect=[parents, merged, *reads]) as git, \
+                 patch.object(release, "bot", side_effect=strict) as bot:
+                if error:
+                    with self.assertRaisesRegex(ValueError, error):
+                        release.check_registration()
+                else:
+                    release.check_registration()
+                self.assertEqual(bot.call_count, int(strict_called))
+                self.assertEqual(git.call_args_list[1].args[-3:], (tested_base, merge, "--"))
+
     def test_a_maintenance_pr_is_sent_to_the_non_release_classifier_once(self):
         rename = pull("registry/refresh-repository-names", number=12)
         summary = self.folder / "summary.md"
@@ -181,8 +289,10 @@ class ReleasePRTests(unittest.TestCase):
         git("remote", "add", "origin", str(origin))
         held = "registry/repositories/7.toml"
         base = commit(held, 'name = "example/held"\n[[package]]\nproject = "Cc3dE9xQ"\n')
-        for project in ("Ab3dE9xQ", "Bb3dE9xQ", "Cc3dE9xQ"):
-            (generated / "releases" / project / "1.0.0").mkdir(parents=True)
+        for project, repository in (("Ab3dE9xQ", 9), ("Bb3dE9xQ", 11), ("Cc3dE9xQ", 7)):
+            row = generated / "releases" / project / "1.0.0/registry/projects" / project / "releases/1.0.0.toml"
+            row.parent.mkdir(parents=True)
+            row.write_text(f"repository = {repository}\n")
         (generated / "rename/registry/repositories").mkdir(parents=True)
         (generated / "rename" / held).write_text("")
         moves = (("docs/registry-v2.md", "text\n", {"Ab3dE9xQ", "Bb3dE9xQ", "Cc3dE9xQ", "rename"}),

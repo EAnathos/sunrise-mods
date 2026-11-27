@@ -3,7 +3,8 @@
 ## Release pull requests
 
 The bot adds one `registry/projects/<project>/releases/<version>.toml` and updates that project's `page/`
-from the separate page bundle. Review the exact `.smod` named by the release row, not the repository's
+from the separate page bundle. A first release also adds `project.toml`, without editing the
+repository row. Review the exact `.smod` named by the release row, not the repository's
 current branch: use the package the checks verified for this PR head, or check that the file you
 downloaded has the release row's SHA-256 before reading it. Read the scan summary from the same run.
 The package is data: don't build or run it while reviewing.
@@ -56,8 +57,20 @@ take down the whole project.
 
 ## Registration pull requests
 
-A registration PR adds the package to its repository's `registry/repositories/<repository ID>.toml` and creates its `project.toml`. The
-[Submit a mod](https://playsunrise.net/mods/submit) form opens most of them, and the registry opens
+A repository-only registration adds exactly one `registry/repositories/<repository ID>.toml`
+with one authenticated registrant and no package list. The registry app opens it to `main` on a
+`register/` branch, and the `bot` layout check must pass. It needs no agent verdict. Registering
+tracks the repository but does not add a listing or approve any release code.
+
+### Legacy project-adding registration PRs (transition)
+
+Until the cutover, the registry's old writer may still open a PR that adds a package to its
+repository's `registry/repositories/<repository ID>.toml` and creates its `project.toml`. It still
+needs the ordinary checks and is not eligible for the repository-only exemption. The cutover removes
+the old-writer pass-through from the `bot` check once the legacy proposals are resolved. Review
+such a PR by hand as before.
+
+The [Submit a mod](https://playsunrise.net/mods/submit) form opens most of them, and the registry opens
 the rest from Register issues; both have already checked what follows. One opened by hand has been
 checked by nobody before you: confirm that the PR's author
 administers the named repository (or is one of its organisation's owners), that the numeric

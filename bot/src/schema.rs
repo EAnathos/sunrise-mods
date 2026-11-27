@@ -216,6 +216,10 @@ fn web_url(s: &str) -> bool {
 pub struct RepositoryId(std::num::NonZeroU64);
 
 impl RepositoryId {
+    pub fn file(self) -> String {
+        format!("{}.toml", self.get())
+    }
+
     pub fn get(self) -> u64 {
         self.0.get()
     }
@@ -223,18 +227,35 @@ impl RepositoryId {
     /// The ID a `registry/repositories/<id>.toml` file is named for, in its one decimal form.
     pub fn of_file(name: &str) -> Option<Self> {
         let id = name.strip_suffix(".toml")?.parse().ok().map(Self)?;
-        (format!("{}.toml", id.get()) == name).then_some(id)
+        (id.file() == name).then_some(id)
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PackagePath {
     Root(RootPath),
     Folder(RelativePath),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+impl PackagePath {
+    pub fn parse(value: String) -> Result<Self, &'static str> {
+        if value == "." {
+            Ok(Self::Root(RootPath::Dot))
+        } else {
+            RelativePath::parse(value).map(Self::Folder)
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Root(_) => ".",
+            Self::Folder(path) => path.as_str(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum RootPath {
     #[serde(rename = ".")]
     Dot,
@@ -252,14 +273,24 @@ pub enum Kind {
     Datapack,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Repository {
     pub name: RepositoryName,
-    pub package: Vec<Package>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package: Option<Vec<Package>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub registrant: Vec<Registrant>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Registrant {
+    pub id: std::num::NonZeroU64,
+    pub login: Login,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Package {
     pub path: PackagePath,
@@ -280,7 +311,7 @@ pub struct Category {
     pub kinds: Vec<Kind>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Project {
     pub id: ProjectId,
@@ -292,11 +323,10 @@ pub struct Project {
     pub repository: RepositoryId,
     pub path: PackagePath,
     pub workflow: Text,
-    #[serde(rename = "registered")]
-    pub _registered: CalendarDate,
+    pub registered: CalendarDate,
     /// The watcher proposes no release of a paused project. Its registration, ID and publisher
     /// pin stay, and releases already in the registry stay listed.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub paused: bool,
 }
 

@@ -847,13 +847,51 @@ fn listed_project_must_have_metadata() {
 }
 
 #[test]
-fn project_must_be_listed_by_a_repository_file() {
+fn project_must_have_a_repository_file() {
     let temp = checkout();
     fs::remove_file(temp.path().join(REPOSITORY)).unwrap();
     rejected(
         temp.path(),
         PROJECT,
-        "not listed in a registry/repositories file",
+        "repository ID does not match any registry/repositories file",
+    );
+}
+
+#[test]
+fn new_registration_has_only_one_registrant_and_legacy_links_still_load() {
+    let temp = checkout();
+    let registration = "registry/repositories/42.toml";
+    let row = temp.path().join(registration);
+    let good = "name = 'example/new'\n[[registrant]]\nid = 19\nlogin = 'Example'\n";
+    fs::write(&row, good).unwrap();
+    assert!(
+        run(&["check-registration", registration], temp.path())
+            .status
+            .success()
+    );
+    assert!(run(&["check", "."], temp.path()).status.success()); // Old Sunny rows coexist.
+    for bad in [
+        good.replace("id = 19", "id = 0"),
+        good.replace("Example", "bad/login"),
+        "name = 'example/new'\n".to_owned(),
+        format!("package = []\n{good}"),
+        format!("{good}[[registrant]]\nid = 20\nlogin = 'Other'\n"),
+    ] {
+        fs::write(&row, bad).unwrap();
+        assert!(
+            !run(&["check-registration", registration], temp.path())
+                .status
+                .success()
+        );
+    }
+    // A reviewed migration may record several accounts; it need no longer list old projects.
+    fs::write(&row, good).unwrap();
+    fs::write(temp.path().join(REPOSITORY), "name = 'example/wayfinder'\n[[registrant]]\nid = 19\nlogin = 'Example'\n[[registrant]]\nid = 20\nlogin = 'Other'\n").unwrap();
+    let value = index(temp.path());
+    assert_eq!(value["projects"][0]["id"], "Ab3dE9xQ");
+    assert_eq!(
+        value["projects"][0]["owners"],
+        serde_json::json!(["Example"])
     );
 }
 

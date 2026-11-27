@@ -8,7 +8,8 @@ its repository's file under `repositories/`, `categories.toml`, and `release-wor
 
 All TOML tables reject unknown keys. Text fields described as dates use quoted `YYYY-MM-DD` strings.
 `project` and project `id` values are eight case-sensitive base62 characters (`0–9`, `A–Z`, `a–z`).
-The registration service assigns each project ID once and never reuses it. `mod` is the in-game ID
+For a new first release, the watcher derives the project ID from the numeric repository ID and
+canonical package path. Published keys do not change. `mod` is the in-game ID
 from `sunrise-mod.toml`. It follows Sunrise's mod-ID rules, including the length and reserved
 Windows device names.
 
@@ -21,21 +22,26 @@ of the author's repository. The checker does not follow symlinks in the registry
 One file per registered repository, named by its positive numeric GitHub ID in plain decimal, so
 registrations of different repositories never edit the same file. The file holds the current
 `name` (`owner/repo`); the watcher refreshes it on a rename, and the ID in the file name is the
-identity. Each `[[package]]` row gives the `path` of the folder holding `sunrise-mod.toml` and its
-permanent `project` ID. Paths within a repository and project IDs are unique. Every package has
-exactly one `project.toml` and vice versa. An empty registry has an empty `repositories` folder.
-
-The registration service rewrites this file when a registered repository adds a package, and reads it
-strictly: a key added to this file's format must be taught to the service (sunny's
-`services/registry`) in the same change, or registration stops for that repository.
+identity. A repository-only registration adds this file and nothing else. It carries one `[[registrant]]`
+with the authenticated registrant's numeric GitHub account `id` and `login`. An existing repository
+row is not changed by another registration. The repository is tracked, not listed as a project.
 
 ```toml
 name = "example/wayfinder"
 
-[[package]]
-path = "."
-project = "Ab3dE9xQ"
+[[registrant]]
+id = 42
+login = "example"
 ```
+
+During cutover, the checker still reads legacy `[[package]]` lists and checks every link against
+its project. An existing project can refer directly to its repository row and path, without an entry
+in a package list. A reviewed migration can record several registrants for a legacy repository.
+The registry app's repository-only registration check expects exactly one registrant and no package
+list. Until the website's writer switches, its repository add or append with new project rows
+still goes through the ordinary layout, DCO and non-release checks, not the repository-only exemption.
+The cutover removes this old-writer pass-through from the `bot` check after the legacy proposals
+are resolved.
 
 ### `registry/release-workflow.toml`
 
@@ -52,18 +58,20 @@ Modrinth artwork is used, and neither readers nor the checker need to query Modr
 
 ### `registry/projects/<project>/project.toml`
 
-The registration service writes this file when the project is registered.
+For a new project, the watcher writes this file in its first-release PR after verifying the
+package, page and signed package path. The project key is not a manifest field. The watcher does not edit
+the repository row.
 
 | Field | Meaning |
 | --- | --- |
 | `id` | Permanent project ID. It matches the directory name. |
-| `slug` | Unique site page address, `/mods/<slug>`. It uses `a–z`, `0–9`, `-`, and `_` and may change in a reviewed PR. It is never one of the site's own pages under `/mods/`: `mine`, `policy`, `registry-page` or `submit`. |
+| `slug` | The in-game ID if available, otherwise the in-game ID plus `-` and the lowercased project key. Unique site page address, `/mods/<slug>`. It uses `a–z`, `0–9`, `-`, and `_` and may change in a reviewed PR. It is never one of the site's own pages under `/mods/`: `mine`, `policy`, `registry-page` or `submit`. |
 | `mod` | In-game ID. Only two subfolder packages in the same repository cannot share it, because both use it in release tags and caller workflow names. A root package has its own tag and caller names. |
 | `kind` | `mod`, `native-mod`, `modpack`, `resourcepack`, `shader`, `shaderpack` or `datapack`. Pack-specific fields are not defined here. |
-| `owners` | GitHub logins allowed to release. This is not the list of page credits. |
-| `repository`, `path` | Numeric repository ID and package path, matching the `repositories/` file that lists the project. |
+| `owners` | GitHub logins of the registrants for a new project, resolved by numeric account ID at first release. Existing project owners are retained; neither page credits nor tag pushers grant ownership. |
+| `repository`, `path` | Numeric repository ID and package path, anchored to the existing `repositories/` file for that numeric ID. |
 | `workflow` | Signer workflow path, equal to the part of `uses` before `@`. |
-| `registered` | Registration date. |
+| `registered` | For a first-release PR, the UTC publication date of the verified GitHub release. |
 | `paused` | Optional; `true` stops the watcher from proposing releases of this project. The registration, the ID and the publisher pin stay, and releases already in the registry stay listed. Set and cleared in a reviewed PR. |
 
 ### `registry/projects/<project>/releases/<version>.toml`
@@ -94,6 +102,14 @@ The named assets are `<mod>-<version>.smod` and `<mod>-<version>.page.tar`; each
 `.sigstore.json` to its asset's name. The owner/repo in a URL may reflect a repository's earlier
 name. The layout checker does not download the assets, compare hashes, or verify that each
 asset's GitHub artifact attestation (Sigstore) matches the registered repository and release ref.
+
+A release made by the shared workflow also carries `<mod>-<version>.release.json`, a fifth asset
+with no bundle of its own. The workflow's trusted `publish` job writes it from its `path` input,
+passed as data, without reading the author's tree: `{"path":"<package path>"}`, with `.` for the
+repository root. It is a second named subject of the same attestation statement as the `.smod`, so
+the package's bundle covers it. It has one key and no version field. Releases made before the
+workflow wrote it have no such file; those, and every release that is not a first release,
+are not affected.
 
 ### `registry/projects/<project>/page/`
 
@@ -156,8 +172,7 @@ merged by hand after review, and the publisher may still edit or remove it.
 
 Whether a release fits a game build is judged by one job, `fit.yml`, and stored on the
 `registry-fit` branch, which holds `registry/fit/` and nothing else. `main` never contains that
-directory: the checkout checker rejects it there, and a release pull request may only add its release
-row and page. `.github/registry-v2/fit_store.py` is the only code that knows where the verdicts are
+directory: the checkout checker rejects it there, and release pull requests carry no fit verdicts. `.github/registry-v2/fit_store.py` is the only code that knows where the verdicts are
 kept; it refuses a branch that holds any other file or a commit the job did not make.
 
 `builds.json` lists the offered builds as `{ id, commit, surface }`, where `surface` is the SHA-256 of
@@ -383,9 +398,18 @@ The [two-provider fixture](../bot/tests/fixtures/two-ports/registry/) and
 events rarely arrive, so `timer.yml` starts it: each timer run starts the watcher, waits ten minutes and
 starts the next timer run, and a push to `main` restarts a chain that has stopped. It looks up each
 repository by its numeric GitHub ID. A rename opens a separate maintenance PR for that repository's file;
-it does not change project IDs or rewrite old release URLs. At registration the watcher considers
-only the newest publication, by GitHub's timestamp. If its signature cannot be determined, the
-watcher reports that and does not fall back to an older release. After an approval, only releases
+it does not change registrants, project owners or IDs, or rewrite old release URLs. The watcher reads
+existing project rows directly, including paused projects and reviewed moves. It also discovers
+first releases in tracked repositories with registrants. Of each tag stream (one namespace, or the
+root) that no registered project claims, only the newest publication by GitHub's timestamp is
+a candidate, even if it has no metadata; then that stream is not admitted and no older release of it
+is read or downloaded, so a tracked repository whose only tags predate `release.json` publishes one
+more release. The candidate's package must authenticate and its `<mod>-<version>.release.json`
+asset must be a subject of that same verified package statement. The file is the only source of the
+package path. A candidate that cannot be verified, or whose metadata is missing or invalid, does not
+stop another stream. Two streams that sign one path derive one project key from the repository ID
+and the path, so one project per path is admitted by the open-PR check, the publish-time skip of a
+project that has an open PR, and the ID and path collision check. After an approval, only releases
 published later than the latest approved release are eligible. That order comes from the publication
 times in the committed release rows, not from what the author's repository shows now, so taking a
 release down does not stop the watcher. The same order selects the previous approved package for the
@@ -399,6 +423,22 @@ that version handled: an open one, a merged
 one, and a closed, unmerged one while its `release/<project>/<version>` branch still exists. The watcher
 does not recreate it. Drafts never count; signed prereleases can count.
 Observation and publication failures appear in the watch summary.
+
+The release check regenerates a first release's `project.toml` on `main`, with its owners resolved
+from the registrants of the repository's row on `main`, and compares it byte for byte with the PR's.
+Immediately before merging the already verified exact head, the serial merger runs the attested
+prebuilt bot against a fresh, read-only snapshot of `main`:
+
+```text
+registry-bot check-first-project <main-checkout> sunrise-org/sunrise-mods <verified-head-project.toml>
+```
+
+Extract the project row from the exact verified head as a Git blob. Do not copy a PR directory over
+main. The command refuses an occupied key (project or collection), a reserved or occupied slug,
+an occupied repository/path or subfolder in-game namespace, and owners that differ from the
+current logins of the repository's registrants on `main`. It does not reverify the release or
+substitute for the exact-head check and review. After a merge-time slug or owner refusal the PR is
+closed and its branch deleted, so the watcher proposes the release again.
 
 ### Moving a project to another repository
 
@@ -424,6 +464,39 @@ Closing a release PR without merging does one of two things, decided by its bran
 
 Deleting the branch of a refused release later withdraws the refusal the same way.
 
+### Proving a change to the shared release workflow
+
+`release-v1` moves to a workflow change only after one real publish of it from a branch ref shows
+the change working and an ordinary release unaffected. The bot's trust is not relaxed for this:
+`SignerWorkflowRef` still accepts only `refs/tags/release-v<number>`, so the bot refuses such a
+release, and the proof does not go through the bot or any registered repository.
+
+1. Push the workflow change to a branch of this repository, for example `proof/release-json`. No tag
+   is created or moved.
+2. In a scratch public repository that is not in `registry/repositories`, call
+   `sunrise-org/sunrise-mods/.github/workflows/release.yml@proof/release-json` from a tag push, once
+   for a root package (`v0.0.1`, `path: .`) and once for a subfolder (`<id>/v0.0.1`, `path: <folder>`).
+3. The release has five assets: `.smod`, `.page.tar`, `.release.json` and the two `.sigstore.json`
+   bundles. `.release.json` is `{"path":"."}` or `{"path":"<folder>"}`.
+4. Fetch GitHub's trusted root once (`gh attestation trusted-root > trusted_root.jsonl`), then verify
+   both bundles offline against the exact branch signer, not a prefix:
+
+   ```text
+   gh attestation verify <stem>.smod --bundle <stem>.smod.sigstore.json \
+     --custom-trusted-root trusted_root.jsonl --repo <scratch-owner>/<scratch-repo> \
+     --cert-oidc-issuer https://token.actions.githubusercontent.com \
+     --cert-identity https://github.com/sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/heads/proof/release-json \
+     --source-ref refs/tags/<tag> --source-digest <tag commit> --format json > verified.json
+   ```
+
+   Check the flags against the installed `gh attestation verify --help` first. Run it again for the
+   page archive.
+5. In `verified.json`, `buildSignerURI` equals that exact identity, and
+   `verificationResult.statement.subject` holds exactly two `sha256` entries for the package result:
+   `<stem>.smod` and `<stem>.release.json`, each equal to `sha256sum` of the downloaded asset. The page result
+   keeps its one subject. The existing consumers still read the same `.smod` and bundles.
+6. Only then is `release-v1` moved, as a separate reviewed act.
+
 ### Libraries
 
 A library is an ordinary project: it registers, tags and releases like any other mod, and a mod that
@@ -439,7 +512,13 @@ The read-only job downloads the `.smod`, page tar and both bundles. It checks Gi
 available hashes, then uses `gh attestation verify` to check each artifact against the release
 workflow and the same tagged source commit, resolved once. It checks the **verified certificate**
 for the registered numeric repository ID and exact `release-v<number>` workflow ref, and requires
-both bundles to agree. Native packages must pin a commit that a signed Sunrise build names. When a
+both bundles to agree. For a first release it also reads the `verificationResult.statement.subject`
+list of the verified package result (`gh attestation verify --format json`; the same statement the
+certificate checks above belong to) and requires the exact `<mod>-<version>.release.json` name with
+the SHA-256 of the downloaded asset. It reads that asset only from the live release, through the same
+URL, size and hash checks as the other assets and under a 4096-byte limit. Its `path` must be
+canonical and match the root or subfolder tag, and the package's manifest must agree with the asset
+name and tag. Native packages must pin a commit that a signed Sunrise build names. When a
 content-only package has no SDK pin, the watcher records the current signed Nightly's exact build,
 not the moving alias. The checker resolves the same exact build when it checks the PR. The existing
 registry package download cap is 64 MiB (`sunrise_mod_package::index::MAX_FILE`); page entries use
@@ -448,9 +527,15 @@ opens `release/<project>/<version>` and dispatches `release-check.yml` on `main`
 and exact head SHA. The registry's own GitHub Actions token does this; authors do not need one.
 
 The release check reads the PR's Git tree as data, without checking it out. Only a new release row
-and that project's page are allowed to change. It takes all four download URLs from the live release
+and that project's page are ordinarily allowed to change; an existing change of kind also replaces the
+project kind and removes older release rows. A first release may only add a project row, one release
+row and the resolved page as regular files. It must not replace an existing project directory or
+change its repository row. Owners come only from the registrants' numeric account IDs on `main`;
+display names, stored logins and old package links are not authority. The release check and the
+pre-merge check resolve current GitHub logins for those accounts. The
+release check takes all four download URLs from the live release
 of the registered repository, verifies the downloaded hashes and attestations, and requires the
-row and page to match what it regenerated. GitHub API digests may be absent; the local SHA-256
+release tree to match what it regenerated. GitHub API digests may be absent; the local SHA-256
 checks still apply. An old URL for a previously approved source is accepted after a rename only if
 it still reaches the same asset; the stored SHA-256 must still match.
 
@@ -494,7 +579,7 @@ one ends the same way, use **Rerun all jobs**.
 Enable **Allow GitHub Actions to create and approve pull requests** before turning on the watcher.
 Require `registry-v2/release-check` on `main` for every PR. A no-checkout workflow reports success
 with `not a release` for PRs that change no files under `registry/projects/*/releases/` or
-`registry/projects/*/page/`. Only the dispatched check can pass a PR that changes those paths.
+`registry/projects/*/page/`. Only the dispatched check can pass a PR that changes those paths or a release branch opened by the watcher.
 GitHub starts no pull request workflow for a PR the bot opens, so the watcher asks that same
 workflow by number to look at its own maintenance PRs, such as a repository rename.
 A maintainer must approve the ordinary `dco` workflow runs for PRs the bot opens with

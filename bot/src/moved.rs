@@ -108,7 +108,10 @@ mod tests {
             unreachable!()
         }
 
-        fn release_branches(&self) -> Result<ReleaseBranches, String> {
+        fn release_branches(
+            &self,
+            _: &std::collections::BTreeMap<ProjectId, registry::ProjectEntry>,
+        ) -> Result<ReleaseBranches, String> {
             unreachable!()
         }
 

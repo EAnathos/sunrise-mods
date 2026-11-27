@@ -29,6 +29,9 @@ const USAGE: &str = "usage: registry-bot check <checkout>
        registry-bot stay-listed <base checkout> <head checkout>
        registry-bot moved <base checkout> <head checkout> <registry-owner/repo>
        registry-bot verify-release <checkout> <registry-owner/repo> <project> <release.toml> <out>
+       registry-bot check-registration <numeric repository ID.toml>
+       registry-bot verify-first-release <main checkout> <registry-owner/repo> <project> <release.toml> <out>
+       registry-bot check-first-project <main checkout> <registry-owner/repo> <verified project.toml>
        registry-bot builds --out <file>
        registry-bot fit <checkout> [--builds <file written by builds>]
        registry-bot jars <checkout>
@@ -57,6 +60,19 @@ fn main() -> ExitCode {
                 watch::check(Path::new(checkout), &id, Path::new(row), Path::new(out), gh)
             }));
         }
+        [command, checkout, repo, id, row, out] if command == "verify-first-release" => {
+            return finished(with_github(repo, |gh| {
+                let id = schema::ProjectId::parse(
+                    id.to_str().ok_or("project ID is not UTF-8")?.to_owned(),
+                )?;
+                watch::first::verify(Path::new(checkout), &id, Path::new(row), Path::new(out), gh)
+            }));
+        }
+        [command, checkout, repo, claim] if command == "check-first-project" => {
+            return finished(with_github(repo, |gh| {
+                watch::first::check_claim(Path::new(checkout), Path::new(claim), gh)
+            }));
+        }
         _ => (),
     }
 
@@ -64,6 +80,9 @@ fn main() -> ExitCode {
         [command, checkout] if command == "check" => registry::load(Path::new(checkout))
             .map(|_| ())
             .map_err(|e| e.join("\n")),
+        [command, row] if command == "check-registration" => {
+            registry::check_registration(Path::new(row))
+        }
         [command, base, head] if command == "stay-listed" => {
             registry::stay_listed(Path::new(base), Path::new(head))
         }

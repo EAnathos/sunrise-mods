@@ -1,7 +1,8 @@
 //! Read-only GitHub boundary for release observation and attestation verification.
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs,
+    num::NonZeroU64,
     path::Path,
     process::Command,
     sync::atomic::{AtomicBool, Ordering},
@@ -11,7 +12,10 @@ use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use serde::{Deserialize, de::DeserializeOwned};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-use crate::schema::{RepositoryId, RepositoryName, SignerWorkflowRef};
+use crate::{
+    registry::ProjectEntry,
+    schema::{self, Login, ProjectId, RepositoryId, RepositoryName, Sha256, SignerWorkflowRef},
+};
 
 #[derive(Deserialize)]
 pub struct Repository {
@@ -27,6 +31,12 @@ pub struct Repository {
 pub struct Owner {
     pub id: u64,
     pub login: String,
+}
+
+#[derive(Deserialize)]
+pub struct Account {
+    pub id: NonZeroU64,
+    pub login: Login,
 }
 
 #[derive(Deserialize)]
@@ -83,9 +93,56 @@ pub struct ReleaseBranches {
     /// Open release PRs that hold their project's later releases back until they are decided.
     pub waiting: BTreeSet<String>,
     pub handled: BTreeSet<String>,
+    /// The `(repository ID, tag, package SHA-256)` of the first releases that open and refused
+    /// release PRs hold, from their own rows. A live release with the same tuple is the one a PR
+    /// already holds, so it needs no download to be skipped.
+    pub examined: BTreeSet<(RepositoryId, String, Sha256)>,
 }
 
 impl ReleaseBranches {
+    /// Records the release behind a held PR's branch, from the row at the head's
+    /// `registry/projects/<project>/releases/<version>.toml` that `row` reads by path. The branch
+    /// names the path. A project that main already has needs none of this: its releases are skipped
+    /// by branch. A branch of another shape, or a row that is missing, malformed or of another
+    /// version, records nothing and is examined as before.
+    fn examine(
+        &mut self,
+        branch: &str,
+        registered: &BTreeMap<ProjectId, ProjectEntry>,
+        row: impl FnOnce(&str) -> Option<Vec<u8>>,
+    ) {
+        let Some((project, text)) = branch
+            .strip_prefix("release/")
+            .and_then(|rest| rest.split_once('/'))
+        else {
+            return;
+        };
+        let (Ok(project), Ok(version)) = (
+            ProjectId::parse(project.to_owned()),
+            semver::Version::parse(text),
+        ) else {
+            return;
+        };
+        if version.to_string() != text || registered.contains_key(&project) {
+            return;
+        }
+        let path = format!(
+            "registry/projects/{}/releases/{version}.toml",
+            project.as_str()
+        );
+        let Some(bytes) = row(&path) else { return };
+        let Some(row) = std::str::from_utf8(&bytes)
+            .ok()
+            .and_then(|text| toml::from_str::<schema::Release>(text).ok())
+        else {
+            return;
+        };
+        if row.version == version {
+            self.examined
+                .insert((row.repository, row.tag.as_str().to_owned(), row.file.sha256));
+        }
+    }
+
     /// Records one of the bot's release PRs. An open or merged PR handles its version, and so does a
     /// closed, unmerged one while its branch still exists: that release was refused. One whose branch
     /// was deleted was withdrawn, and its release may be opened again. An open PR whose release
@@ -110,8 +167,17 @@ impl ReleaseBranches {
 pub trait GitHub {
     fn repository(&self, repo: Repo<'_>) -> Result<Repository, String>;
     fn releases(&self, repo: Repo<'_>) -> Result<Vec<Release>, String>;
-    fn release_branches(&self) -> Result<ReleaseBranches, String>;
+    /// The bot's release PRs. `registered` is main's projects: a held PR's row is read only for a
+    /// project that is not yet in it.
+    fn release_branches(
+        &self,
+        registered: &BTreeMap<ProjectId, ProjectEntry>,
+    ) -> Result<ReleaseBranches, String>;
     fn tag_commit(&self, repo: Repo<'_>, tag: &str) -> Result<String, String>;
+
+    fn account(&self, id: NonZeroU64) -> Result<Account, Observation> {
+        api(&format!("user/{id}")).map_err(Observation::Unknown)
+    }
 
     fn download_release(&self, url: &str, dest: &Path, limit: u64) -> Result<(), String> {
         download(url, dest, limit)
@@ -122,7 +188,7 @@ pub trait GitHub {
         check: Attestation<'_>,
         file: &Path,
         bundle: &Path,
-    ) -> Result<SignerWorkflowRef, Observation> {
+    ) -> Result<VerifiedAttestation, Observation> {
         check.verify(file, bundle)
     }
 }
@@ -140,7 +206,10 @@ impl GitHub for Cli<'_> {
         pages(&format!("{}/releases?per_page=100", repo.endpoint()))
     }
 
-    fn release_branches(&self) -> Result<ReleaseBranches, String> {
+    fn release_branches(
+        &self,
+        registered: &BTreeMap<ProjectId, ProjectEntry>,
+    ) -> Result<ReleaseBranches, String> {
         #[derive(Deserialize)]
         struct Pull {
             head: Head,
@@ -210,13 +279,31 @@ impl GitHub for Cli<'_> {
                         status.context == "registry-v2/release-check" && status.state == "failure"
                     })
                 };
-                branches.record(
-                    p.head.branch,
-                    open,
-                    check_failed,
-                    p.merged_at.is_some(),
-                    exists,
-                );
+                let merged = p.merged_at.is_some();
+                // A PR holds its release while it is open, or when it was closed unmerged and its
+                // branch remains (refused). A merged PR's release is in main, and a withdrawn
+                // one's may be opened again. The head is read by its exact SHA.
+                if open || (!merged && exists) {
+                    branches.examine(&p.head.branch, registered, |path| {
+                        sunrise_mod_package::manifest::revision(&p.head.sha).then_some(())?;
+                        let path = path.split('/').map(|s| encode(s).to_string());
+                        gh(&[
+                            "api",
+                            "--hostname",
+                            "github.com",
+                            "-H",
+                            "Accept: application/vnd.github.raw+json",
+                            &format!(
+                                "repos/{}/contents/{}?ref={}",
+                                self.registry.as_str(),
+                                path.collect::<Vec<_>>().join("/"),
+                                p.head.sha
+                            ),
+                        ])
+                        .ok()
+                    });
+                }
+                branches.record(p.head.branch, open, check_failed, merged, exists);
             }
         }
         Ok(branches)
@@ -435,6 +522,14 @@ impl std::fmt::Display for Observation {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct VerifiedAttestation {
+    pub signer: SignerWorkflowRef,
+    /// The `(name, sha256)` subjects of the verified statement, the one the artifact itself is a
+    /// subject of. Nothing of the bundle outside that statement is read.
+    pub subjects: BTreeSet<(String, String)>,
+}
+
 pub struct Attestation<'a> {
     pub repository_id: RepositoryId,
     pub repository_name: &'a RepositoryName,
@@ -444,7 +539,7 @@ pub struct Attestation<'a> {
 }
 
 impl Attestation<'_> {
-    pub fn verify(&self, file: &Path, bundle: &Path) -> Result<SignerWorkflowRef, Observation> {
+    pub fn verify(&self, file: &Path, bundle: &Path) -> Result<VerifiedAttestation, Observation> {
         let path = |p: &Path| {
             p.to_str()
                 .map(str::to_owned)
@@ -504,7 +599,7 @@ impl Attestation<'_> {
         self.claims(&output)
     }
 
-    fn claims(&self, output: &[u8]) -> Result<SignerWorkflowRef, Observation> {
+    fn claims(&self, output: &[u8]) -> Result<VerifiedAttestation, Observation> {
         #[derive(Deserialize)]
         #[serde(rename_all = "camelCase")]
         struct Verified {
@@ -513,6 +608,20 @@ impl Attestation<'_> {
         #[derive(Deserialize)]
         struct Verification {
             signature: Signature,
+            /// The in-toto statement that was verified (`verificationResult.statement`).
+            #[serde(default)]
+            statement: Option<Statement>,
+        }
+        #[derive(Deserialize)]
+        struct Statement {
+            subject: Vec<Subject>,
+        }
+        #[derive(Deserialize)]
+        struct Subject {
+            #[serde(default)]
+            name: String,
+            #[serde(default)]
+            digest: BTreeMap<String, String>,
         }
         #[derive(Deserialize)]
         struct Signature {
@@ -546,7 +655,19 @@ impl Attestation<'_> {
                     .is_some_and(|(path, _)| path == self.workflow_path)
                 && let Ok(workflow) = SignerWorkflowRef::parse(signer.into())
             {
-                refs.insert(workflow);
+                let subjects = result
+                    .verification_result
+                    .statement
+                    .into_iter()
+                    .flat_map(|statement| statement.subject)
+                    .filter_map(|subject| {
+                        Some((subject.name, subject.digest.get("sha256")?.clone()))
+                    })
+                    .collect();
+                refs.insert(VerifiedAttestation {
+                    signer: workflow,
+                    subjects,
+                });
             }
         }
         if refs.len() != 1 {
@@ -608,6 +729,153 @@ mod tests {
         moving["buildSignerURI"] = json!(moving_uri);
         moving["subjectAlternativeName"] = json!(moving_uri);
         assert!(check.claims(verified(moving).as_bytes()).is_err());
+    }
+
+    #[test]
+    fn claims_carry_only_the_sha256_subjects_of_the_verified_statement() {
+        let repo = RepositoryName::parse("arismoko/sunrise-ports".into()).unwrap();
+        let check = Attestation {
+            repository_id: serde_json::from_str("1468300372").unwrap(),
+            repository_name: &repo,
+            workflow_path: crate::schema::RELEASE_WORKFLOW,
+            tag: "clumps/v0.5.3",
+            commit: "04c387e7e2fae4d100aa2f2c575db7b51d60fe98",
+        };
+        // Projection of the fields of `gh attestation verify --format json` that are read:
+        // `verificationResult.signature.certificate` and `verificationResult.statement.subject`.
+        // This does not substitute for real signature verification.
+        let uri = format!(
+            "https://github.com/{}@refs/tags/release-v1",
+            check.workflow_path
+        );
+        let cert = json!({
+            "subjectAlternativeName": uri,
+            "buildSignerURI": uri,
+            "sourceRepositoryIdentifier": "1468300372",
+            "sourceRepositoryRef": "refs/tags/clumps/v0.5.3",
+            "sourceRepositoryDigest": check.commit,
+        });
+        let statement = json!({"subject": [
+            {"name": "clumps-0.5.3.smod", "digest": {"sha256": "aa"}},
+            {"name": "clumps-0.5.3.release.json", "digest": {"sha256": "bb"}},
+            {"name": "clumps-0.5.3.other", "digest": {"sha512": "cc"}},
+        ]});
+        let verified = |cert: &serde_json::Value, statement: &serde_json::Value| {
+            json!([{"verificationResult": {"signature": {"certificate": cert}, "statement": statement}}])
+                .to_string()
+        };
+        let subjects = check
+            .claims(verified(&cert, &statement).as_bytes())
+            .unwrap()
+            .subjects;
+        assert_eq!(
+            subjects,
+            BTreeSet::from([
+                ("clumps-0.5.3.smod".to_owned(), "aa".to_owned()),
+                ("clumps-0.5.3.release.json".to_owned(), "bb".to_owned()),
+            ])
+        );
+        // An ordinary release's output without a statement is still a verified signer.
+        let bare = json!([{"verificationResult": {"signature": {"certificate": cert}}}]);
+        assert!(
+            check
+                .claims(bare.to_string().as_bytes())
+                .unwrap()
+                .subjects
+                .is_empty()
+        );
+        // The statement of a result whose certificate does not match is never read.
+        let mut wrong = cert.clone();
+        wrong["sourceRepositoryDigest"] = json!("f".repeat(40));
+        assert!(matches!(
+            check.claims(verified(&wrong, &statement).as_bytes()),
+            Err(Observation::Ineligible(_))
+        ));
+        // Two verified results with different statements are not merged into one.
+        let other = json!({"subject": []});
+        let two = json!([
+            {"verificationResult": {"signature": {"certificate": cert}, "statement": statement}},
+            {"verificationResult": {"signature": {"certificate": cert}, "statement": other}},
+        ]);
+        assert!(matches!(
+            check.claims(two.to_string().as_bytes()),
+            Err(Observation::Ineligible(_))
+        ));
+        assert!(matches!(
+            check.claims(b"not gh JSON"),
+            Err(Observation::Unknown(_))
+        ));
+    }
+
+    #[test]
+    fn an_examined_release_comes_only_from_the_row_an_unregistered_projects_branch_names() {
+        const ROW: &str = include_str!(
+            "../tests/fixtures/two-ports/registry/projects/Ab3dE9xQ/releases/1.2.0.toml"
+        );
+        let tuple = (
+            serde_json::from_str::<RepositoryId>("123456789").unwrap(),
+            "v1.2.0".to_owned(),
+            Sha256::parse("a".repeat(64)).unwrap(),
+        );
+        let main = crate::registry::load(Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/two-ports"
+        )))
+        .unwrap();
+        // A valid project ID that main does not have.
+        const NEW: &str = "Qw7rT2pL";
+        assert!(
+            !main
+                .projects
+                .contains_key(&ProjectId::parse(NEW.to_owned()).unwrap())
+        );
+        assert!(
+            main.projects
+                .contains_key(&ProjectId::parse("Ab3dE9xQ".to_owned()).unwrap())
+        );
+        let examine = |branch: &str, row: Option<&[u8]>| {
+            let mut branches = ReleaseBranches::default();
+            let mut paths = Vec::new();
+            branches.examine(branch, &main.projects, |path| {
+                paths.push(path.to_owned());
+                row.map(<[u8]>::to_vec)
+            });
+            (branches.examined, paths)
+        };
+        let (found, paths) = examine("release/Qw7rT2pL/1.2.0", Some(ROW.as_bytes()));
+        assert_eq!(found, BTreeSet::from([tuple]));
+        assert_eq!(
+            paths,
+            ["registry/projects/Qw7rT2pL/releases/1.2.0.toml".to_owned()]
+        );
+        // A project main already has is skipped by branch and its row is never read.
+        let (found, paths) = examine("release/Ab3dE9xQ/1.2.0", Some(ROW.as_bytes()));
+        assert!(found.is_empty() && paths.is_empty());
+        // A branch that is not a project and a canonical version is never looked up.
+        for branch in [
+            "release/Qw7rT2pL",
+            "release/Qw7rT2p/1.2.0",
+            "release/Qw7rT2pL/1.2",
+            "release/Qw7rT2pL/01.2.0",
+            "release/Qw7rT2pL/../1.2.0",
+            "main",
+        ] {
+            let (found, paths) = examine(branch, Some(ROW.as_bytes()));
+            assert!(found.is_empty() && paths.is_empty(), "{branch}");
+        }
+        // A missing, malformed, non-UTF-8 or other version's row records nothing.
+        let broken = ROW.replace("repository = 123456789", "repository = 0");
+        for row in [
+            None,
+            Some(&b""[..]),
+            Some(&[0xff][..]),
+            Some(broken.as_bytes()),
+        ] {
+            let (found, paths) = examine("release/Qw7rT2pL/1.2.0", row);
+            assert!(found.is_empty() && paths.len() == 1);
+        }
+        let (found, paths) = examine("release/Qw7rT2pL/1.3.0", Some(ROW.as_bytes()));
+        assert!(found.is_empty() && paths.len() == 1);
     }
 
     #[test]
