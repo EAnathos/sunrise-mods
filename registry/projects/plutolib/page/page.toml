@@ -1,0 +1,33 @@
+name = "PlutoLib"
+summary = "PlutoLib for Sunrise: a Fabric-API-style foundation library that gives native mods a stable, general-purpose API over the game's internals."
+description = """
+PlutoLib is a foundation library for Sunrise native mods, in the role Fabric
+API plays for Fabric: a trait mod that other mods build on instead of
+attaching to the game themselves.
+
+A mod declares `pluto_lib` in its `[dependencies]` and calls PlutoLib's
+public API. The launcher links the API package into the game, and PlutoLib
+owns all of the attachment to game internals — the native bridges and the
+woven mixins against the pinned Sunrise SDK. Its surfaces cover blocks and
+block entities, items and inventories, fluids, menus and screens, rendering
+helpers, events and registries.
+
+This package is the Sunrise edition of PlutoLib, built for Sunrise game 26.3
+(SDK ba1f24e4). It ships as source plus `Cargo.lock`; the launcher builds it
+on the player's computer.
+
+Known gaps: a set of API surfaces still waits on upstream Sunrise
+primitives (filed as issues with sunrise-org/sunrise). Those features are
+absent rather than stubbed; everything the package connects works as the
+API documents.
+"""
+authors = ["sofia-gros"]
+license = "MIT"
+homepage = "https://github.com/sofia-gros/horizon-mods"
+issues = "https://github.com/sofia-gros/horizon-mods/issues"
+icon = "icon.png"
+categories = []
+
+[[screenshots]]
+path = "plutolib-mods-list.png"
+caption = "PlutoLib 1.0.0 in the Sunrise client's mod list, alongside its consumer mods Classic Pipes and Stellarsky — captured on the Sunrise client during the v1.0.0 in-game check."
