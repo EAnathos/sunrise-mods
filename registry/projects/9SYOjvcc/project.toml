@@ -1,0 +1,9 @@
+id = "9SYOjvcc"
+slug = "toucan"
+mod = "toucan"
+kind = "native-mod"
+owners = ["EAnathos"]
+repository = 1449407242
+path = "mods/toucan"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-27"

@@ -1,0 +1,54 @@
+name = "Toucan"
+summary = "A tropical bird of the jungle canopy with an oversized colourful bill, hopping on the leaves and flitting between the trees; tame one with melon slices."
+description = """
+> **Beta.** Played and tested in single player; multiplayer and balance come later. Reports are welcome on the [issues](https://github.com/EAnathos/sunrise-creatures/issues).
+
+A mod of the [Sunrise Creatures](https://github.com/EAnathos/sunrise-creatures/blob/toucan/v0.1.0/README.md) series: a tropical bird of the jungle canopy with a dark body and an
+oversized colourful bill, hopping on the leaves and flitting between the trees. Tame one with melon slices.
+**Requires** [Sunrise Creatures](https://playsunrise.net/mods/creature), the series' library.
+
+## Meeting one
+
+Toucans come out by day on top of the leaves of the jungle, sparse jungle and bamboo jungle, alone or in pairs, and
+they are rare: look up at the canopy. In creative: the spawn egg (creative tab "Sunrise Creatures").
+
+A toucan hops about its branch, rests a few seconds, then flies off to the leaves of a nearby tree. It is shy: it flies
+away from a player who comes within a few blocks (sneak to get closer) and from any monster.
+
+## Taming
+
+Throw a melon slice near a wild toucan. It flies down to it and eats it; each slice has a one in four chance to tame it
+for you (hearts, or smoke when it didn't). Tamed, it flies after you and never despawns. Right-click it empty-handed and
+it sits where it is, still, until you right-click it again to have it follow you.
+
+## What it leaves
+
+- Up to two feathers (more with Looting).
+- A raw toucan, to cook in a furnace, a smoker or on a campfire (cooked already when it dies burning).
+
+## Licence
+
+Required Notice: Copyright (c) 2026 EAnathos (https://github.com/EAnathos/sunrise-creatures)
+
+The code is under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+The artwork (models, textures, icons, pictures) is the author's, all rights reserved, under the terms of
+[LICENSE-ART.md](https://github.com/EAnathos/sunrise-creatures/blob/main/LICENSE-ART.md). The sounds are CC0.
+"""
+authors = ["EAnathos"]
+license = "PolyForm-Noncommercial-1.0.0 AND LicenseRef-SunriseCreatures-Art"
+homepage = "https://github.com/EAnathos/sunrise-creatures/blob/main/mods/toucan/README.md"
+issues = "https://github.com/EAnathos/sunrise-creatures/issues"
+icon = "icon.png"
+categories = ["mobs"]
+
+[[screenshots]]
+path = "1-toucan.jpg"
+caption = ""
+
+[[screenshots]]
+path = "2-toucan-toucan-front.png"
+caption = ""
+
+[[screenshots]]
+path = "3-toucan-toucan-back.png"
+caption = ""
