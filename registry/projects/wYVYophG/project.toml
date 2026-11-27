@@ -1,0 +1,9 @@
+id = "wYVYophG"
+slug = "jrftl"
+mod = "jrftl"
+kind = "mod"
+owners = ["arismoko"]
+repository = 1468300372
+path = "jrftl"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-27"
