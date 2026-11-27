@@ -1,0 +1,20 @@
+version = "0.1.0"
+kind = "native-mod"
+tag = "v0.1.0"
+published = "2026-11-27T13:14:38Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1473714972
+dependencies = []
+
+[file]
+url = "https://github.com/EAnathos/sunrise-zoom/releases/download/v0.1.0/sunrise_zoom-0.1.0.smod"
+size = 19826
+sha256 = "42df30cec5478e00d4caee4f35453e862a3bda66a6601288952498fa6cf677cb"
+attestation = "https://github.com/EAnathos/sunrise-zoom/releases/download/v0.1.0/sunrise_zoom-0.1.0.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-zoom/releases/download/v0.1.0/sunrise_zoom-0.1.0.page.tar"
+size = 154624
+sha256 = "964f117cb354d1541c742cb326f7059687d5bd70c25ba6dd82beea34c8a1b74c"
+attestation = "https://github.com/EAnathos/sunrise-zoom/releases/download/v0.1.0/sunrise_zoom-0.1.0.page.tar.sigstore.json"

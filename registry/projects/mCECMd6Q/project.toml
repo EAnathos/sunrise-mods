@@ -1,0 +1,9 @@
+id = "mCECMd6Q"
+slug = "sunrise_zoom"
+mod = "sunrise_zoom"
+kind = "native-mod"
+owners = ["EAnathos"]
+repository = 1473714972
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-27"
