@@ -1,0 +1,24 @@
+version = "0.1.0"
+kind = "native-mod"
+tag = "toucan/v0.1.0"
+published = "2026-11-27T19:01:04Z"
+sunrise = "nightly-2026-11-20-9425651"
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml@refs/tags/release-v1"
+repository = 1449407242
+
+[file]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/toucan/v0.1.0/toucan-0.1.0.smod"
+size = 206627
+sha256 = "012b1607fe5d3b7489f08fca5c659c0b370689ec257ab7d18b9c589c063bffdf"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/toucan/v0.1.0/toucan-0.1.0.smod.sigstore.json"
+
+[page]
+url = "https://github.com/EAnathos/sunrise-creatures/releases/download/toucan/v0.1.0/toucan-0.1.0.page.tar"
+size = 200192
+sha256 = "0377c4aa39e59a2d230beba299e5f6c5db8947fa9c2b63608d877f7ccc77972b"
+attestation = "https://github.com/EAnathos/sunrise-creatures/releases/download/toucan/v0.1.0/toucan-0.1.0.page.tar.sigstore.json"
+
+[[dependencies]]
+mod = "creature"
+version = "^0.4.4"
+required = true
