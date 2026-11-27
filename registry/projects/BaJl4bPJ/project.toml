@@ -1,0 +1,9 @@
+id = "BaJl4bPJ"
+slug = "elevatorid"
+mod = "elevatorid"
+kind = "native-mod"
+owners = ["Joeypc6"]
+repository = 1474217872
+path = "."
+workflow = "sunrise-org/sunrise-mods/.github/workflows/release.yml"
+registered = "2026-11-27"
