@@ -300,20 +300,6 @@ fn owners(
     Ok(logins.into_values().collect())
 }
 
-/// Only for a previously verified exact-head claim. Does not install it over main.
-pub fn check_claim(main: &Path, claim: &Path, github: &dyn GitHub) -> Result<(), String> {
-    let registry = load(main)?;
-    let project: Project = toml::from_str(&fs::read_to_string(claim).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
-    registry.check_first_project(&project)?;
-    if project.owners != owners(&registry, project.repository, github).map_err(|e| e.to_string())? {
-        return Err(
-            "first-release owners no longer match the repository registrants' GitHub logins".into(),
-        );
-    }
-    Ok(())
-}
-
 pub fn verify(
     main: &Path,
     id: &ProjectId,

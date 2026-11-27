@@ -31,7 +31,6 @@ const USAGE: &str = "usage: registry-bot check <checkout>
        registry-bot verify-release <checkout> <registry-owner/repo> <project> <release.toml> <out>
        registry-bot check-registration <numeric repository ID.toml>
        registry-bot verify-first-release <main checkout> <registry-owner/repo> <project> <release.toml> <out>
-       registry-bot check-first-project <main checkout> <registry-owner/repo> <verified project.toml>
        registry-bot builds --out <file>
        registry-bot fit <checkout> [--builds <file written by builds>]
        registry-bot jars <checkout>
@@ -66,11 +65,6 @@ fn main() -> ExitCode {
                     id.to_str().ok_or("project ID is not UTF-8")?.to_owned(),
                 )?;
                 watch::first::verify(Path::new(checkout), &id, Path::new(row), Path::new(out), gh)
-            }));
-        }
-        [command, checkout, repo, claim] if command == "check-first-project" => {
-            return finished(with_github(repo, |gh| {
-                watch::first::check_claim(Path::new(checkout), Path::new(claim), gh)
             }));
         }
         _ => (),
